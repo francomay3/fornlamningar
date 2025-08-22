@@ -1,9 +1,9 @@
 # Python dependencies for geospatial data processing
-geopandas==0.14.1
-fiona==1.9.5
-shapely==2.0.2
-pyproj==3.6.1
-pandas==2.1.4
-numpy==1.25.2
-matplotlib==3.8.2
-folium==0.15.1
+geopandas>=0.14.1
+fiona>=1.9.5
+shapely>=2.0.2
+pyproj>=3.6.1
+pandas>=2.2.0
+numpy>=1.25.2
+matplotlib>=3.8.2
+folium>=0.15.1

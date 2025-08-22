@@ -82,27 +82,6 @@ def example_statistics():
                 print(f"    Mean: {info['mean']:.2f}")
 
 
-def example_saving_data():
-    """Demonstrate saving modified data."""
-    print("\n=== Saving Data Example ===")
-    
-    gdf, data_handler = example_basic_operations()
-    
-    # Example: create a subset of the data
-    # Take first 100 features as an example
-    subset = gdf.head(100)
-    
-    # Save as a new layer
-    try:
-        data_handler.save_layer(subset, "example_subset")
-        print("Saved subset as new layer 'example_subset'")
-    except Exception as e:
-        print(f"Error saving data: {e}")
-    
-    # You can also save to a different file
-    # subset.to_file("src/data/subset.gpkg", driver='GPKG')
-
-
 def example_visualization():
     """Demonstrate basic visualization."""
     print("\n=== Visualization Example ===")
@@ -141,7 +120,7 @@ def main():
         example_basic_operations()
         example_filtering()
         example_statistics()
-        example_saving_data()
+        # Removed example_saving_data() to prevent database modification
         example_visualization()
         
         print("\n" + "=" * 50)
