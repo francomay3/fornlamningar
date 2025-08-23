@@ -10,7 +10,8 @@ A Python geospatial data processing project for handling fornlamningar (ancient 
 - **Interactive Mapping**: Folium-based interactive web maps
 - **Regional Analysis**: Focused analysis of specific Swedish regions
 - **Comprehensive Documentation**: Detailed geopackage structure documentation
-- **Flexible API**: Easy-to-use `FornlamningarData` class for data operations
+- **API Utilities**: Rate-limited HTTP clients with retry logic and error handling
+- **Flexible Data API**: Easy-to-use `FornlamningarData` class for data operations
 
 ## Setup
 
@@ -29,12 +30,11 @@ A Python geospatial data processing project for handling fornlamningar (ancient 
 
 - `src/` - Source code
   - `geodata.py` - Main geospatial data handling module
+  - `api_utils.py` - Rate-limited API utilities with retry logic
   - `main.py` - Entry point with example usage
   - `example_usage.py` - Comprehensive usage examples
   - `data/` - Geospatial data files
 - `visualize_points.py` - Point data visualization script
-- `create_interactive_map.py` - Interactive web map generation
-- `comprehensive_map.py` - Multi-geometry type visualization
 - `explore_data.py` - Data exploration and analysis script
 - `regional_analysis.py` - Regional archaeological site analysis
 - `tests/` - Test files
@@ -71,8 +71,6 @@ python src/example_usage.py
 
 # Generate visualizations
 python visualize_points.py
-python create_interactive_map.py
-python comprehensive_map.py
 python regional_analysis.py
 python explore_data.py
 ```
@@ -80,10 +78,27 @@ python explore_data.py
 ### Visualization Scripts
 
 - **`visualize_points.py`**: Creates static maps of individual archaeological sites
-- **`create_interactive_map.py`**: Generates interactive HTML maps with site information
-- **`comprehensive_map.py`**: Shows all data types (polygons, lines, points) together
 - **`regional_analysis.py`**: Analyzes and maps archaeological sites in specific regions
 - **`explore_data.py`**: Provides detailed data exploration and quality analysis
+
+### API Utilities
+
+The project includes rate-limited API utilities in `src/api_utils.py`:
+
+```python
+from src.api_utils import APIConfig, RateLimitedAPI
+
+# Configure API client
+config = APIConfig(
+    base_url="https://api.example.com",
+    rate_limit=5,  # requests per second
+    headers={'User-Agent': 'Fornlamningar-API-Client/1.0'}
+)
+
+# Make rate-limited requests
+api = RateLimitedAPI(config)
+response = api.get("/endpoint", params={"param": "value"})
+```
 
 ## Data
 
@@ -98,6 +113,8 @@ The project includes a GeoPackage file (`src/data/fornlamningar_full.gpkg`) cont
 ## Dependencies
 
 - `geopandas` - Geospatial data manipulation
+- `requests`, `aiohttp` - HTTP client libraries
+- `tenacity`, `backoff`, `ratelimit` - Retry and rate limiting utilities
 - `fiona` - Geospatial data I/O
 - `shapely` - Geometric operations
 - `pyproj` - Coordinate system transformations
