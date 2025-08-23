@@ -102,13 +102,79 @@ response = api.get("/endpoint", params={"param": "value"})
 
 ## Data
 
-The project includes a GeoPackage file (`src/data/fornlamningar_full.gpkg`) containing comprehensive Swedish archaeological data with:
+The project includes multiple data formats for Swedish archaeological heritage data:
 
-- **342,879 total features** across 4 layers
-- **Point sites**: 219,639 individual archaeological locations
-- **Protected areas**: 92,939 polygon boundaries
-- **Linear features**: 30,301 linear archaeological structures
-- **Complete documentation**: See `GEOPACKAGE_STRUCTURE.md` for detailed schema
+### Primary Data Sources
+
+- **`src/data/fornlamningar_full.gpkg`** - Complete GeoPackage database
+  - **342,879 total features** across 4 layers
+  - **Point sites**: 219,639 individual archaeological locations
+  - **Protected areas**: 92,939 polygon boundaries  
+  - **Linear features**: 30,301 linear archaeological structures
+  - **File size**: ~183MB
+  - **Complete documentation**: See `GEOPACKAGE_STRUCTURE.md` for detailed schema
+
+### Optimized Data Formats
+
+- **`src/data/fornlamningar_points.gpkg`** - Points-only GeoPackage
+  - **210,312 point features** (deduplicated from full database)
+  - **Simplified schema**: 4 columns vs 8 in full database
+  - **File size**: ~30MB (6.1x smaller than full database)
+  - **Optimized for**: Point-based analysis and visualization
+
+- **`src/data/fornlamningar_points.sqlite`** - Standard SQLite database
+  - **210,312 archaeological sites** with extracted coordinates
+  - **Standard SQLite format**: No special GIS dependencies required
+  - **File size**: 26.7MB
+  - **Perfect for**: Web applications, mobile apps, standard database operations
+  - **Columns**: `inspireid`, `sitename`, `uuid`, `longitude`, `latitude`
+  - **Indexed**: Fast queries on coordinates and identifiers
+
+### Data Pipeline
+
+The project implements a **three-stage data optimization pipeline**:
+
+1. **Full Database** (`fornlamningar_full.gpkg`)
+   - Complete archaeological dataset with all geometry types
+   - 8 columns per feature including metadata and legal documents
+   - Suitable for comprehensive GIS analysis
+
+2. **Points Extraction** (`fornlamningar_points.gpkg`)
+   - **Filtering**: Kept only point features (removed polygons and lines)
+   - **Column Reduction**: Removed redundant columns:
+     - `designationschemevalue` (always "INSPIRE")
+     - `designationvalue` (always "archaeological") 
+     - `protectionclassificationvalue` (always "archaeological")
+     - `protectionclassificationvalue2` (mostly NULL)
+   - **Column Transformation**: 
+     - `legalfoundationdocument` → `uuid` (extracted UUID from URL format)
+   - **Deduplication**: Removed duplicate point features
+   - **Result**: 210,312 unique point sites with essential metadata
+
+3. **SQLite Conversion** (`fornlamningar_points.sqlite`)
+   - **Coordinate Extraction**: Converted geometry BLOB to `longitude`/`latitude` columns
+   - **Standard Format**: Regular SQLite database (no spatial extensions)
+   - **Performance Optimization**: Added indexes for fast queries
+   - **Metadata Preservation**: Included conversion info and spatial bounds
+   - **App-Ready**: Compatible with any SQLite-compatible framework
+
+### Usage Examples
+
+```python
+# Load full GeoPackage for GIS analysis
+from src.geodata import FornlamningarData
+data_handler = FornlamningarData("src/data/fornlamningar_full.gpkg")
+full_data = data_handler.load_data()
+
+# Load points-only for visualization
+points_handler = FornlamningarData("src/data/fornlamningar_points.gpkg")
+points_data = points_handler.load_data()
+
+# Use SQLite for web/mobile apps
+import sqlite3
+conn = sqlite3.connect("src/data/fornlamningar_points.sqlite")
+sites = conn.execute("SELECT * FROM fornlamningar LIMIT 10").fetchall()
+```
 
 ## Dependencies
 

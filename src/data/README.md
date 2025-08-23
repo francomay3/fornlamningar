@@ -17,6 +17,13 @@ This directory contains the geospatial data files for the fornlamningar project.
   - **Contains 1 layer**: `fornlamningar` (210,312 features)
   - **Optimized structure**: Streamlined columns for efficient point-based analysis
 
+- `fornlamningar_points.sqlite` - Standard SQLite database
+  - File size: 26.7MB
+  - Format: SQLite (.sqlite)
+  - Contains archaeological sites with extracted coordinates
+  - **Contains 2 tables**: `fornlamningar` (210,312 features) and `metadata`
+  - **App-ready format**: No GIS dependencies required
+
 ## Database Schema
 
 The `fornlamningar_full.gpkg` file contains **3 main data layers**, each representing different types of archaeological sites with different geometry types:
@@ -89,6 +96,74 @@ The `fornlamningar_points.gpkg` file contains a streamlined version of the point
 - **Statistical Analysis**: Efficient processing of site locations
 - **Web Applications**: Lightweight data for online mapping
 
+## SQLite Database Structure
+
+The `fornlamningar_points.sqlite` file provides a standard SQLite format optimized for application development:
+
+### Table: fornlamningar
+- **Number of Features**: 210,312
+- **File Size**: 26.7MB
+- **Columns**:
+  - `inspireid` (TEXT) - INSPIRE identifier (e.g., "L1966:4638-1")
+  - `sitename` (TEXT) - Site name (mostly NULL)
+  - `uuid` (TEXT) - Unique identifier (e.g., "d6e74db6-6351-4383-8dc6-682e84f16d30")
+  - `longitude` (REAL) - X coordinate in EPSG:3006 (Swedish coordinate system)
+  - `latitude` (REAL) - Y coordinate in EPSG:3006 (Swedish coordinate system)
+
+### Table: metadata
+- **Conversion Information**: Source file, conversion date, coordinate system
+- **Spatial Bounds**: Minimum and maximum coordinates
+- **Data Statistics**: Total feature count and geometry type
+
+### Performance Features:
+- **Indexes**: Fast queries on `inspireid`, `sitename`, and `(longitude, latitude)`
+- **Standard SQLite**: Compatible with any SQLite-compatible framework
+- **No Dependencies**: No special GIS libraries required
+
+### Use Cases:
+- **Web Applications**: Easy integration with web frameworks
+- **Mobile Apps**: Lightweight database for mobile applications
+- **Standard Database Operations**: SQL queries, joins, filtering
+- **Mapping Libraries**: Direct coordinate access for mapping APIs
+
+## Data Pipeline Process
+
+The project implements a **three-stage optimization pipeline** to create application-ready data:
+
+### Stage 1: Full Database (`fornlamningar_full.gpkg`)
+- **Source**: Complete archaeological dataset from Swedish National Heritage Board
+- **Content**: 342,879 features across 4 layers (polygons, lines, points)
+- **Schema**: 8 columns including metadata, legal documents, and spatial data
+- **Purpose**: Comprehensive GIS analysis and research
+
+### Stage 2: Points Extraction (`fornlamningar_points.gpkg`)
+**Filtering Process:**
+- **Geometry Filter**: Kept only point features (removed 123,240 polygon/line features)
+- **Column Analysis**: Identified redundant columns with no informational value:
+  - `designationschemevalue` → Always "INSPIRE" (constant value)
+  - `designationvalue` → Always "archaeological" (constant value)
+  - `protectionclassificationvalue` → Always "archaeological" (constant value)
+  - `protectionclassificationvalue2` → 99.9% NULL values
+  - `legalfoundationdocument` → URLs with UUIDs (replaced by new `uuid` column containing just the UUID)
+- **Column Transformation**: 
+  - `legalfoundationdocument` → `uuid` (extracted UUID from URL format)
+- **Deduplication**: Removed duplicate UUID point features
+- **Result**: 210,312 unique point sites with essential metadata
+
+### Stage 3: SQLite Conversion (`fornlamningar_points.sqlite`)
+**Conversion Process:**
+- **Coordinate Extraction**: Converted geometry BLOB data to separate `longitude`/`latitude` columns
+- **Format Standardization**: Regular SQLite database (no spatial extensions)
+- **Performance Optimization**: Added strategic indexes for common query patterns
+- **Metadata Preservation**: Included conversion tracking and spatial bounds
+- **App Optimization**: Compatible with any SQLite-compatible framework
+
+### Pipeline Benefits:
+- **Size Reduction**: 183MB → 30MB → 26.7MB (85% reduction)
+- **Complexity Reduction**: 8 columns → 4 columns → 5 columns (extracted coordinates)
+- **Accessibility**: GIS format → Standard database format
+- **Performance**: Optimized for application use cases
+
 ## Data Characteristics
 
 - **Total Features**: 342,879 across all three layers (full database)
@@ -116,12 +191,91 @@ layers = data_handler.get_layers()
 gdf = data_handler.load_data()
 ```
 
+### SQLite Database Usage
+
+```python
+import sqlite3
+import pandas as pd
+
+# Connect to SQLite database
+conn = sqlite3.connect("fornlamningar_points.sqlite")
+
+# Basic queries
+total_sites = conn.execute("SELECT COUNT(*) FROM fornlamningar").fetchone()[0]
+named_sites = conn.execute("SELECT COUNT(*) FROM fornlamningar WHERE sitename IS NOT NULL").fetchone()[0]
+
+# Load data into pandas
+df = pd.read_sql_query("SELECT * FROM fornlamningar", conn)
+
+# Spatial queries (using coordinate bounds)
+stockholm_area = conn.execute("""
+    SELECT * FROM fornlamningar 
+    WHERE longitude BETWEEN 300000 AND 400000 
+    AND latitude BETWEEN 6500000 AND 6700000
+""").fetchall()
+
+# Get metadata
+metadata = pd.read_sql_query("SELECT * FROM metadata", conn)
+
+conn.close()
+```
+
+### Web Application Integration
+
+```python
+# Flask example
+from flask import Flask, jsonify
+import sqlite3
+
+app = Flask(__name__)
+
+@app.route('/api/sites')
+def get_sites():
+    conn = sqlite3.connect("fornlamningar_points.sqlite")
+    sites = conn.execute("SELECT * FROM fornlamningar LIMIT 100").fetchall()
+    conn.close()
+    return jsonify(sites)
+
+@app.route('/api/sites/<inspireid>')
+def get_site(inspireid):
+    conn = sqlite3.connect("fornlamningar_points.sqlite")
+    site = conn.execute("SELECT * FROM fornlamningar WHERE inspireid = ?", (inspireid,)).fetchone()
+    conn.close()
+    return jsonify(site)
+```
+
 ## Dependencies
 
 Make sure you have the required dependencies installed:
 ```bash
 pip install -r ../../requirements.txt
 ```
+
+## TODO: Enhanced Metadata Integration
+
+**Planned API Data Enrichment**
+
+The current SQLite database contains only basic spatial coordinates. We plan to enrich it with valuable metadata from the K-samsök API to create a more user-friendly archaeological sites database.
+
+### Target Fields to Add to the sqlite DB: (check the api documentation for details)
+1. **`itemLabel`** - Human-readable name/description of the archaeological site
+2. **`itemType`** - Type of archaeological feature (e.g., "Fornlämning", "Runsten", "Gravfält")
+3. **`itemKeyword`** - Descriptive tags/keywords (e.g., ["Fornlämningar", "Arkeologi", "Järnålder"])
+4. **`thumbnail`** - URL to thumbnail image of the site
+5. **`itemTitle`** - Official title of the site
+6. **`placeName`** - Geographic place names associated with the site
+7. **`dataQuality`** - Data quality indicator for filtering and prioritization
+
+### Benefits:
+- **User Experience**: Sites will have names, descriptions, and images instead of just coordinates
+- **Discovery**: Users can search and filter by type, keywords, and location
+- **Prioritization**: Data quality indicators help identify well-documented, interesting sites
+- **Visual Appeal**: Thumbnail images make the database much more engaging
+
+### Implementation Notes:
+- These fields will be fetched from the K-samsök API using the existing `inspireid` as the lookup key
+- The enrichment process will maintain the current database structure while adding new columns
+- Data quality filtering can help prioritize sites for recommendations and featured content
 
 ## Notes
 
