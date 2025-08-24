@@ -104,17 +104,44 @@ response = api.get("/endpoint", params={"param": "value"})
 
 ### Database Enrichment
 
-The project includes automated database enrichment capabilities using the K-samsök API:
+The project includes comprehensive database enrichment capabilities using the K-samsök API:
 
 ```python
-# Run database enrichment
+# Run enhanced database enrichment
 python enrich_filtered_db.py
 
 # This will:
-# 1. Add new columns to the database for enriched metadata
-# 2. Query the K-samsök API for each archaeological site
-# 3. Extract itemLabel, itemType, itemKeyword, itemTitle, and dataQuality
-# 4. Update the database with the enriched data
+# 1. Query the K-samsök API for each archaeological site using UUID
+# 2. Extract comprehensive descriptions by following entity references
+# 3. Add detailed archaeological metadata including:
+#    - Rich site descriptions with geographic context
+#    - Archaeological specifications and measurements
+#    - Item numbers and classifications
+#    - Organization and data quality information
+# 4. Update the database with enhanced archaeological data
+```
+
+### AI-Powered Description Generation
+
+The project includes AI utilities for processing archaeological descriptions:
+
+```python
+# Generate visitor-friendly descriptions using Ollama
+from src.apiUtils.ollama_utils import generate_site_description
+
+description = generate_site_description(site_description, model="mistral")
+```
+
+### Swedish to English Translation
+
+Comprehensive mapping of Swedish archaeological terms to English:
+
+```python
+from src.raa_class_mapping import RAA_CLASS_MAPPING
+
+# Translate Swedish archaeological classes
+swedish_class = "Stenkammargrav"
+english_class = RAA_CLASS_MAPPING.get(swedish_class)  # "Stone chamber grave"
 ```
 
 ## Data

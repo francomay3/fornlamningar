@@ -35,11 +35,8 @@ This directory contains a filtered version of the archaeological sites database,
   - `uuid` (TEXT) - Unique identifier
   - `longitude` (REAL) - X coordinate in EPSG:3006 (Swedish coordinate system)
   - `latitude` (REAL) - Y coordinate in EPSG:3006 (Swedish coordinate system)
-     - `itemLabel` (TEXT) - Human-readable name/description from K-samsök API
-   - `itemType` (TEXT) - Type of archaeological feature (e.g., "EntityType#monument")
-   - `itemKeyword` (TEXT) - Descriptive tags/keywords (JSON format)
-   - `itemTitle` (TEXT) - Official title of the site
-   - `dataQuality` (TEXT) - Data quality indicator for filtering and prioritization
+  - `itemKeyword` (TEXT) - Descriptive tags/keywords (JSON format)
+  - `itemTitle` (TEXT) - Official title of the site
 
 ### Table: metadata
 - **Filter Information**: Center coordinates, radius, date
@@ -137,8 +134,8 @@ conn.close()
 The database has been enriched with comprehensive metadata from the K-samsök API, providing rich archaeological information for each site.
 
 ### Sample Enriched Data:
-- **Råda sten, Grav markerad av sten/block** (grave marked by stone/block)
-- **Kungagraven, Stenkammargrav** (King's grave, stone chamber grave)
+- **Råda sten** (grave marked by stone/block)
+- **Kungagraven** (King's grave, stone chamber grave)
 - **Stensättning** (stone setting)
 - **Ristning, medeltid/historisk tid** (carving, medieval/historical period)
 - **Röse** (cairn)
@@ -153,7 +150,7 @@ The database has been enriched with comprehensive metadata from the K-samsök AP
        - **API Integration**: Uses K-samsök API with UUID-based lookups for reliable data access
        - **Rate Limiting**: Implements proper API rate limiting and error handling
        - **Fallback Strategy**: Uses both direct site access and documentation relations for maximum coverage
-       - **Data Coverage**: Successfully enriched 100% of sites with core metadata (itemLabel, itemType, itemTitle, dataQuality)
+       - **Data Coverage**: Successfully enriched 100% of sites with core metadata (itemTitle)
        - **Keyword Coverage**: 7.6% of sites have descriptive keywords (114 out of 1,491 sites)
 
 ## Technical Details
