@@ -259,12 +259,10 @@ The current SQLite database contains only basic spatial coordinates. We plan to 
 
 ### Target Fields to Add to the sqlite DB: (check the api documentation for details)
 1. **`itemLabel`** - Human-readable name/description of the archaeological site
-2. **`itemType`** - Type of archaeological feature (e.g., "Fornlämning", "Runsten", "Gravfält")
+2. **`itemType`** - Type of archaeological feature (e.g., "EntityType#monument")
 3. **`itemKeyword`** - Descriptive tags/keywords (e.g., ["Fornlämningar", "Arkeologi", "Järnålder"])
-4. **`thumbnail`** - URL to thumbnail image of the site
-5. **`itemTitle`** - Official title of the site
-6. **`placeName`** - Geographic place names associated with the site
-7. **`dataQuality`** - Data quality indicator for filtering and prioritization
+4. **`itemTitle`** - Official title of the site
+5. **`dataQuality`** - Data quality indicator for filtering and prioritization
 
 ### Benefits:
 - **User Experience**: Sites will have names, descriptions, and images instead of just coordinates

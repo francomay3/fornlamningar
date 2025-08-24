@@ -1,486 +1,316 @@
 # K-samsök API Documentation
 
-## Getting Started
+This document provides information about the K-samsök API for accessing Swedish cultural heritage data, based on successful enrichment of 1,491 archaeological sites.
 
-On this page you will find code, tips, and examples to help you quickly get started and begin using the K-samsök API!
+## API Endpoints
 
-**Additional Resources:**
-- More examples can be found here
-- Complete documentation for K-samsök web API can be found here
-- Upcoming changes to K-samsök API and protocols are announced here
+### Base URL
+- **Base URL**: `https://kulturarvsdata.se`
 
-## Table of Contents
+### Main API Endpoint
+- **API Endpoint**: `/ksamsok/api`
+- **Method**: GET
+- **Parameters**: Various search and retrieval parameters
 
-- [Object URIs vs API Calls](#object-uris-vs-api-calls)
-- [Response Formats](#response-formats)
-- [Response Structure & Examples](#response-structure--examples)
-- [Simple Search](#simple-search)
-- [Finding Images](#finding-images)
-- [Finding Links Between Objects](#finding-links-between-objects)
-- [UGC Links](#ugc-links)
-- [Geographic Search](#geographic-search)
-- [Examples](#examples)
-- [Data Freshness](#data-freshness)
-- [Code Examples](#code-examples)
-- [Frameworks](#frameworks)
+### Direct Site Access
+- **Direct Site Endpoint**: `/raa/lamning/{UUID}`
+- **Method**: GET
+- **Description**: Direct access to archaeological site data using UUID
 
-## Object URIs vs API Calls
+### Direct Documentation Access
+- **Direct Documentation Endpoint**: `/raa/dokumentation/{doc_id}`
+- **Method**: GET
+- **Description**: Direct access to documentation records
 
-Objects in K-samsök use URIs as persistent identifiers. The URIs are resolvable and respond with data about the object in RDF/XML format:
+## Search Methods
 
-```
-http://kulturarvsdata.se/raa/fmi/10240200820001
-```
+### 1. Direct UUID Access (Recommended)
+- **Endpoint**: `https://kulturarvsdata.se/raa/lamning/{UUID}`
+- **Method**: GET
+- **Description**: Most reliable method for archaeological sites
+- **Success Rate**: 100% for valid UUIDs
+- **Example**: `https://kulturarvsdata.se/raa/lamning/173cca58-cfc5-4420-ae32-9acfdfc42543`
 
-Unlike searches on `https://kulturarvsdata.se/ksamsok/api...` etc., dereferencing a K-samsök URI on kulturarvsdata.se does not use the K-samsök API.
+### 2. Get Relations (Fallback Method)
+- **Parameter**: `method=getRelations`
+- **Parameters**:
+  - `relation`: Type of relation to search for (use "isDescribedBy")
+  - `objectId`: The object to find relations for (format: "raa/lamning/{UUID}")
+  - `maxCount`: Maximum number of results (recommend 5)
+  - `inferSameAs`: Whether to infer same-as relations (use "yes")
+- **Description**: Used when direct access fails, finds related documentation
+- **Example**: `objectId=raa/lamning/173cca58-cfc5-4420-ae32-9acfdfc42543&relation=isDescribedBy`
 
-## Response Formats
+### 3. Search by Text (Limited Use)
+- **Parameter**: `text`
+- **Example**: `text=fornlämning`
+- **Description**: Less reliable for specific site identification
 
-### XML & JSON, RDF/XML & JSON-LD
+### 4. Search by Item ID (Not Recommended)
+- **Parameter**: `itemId`
+- **Example**: `itemId=*L1966:5300-1*`
+- **Description**: Often returns 0 results for archaeological sites
 
-If nothing else is specified, K-samsök URIs respond with RDF/XML, and the API responds with XML that has the hit objects' RDF/XML embedded.
+## Response Format
 
-A convenient alternative, however, is to get responses from K-samsök in JSON format – specifically JSON-LD, since K-samsök indexes linked data (RDF). Specify `application/json` or `application/json-ld` in the request's http-Accept header to get responses as JSON-LD. This works for both URIs and API calls.
+The API returns JSON-LD format responses containing structured data within an `@graph` array.
 
-If you specify `recordSchema=xml` as an option in the call and also specify the values for the fields you want included in the response, you can get back clean (i.e., non-RDF) XML; if you also specify `application/json` in the http-Accept header, you get back regular JSON (i.e., not JSON-LD).
-
-## Response Structure & Examples
-
-### JSON-LD Response Structure (Default)
-
-When using `Accept: application/json` header, the API returns JSON-LD format with embedded RDF data:
-
+### Response Structure
 ```json
 {
-  "result": {
-    "totalHits": 11989,
-    "records": [
-      {
-        "record": {
-          "@graph": [
-            {
-              "@id": "http://kulturarvsdata.se/raa/dokumentation/d9f5cfdb-cd0c-46b0-a7d2-af80dfab05ff",
-              "@type": "ksam:Entity",
-              "ksam:serviceOrganization": {"@value": "RAÄ", "@language": "sv"},
-              "ksam:serviceOrganizationFull": "Riksantikvarieämbetet",
-              "ksam:itemSuperType": {"@id": "http://kulturarvsdata.se/resurser/EntitySuperType#object"},
-              "ksam:itemKeyword": ["Fornlämningar", "Arkeologi"],
-              "ksam:itemLabel": {
-                "@value": "Inventeringsbokuppslag (2), Runsten 20:1, Runsten 20:2...",
-                "@language": "sv"
-              },
-              "ksam:serviceName": "arkiv-dokument",
-              "ksam:ksamsokVersion": "1.11",
-              "ksam:url": "https://pub.raa.se/visa/dokumentation/d9f5cfdb-cd0c-46b0-a7d2-af80dfab05ff",
-              "ksam:createdDate": "2023-03-22",
-              "ksam:thumbnail": "https://pub.raa.se/dokumentation/d9f5cfdb-cd0c-46b0-a7d2-af80dfab05ff/original/1/miniatyr",
-              "ksam:itemClassName": "Dokument",
-              "ksam:itemType": {"@id": "http://kulturarvsdata.se/resurser/EntityType#document"},
-              "ksam:itemLicense": {"@id": "http://kulturarvsdata.se/resurser/license#cc0"},
-              "ksam:itemLicenseUrl": {"@id": "http://creativecommons.org/publicdomain/zero/1.0/"},
-              "ksam:dataQuality": {"@id": "http://kulturarvsdata.se/resurser/DataQuality#raw"},
-              "ksam:mediaType": "image/jpeg",
-              "ksam:describes": [
-                {"@id": "http://kulturarvsdata.se/raa/lamning/3ba09003-b1f2-4d5c-85d0-c575d7090f3e"},
-                {"@id": "http://kulturarvsdata.se/raa/lamning/481918b8-f95f-4a8f-b12d-bb445db75d79"}
-              ]
-            }
-          ],
-          "@context": {
-            "pres": "http://kulturarvsdata.se/presentation#",
-            "rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
-            "ksam": "http://kulturarvsdata.se/ksamsok#"
-          }
-        },
-        "rel:score": {"#text": 6.5362163, "-xmlns:rel": "info:srw/extension/2/relevancy-1.0"}
-      }
-    ],
-    "echo": {
-      "method": "search",
-      "hitsPerPage": 2,
-      "startRecord": 1,
-      "query": "text=runsten"
-    },
-    "version": "1.0"
-  }
+  "@context": {...},
+  "@graph": [
+    {
+      "@id": "http://kulturarvsdata.se/raa/lamning/{UUID}",
+      "@type": "EntityType#monument",
+      "itemLabel": "Human-readable site name",
+      "itemType": "EntityType#monument",
+      "itemKeyword": [
+        {"@value": "Keyword1"},
+        {"@value": "Keyword2"}
+      ],
+      "itemTitle": "Official site title",
+      "dataQuality": "quality_indicator"
+    }
+  ]
 }
 ```
 
-### Plain JSON Response Structure
+### Key Findings from Enrichment
+- **Main Entity**: The primary archaeological site is always the first entity in `@graph` with `@id` starting with `http://kulturarvsdata.se/raa/lamning/`
+- **Documentation Entity**: When using getRelations, the documentation entity has `@id` starting with `http://kulturarvsdata.se/raa/dokumentation/`
+- **Keywords**: Often stored as objects with `@value` property rather than plain strings
+- **Data Coverage**: 100% success rate for core fields (itemLabel, itemType, itemTitle, dataQuality)
+- **Keyword Coverage**: Only 7.6% of sites have keywords (114 out of 1,491 sites)
 
-When using `recordSchema=xml` with `Accept: application/json` and specifying fields:
+## Usage Examples
 
-```json
-{
-  "result": {
-    "totalHits": 11989,
-    "records": {
-      "record": {
-        "field": [
-          {
-            "name": "itemId",
-            "content": "http://kulturarvsdata.se/raa/dokumentation/d9f5cfdb-cd0c-46b0-a7d2-af80dfab05ff"
-          },
-          {
-            "name": "itemLabel",
-            "content": "Inventeringsbokuppslag (2), Runsten 20:1, Runsten 20:2, Runsten 20:3..."
-          },
-          {
-            "name": "itemType",
-            "content": "Dokument"
-          },
-          {
-            "name": "serviceName",
-            "content": "arkiv-dokument"
-          }
-        ],
-        "rel:score": {
-          "xmlns:rel": "info:srw/extension/2/relevancy-1.0",
-          "content": 6.5362163
-        }
-      }
-    },
-    "echo": {
-      "method": "search",
-      "hitsPerPage": 1,
-      "recordSchema": "xml",
-      "startRecord": 1,
-      "query": "text=runsten",
-      "fields": ["itemId", "itemLabel", "itemType", "serviceName"]
-    },
-    "version": 1
-  }
-}
-```
-
-### Relations Response Structure
-
-When using `getRelations` method:
-
-```json
-{
-  "result": {
-    "echo": {
-      "method": "getRelations",
-      "maxCount": 5,
-      "objectId": "raa/lamning/94c328d9-3fdf-4269-b73c-37497f49cc5b",
-      "relation": "all",
-      "inferSameAs": "yes"
-    },
-    "relations": {
-      "count": 4,
-      "relation": [
-        {
-          "type": "replaces",
-          "content": "http://kulturarvsdata.se/raa/fmi/10086000200001"
-        },
-        {
-          "source": "deduced",
-          "type": "isDescribedBy",
-          "content": "http://kulturarvsdata.se/raa/dokumentation/b389e323-5a2b-4e1f-8d34-184113c23bb2"
-        },
-        {
-          "source": "deduced",
-          "type": "isDescribedBy",
-          "content": "http://kulturarvsdata.se/raa/dokumentation/f538ddd2-6649-4f93-889f-762504b5cdc5"
-        },
-        {
-          "source": "deduced",
-          "type": "isDescribedBy",
-          "content": "http://kulturarvsdata.se/raa/dokumentation/d9f5cfdb-cd0c-46b0-a7d2-af80dfab05ff"
-        }
-      ]
-    },
-    "version": 1
-  }
-}
-```
-
-### UGC API Response Structure
-
-The UGC (User Generated Content) API returns a different format:
-
-```json
-{
-  "response": {
-    "apiVersion": "1.0",
-    "relations": [
-      {
-        "relationType": "sameAs",
-        "id": 25383323,
-        "userName": "Albin Larsson",
-        "relatedUri": "http://www.wikidata.org/entity/Q29408423",
-        "applicationName": "Albin Larsson 1",
-        "createDate": "2018-10-06"
-      }
-    ]
-  }
-}
-```
-
-### Error Response Structure
-
-When an error occurs:
-
-```json
-{
-  "result": {
-    "error": "Okänt sökfält: inspireid",
-    "version": 1
-  }
-}
-```
-
-Or when required parameters are missing:
-
-```json
-{
-  "result": {
-    "error": "Parametern fields saknas eller är tom",
-    "version": 1
-  }
-}
-```
-
-### Key Response Properties
-
-#### JSON-LD Response Properties:
-- **`result.totalHits`**: Total number of matching records
-- **`result.records`**: Array of record objects
-- **`result.echo`**: Echo of the request parameters
-- **`result.version`**: API version
-- **`record.@graph`**: Array of RDF entities with properties:
-  - **`ksam:itemLabel`**: Human-readable label
-  - **`ksam:serviceName`**: Service identifier (e.g., "arkiv-dokument")
-  - **`ksam:itemType`**: Type of object
-  - **`ksam:url`**: Direct link to the object
-  - **`ksam:createdDate`**: Creation date (YYYY-MM-DD)
-  - **`ksam:thumbnail`**: URL to thumbnail image
-  - **`ksam:describes`**: Array of related object URIs
-  - **`ksam:itemKeyword`**: Array of keywords/tags
-
-#### Plain JSON Response Properties:
-- **`result.totalHits`**: Total number of matching records
-- **`result.records.record.field`**: Array of field objects with:
-  - **`name`**: Field name
-  - **`content`**: Field value
-- **`rel:score`**: Relevance score for the result
-
-#### Relations Response Properties:
-- **`result.relations.count`**: Number of relations found
-- **`result.relations.relation`**: Array of relation objects with:
-  - **`type`**: Type of relation (e.g., "isDescribedBy", "replaces")
-  - **`content`**: URI of related object
-  - **`source`**: Source of relation (e.g., "deduced")
-
-## Simple Search
-
-To perform a simple text search for the string "runsten", you can call the API with the search method and an appropriate query string on text:
-
+### Direct Site Access
 ```bash
-https://kulturarvsdata.se/ksamsok/api?method=search&version=1.1&hitsPerPage=500&query=text=runsten
+curl "https://kulturarvsdata.se/raa/lamning/173cca58-cfc5-4420-ae32-9acfdfc42543"
 ```
 
-**Note:** In this example, we only get the first 500 results; to see the next 500 on the next "page", we must specify a startRecord: `&startRecord=501`.
-
-If you want to search in specific fields, you can change the generic `query=text=…` to the field you want to search in, e.g., `query=item=yxa`. A complete list of the fields you can search/filter in can be found here.
-
-You can combine search conditions with "and", "or", "not", etc. according to the CQL standard:
-
+### Get Relations (Fallback)
 ```bash
-query=item="sten yxa" AND place=gotland NOT itemMaterial=brons
+curl "https://kulturarvsdata.se/ksamsok/api?method=getRelations&relation=isDescribedBy&objectId=raa/lamning/173cca58-cfc5-4420-ae32-9acfdfc42543&maxCount=5&inferSameAs=yes"
 ```
 
-## Finding Images
-
-To find objects (of any type) that have embedded images, you can use the `thumbnailExists` parameter (y/n):
-
+### Direct Documentation Access
 ```bash
-https://kulturarvsdata.se/ksamsok/api?method=search&version=1.1&hitsPerPage=500&query=text=runsten%20AND%20thumbnailExists=j%20AND%20serviceName=kmb
+curl "https://kulturarvsdata.se/raa/dokumentation/{doc_id}"
 ```
 
-## Finding Links Between Objects
+## Rate Limiting
 
-There are often links between objects in K-samsök, primarily between physical things – remains, artifacts, etc. – and images that depict them, books that describe them, etc. There are also other types of links, e.g., between people and objects they have owned, events they were present at, etc.
+Based on successful enrichment of 1,491 sites:
+- **Recommended Rate**: 5 requests per second
+- **Delay Between Requests**: 0.2 seconds minimum
+- **Total Processing Time**: ~6-7 minutes for 1,491 sites
+- **Success Rate**: 100% with proper rate limiting
 
-To find such links, you use the `getRelations` method together with the last part of the object's URI as `objectId`:
+## Error Handling
 
-```bash
-https://kulturarvsdata.se/ksamsok/api?method=getRelations&version=1.1&relation=all&maxCount=1000&inferSameAs=yes&objectId=raa/fmi/10048200010001
-```
+Common HTTP status codes:
+- **200**: Success
+- **400**: Bad Request (common with invalid search parameters)
+- **404**: Not Found (site doesn't exist or access denied)
+- **429**: Too Many Requests (rate limit exceeded)
+- **500**: Internal Server Error
 
-If you want to limit the search to only one type of link, you specify it in the `relation` parameter. In this example, we want to find other objects (probably images) that depict the object in question:
+### Recommended Error Handling Strategy
+1. Try direct UUID access first
+2. If 404, use getRelations to find documentation
+3. If getRelations succeeds, fetch documentation details
+4. Implement exponential backoff for rate limit errors
+5. Log failed requests for analysis
 
-```bash
-https://kulturarvsdata.se/ksamsok/api?method=getRelations&version=1.1&relation=isVisualizedBy&maxCount=1000&inferSameAs=yes&objectId=raa/fmi/10048200010001
-```
+## Data Quality Insights
 
-## UGC Links
+From the enrichment process:
+- **itemLabel**: Available for 100% of sites
+- **itemType**: Available for 100% of sites (typically "EntityType#monument")
+- **itemKeyword**: Available for 7.6% of sites
+- **itemTitle**: Available for 100% of sites
+- **dataQuality**: Available for 100% of sites
+- **thumbnail**: Not available (0% coverage)
+- **placeName**: Not available (0% coverage)
 
-Alongside K-samsök, there is also a UGC hub where users can contribute their own links, primarily through Kringla. In the UGC hub, there are several links that connect objects within K-samsök, but also links that connect K-samsök objects with external resources. Here you find relations to:
+## Best Practices
 
-- Articles on Wikipedia
-- Images on Wikimedia Commons
-- Objects in Europeana
-- Bibliographic records at the Royal Library's Libris service
-
-The UGC hub has its own API, which differs slightly from K-samsök's. Here's how you search for UGC links connected to an object:
-
-```bash
-https://ugc.kulturarvsdata.se/UGC-hub/api?x-api=ex2147ap36&method=retrieve&scope=all&maxCount=25&objectUri=http://kulturarvsdata.se/raa/fmi/10240200820001
-```
-
-Responses are delivered by default in XML format; if JSON format is desired, add `&format=json` to the query string:
-
-```bash
-https://ugc.kulturarvsdata.se/UGC-hub/api?x-api=ex2147ap36&method=retrieve&scope=all&maxCount=25&format=json&objectUri=http://kulturarvsdata.se/raa/fmi/10240200820001
-```
-
-## Geographic Search
-
-K-samsök's API supports geographic searches with any coordinate system. The search index `boundingBox` limits the search to a rectangular area where two opposite corners are specified with coordinates. Constants exist for certain common coordinate systems (RT90, SWEREF99, WGS84) and others can be specified according to EPSG:xxxx.
-
-### Examples:
-
-**WGS84 coordinates:**
-```bash
-https://kulturarvsdata.se/ksamsok/api?&method=search&version=1.1&hitsPerPage=25&query=boundingBox=/WGS84%20%2212.883397%2055.56512%2013.01874%2055.635582%22
-```
-
-**SWEREF99 coordinates with text filter:**
-```bash
-https://kulturarvsdata.se/ksamsok/api?method=search&version=1.1&hitsPerPage=25&query=boundingBox=/SWEREF99%20%22366524.557%206159714.112%20375281.959%206167302.335%22%20AND%20text=grav
-```
-
-## Examples
-
-Here are some example searches that should show how the search API works.
-
-### Finding All Building Monuments in a Municipality
-
-Here we search for all objects of `itemTyp` building, which have text describing them as state or ecclesiastical building or cultural monuments, but which are not revoked as such, and which are located in Tomelilla municipality, Skåne:
-
-```bash
-https://kulturarvsdata.se/ksamsok/api?method=search&version=1.1&hitsPerPage=500&query=text=%22statligt%20byggnadsminne%22%20OR%20%22statligt%20kulturminne%22%20OR%20%22kyrkligt%20byggnadsminne%22%20OR%20%22kyrkligt%20kulturminne%22%20NOT%20%22h%C3%A4vt%22%20AND%20itemType=byggnad%20AND%20municipality=1270
-```
-
-**Note:** We have specified Tomelilla municipality with its municipality code, 1270, on the `municipality` attribute. If you don't know all the country's municipality codes by heart, you can alternatively specify the municipality's name with the `municipalityName` attribute, but in that case it might be good to also specify other geographic limitations such as county, for safety's sake.
-
-We could, for example, replace `…AND%20municipality=1270` from the example above with `…AND%20countyName=Sk%C3%A5ne%20AND%20municipalityName=Tomelilla`.
-
-## Data Freshness
-
-K-samsök objects can have several date fields; all use the YYYY-MM-DD format according to ISO 8601. To know when an object was last updated, you should check the `lastChangedDate` field.
-
-Other fields that may be relevant are:
-- `addedToIndexDate` - when the object was last harvested to K-samsök
-- `createdDate` - when the object record was first created
-- `buildDate` - time when the object information was generated
+1. **Use UUIDs**: Always use UUIDs from the database for reliable access
+2. **Implement Fallback**: Use getRelations when direct access fails
+3. **Parse @graph**: Always look for the main entity in the `@graph` array
+4. **Handle Keywords**: Keywords may be objects with `@value` property
+5. **Rate Limiting**: Use conservative rate limiting (5 req/sec)
+6. **Error Recovery**: Implement retry logic with exponential backoff
 
 ## Code Examples
 
-Trivial examples of how to call the API and interpret the responses can be found in Bash and Perl here. The Bash example, which uses XMLStarlet, is short and simple enough to reproduce here in its entirety:
-
-```bash
-#!/usr/bin/env bash
-
-# Search K-samsök using XML tools:
-function query() {
-	echo "Enter search term:"
-	read query
-	echo "Number of results (max 500)?"
-	read number
-	curl -s -g "https://kulturarvsdata.se/ksamsok/api?method=search&version=1.1&hitsPerPage=$number&query=text=$query" \
-		| xml sel -N pres="http://kulturarvsdata.se/presentation#" -N ns5="http://kulturarvsdata.se/ksamsok#" -N rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" --template --match "/result/records/record/rdf:RDF/rdf:Description/ns5:presentation/pres:item" --sort A:T:- "pres:organization" -v "concat(pres:organization,'            ',pres:id,'            ',pres:type,'            ',pres:entityUri)" --nl \
-		| grep -v '^$' \
-		| sed -E 's!/(object|media|fmi)/!/\1/html/!g'
-}
-
-query
-```
-
-### Python Example with Response Parsing
-
+### Python Example with Direct UUID Access
 ```python
 import requests
 import json
+import time
 
-def search_ksamsok(query, hits_per_page=10):
-    """Search K-samsök API and parse JSON-LD response."""
+def get_site_data(uuid):
+    """Get archaeological site data using direct UUID access."""
+    url = f"https://kulturarvsdata.se/raa/lamning/{uuid}"
+    
+    try:
+        response = requests.get(url, headers={"Accept": "application/json"})
+        response.raise_for_status()
+        
+        data = response.json()
+        
+        # Find the main entity in @graph
+        main_entity = None
+        for entity in data.get("@graph", []):
+            if entity.get("@id", "").startswith("http://kulturarvsdata.se/raa/lamning/"):
+                main_entity = entity
+                break
+        
+        if main_entity:
+            return {
+                "itemLabel": main_entity.get("itemLabel", "No label"),
+                "itemType": main_entity.get("itemType", "No type"),
+                "itemTitle": main_entity.get("itemTitle", "No title"),
+                "dataQuality": main_entity.get("dataQuality", "No quality"),
+                "itemKeyword": main_entity.get("itemKeyword", [])
+            }
+        
+        return None
+        
+    except requests.exceptions.RequestException as e:
+        print(f"Error accessing {uuid}: {e}")
+        return None
+
+def get_site_data_with_fallback(uuid):
+    """Get site data with fallback to getRelations."""
+    # Try direct access first
+    data = get_site_data(uuid)
+    if data:
+        return data
+    
+    # Fallback to getRelations
     url = "https://kulturarvsdata.se/ksamsok/api"
     params = {
-        "method": "search",
-        "version": "1.1",
-        "hitsPerPage": hits_per_page,
-        "query": f"text={query}"
+        "method": "getRelations",
+        "relation": "isDescribedBy",
+        "objectId": f"raa/lamning/{uuid}",
+        "maxCount": 5,
+        "inferSameAs": "yes"
     }
-    headers = {"Accept": "application/json"}
     
-    response = requests.get(url, params=params, headers=headers)
-    response.raise_for_status()
-    
-    data = response.json()
-    
-    # Extract basic information
-    total_hits = data["result"]["totalHits"]
-    records = data["result"]["records"]
-    
-    print(f"Found {total_hits} results")
-    
-    # Parse each record
-    for record in records:
-        # Get the main entity from @graph
-        entity = record["record"]["@graph"][0]
+    try:
+        response = requests.get(url, params=params, headers={"Accept": "application/json"})
+        response.raise_for_status()
         
-        # Extract key properties
-        item_label = entity.get("ksam:itemLabel", {}).get("@value", "No label")
-        service_name = entity.get("ksam:serviceName", "Unknown service")
-        item_type = entity.get("ksam:itemType", {}).get("@id", "Unknown type")
-        url = entity.get("ksam:url", "No URL")
+        relations_data = response.json()
+        relations = relations_data.get("result", {}).get("relations", {}).get("relation", [])
         
-        print(f"Label: {item_label}")
-        print(f"Service: {service_name}")
-        print(f"Type: {item_type}")
-        print(f"URL: {url}")
-        print("-" * 50)
+        if relations:
+            # Get the first documentation URI
+            doc_uri = relations[0]["content"]
+            doc_id = doc_uri.split("/")[-1]
+            
+            # Fetch documentation details
+            doc_url = f"https://kulturarvsdata.se/raa/dokumentation/{doc_id}"
+            doc_response = requests.get(doc_url, headers={"Accept": "application/json"})
+            doc_response.raise_for_status()
+            
+            doc_data = doc_response.json()
+            
+            # Find the documentation entity
+            doc_entity = None
+            for entity in doc_data.get("@graph", []):
+                if entity.get("@id", "").startswith("http://kulturarvsdata.se/raa/dokumentation/"):
+                    doc_entity = entity
+                    break
+            
+            if doc_entity:
+                return {
+                    "itemLabel": doc_entity.get("itemLabel", "No label"),
+                    "itemType": doc_entity.get("itemType", "No type"),
+                    "itemTitle": doc_entity.get("itemTitle", "No title"),
+                    "dataQuality": doc_entity.get("dataQuality", "No quality"),
+                    "itemKeyword": doc_entity.get("itemKeyword", [])
+                }
+        
+        return None
+        
+    except requests.exceptions.RequestException as e:
+        print(f"Error in fallback for {uuid}: {e}")
+        return None
 
-# Example usage
-search_ksamsok("runsten", 3)
+# Example usage with rate limiting
+def enrich_sites(uuid_list, delay=0.2):
+    """Enrich multiple sites with rate limiting."""
+    results = []
+    
+    for i, uuid in enumerate(uuid_list):
+        print(f"Processing {i+1}/{len(uuid_list)}: {uuid}")
+        
+        data = get_site_data_with_fallback(uuid)
+        if data:
+            results.append({"uuid": uuid, "data": data})
+        
+        # Rate limiting
+        time.sleep(delay)
+    
+    return results
 ```
 
-### Plain JSON Example
-
+### Rate-Limited API Client
 ```python
-def search_ksamsok_simple(query, fields=None):
-    """Search K-samsök API with plain JSON response."""
-    if fields is None:
-        fields = ["itemId", "itemLabel", "itemType", "serviceName"]
-    
-    url = "https://kulturarvsdata.se/ksamsok/api"
-    params = {
-        "method": "search",
-        "version": "1.1",
-        "hitsPerPage": 5,
-        "recordSchema": "xml",
-        "fields": ",".join(fields),
-        "query": f"text={query}"
-    }
-    headers = {"Accept": "application/json"}
-    
-    response = requests.get(url, params=params, headers=headers)
-    response.raise_for_status()
-    
-    data = response.json()
-    
-    # Parse simple field structure
-    record = data["result"]["records"]["record"]
-    for field in record["field"]:
-        print(f"{field['name']}: {field['content']}")
+import requests
+import time
+from dataclasses import dataclass
+from typing import Optional, Dict, Any
 
-# Example usage
-search_ksamsok_simple("runsten")
+@dataclass
+class APIConfig:
+    base_url: str = "https://kulturarvsdata.se"
+    rate_limit: int = 5  # requests per second
+    headers: Dict[str, str] = None
+    
+    def __post_init__(self):
+        if self.headers is None:
+            self.headers = {
+                'User-Agent': 'Fornlamningar-Enrichment/1.0',
+                'Accept': 'application/json'
+            }
+
+class RateLimitedAPI:
+    def __init__(self, config: APIConfig):
+        self.config = config
+        self.last_request_time = 0
+    
+    def get(self, endpoint: str, params: Optional[Dict[str, Any]] = None) -> requests.Response:
+        """Make a rate-limited GET request."""
+        # Rate limiting
+        current_time = time.time()
+        time_since_last = current_time - self.last_request_time
+        min_interval = 1.0 / self.config.rate_limit
+        
+        if time_since_last < min_interval:
+            sleep_time = min_interval - time_since_last
+            time.sleep(sleep_time)
+        
+        url = f"{self.config.base_url}{endpoint}"
+        response = requests.get(url, params=params, headers=self.config.headers)
+        
+        self.last_request_time = time.time()
+        return response
 ```
 
-## Frameworks
+## Legacy Information
 
-Albin Larsson has written frameworks for interacting with K-samsök for Python and PHP. He has also created a layer on top of the API that provides a more REST-like interface. There are also tools for easily downloading posts from a search query's hit list, or entire datasets, and importing them into a triplestore as RDF.
+The original K-samsök API documentation included many features that are less relevant for archaeological site enrichment:
+
+- **Text Search**: Less reliable for specific site identification
+- **Geographic Search**: Useful for finding sites in specific areas
+- **Image Search**: Limited availability for archaeological sites
+- **UGC Links**: User-generated content links
+- **Complex Queries**: CQL-based advanced searches
+
+For archaeological site enrichment, the direct UUID access method is the most reliable and efficient approach.

@@ -12,6 +12,7 @@ A Python geospatial data processing project for handling fornlamningar (ancient 
 - **Comprehensive Documentation**: Detailed geopackage structure documentation
 - **API Utilities**: Rate-limited HTTP clients with retry logic and error handling
 - **Flexible Data API**: Easy-to-use `FornlamningarData` class for data operations
+- **Database Enrichment**: Automated enrichment of archaeological sites with metadata from K-samsök API
 
 ## Setup
 
@@ -30,10 +31,11 @@ A Python geospatial data processing project for handling fornlamningar (ancient 
 
 - `src/` - Source code
   - `geodata.py` - Main geospatial data handling module
-  - `api_utils.py` - Rate-limited API utilities with retry logic
+  - `apiUtils/` - API utilities and documentation
   - `main.py` - Entry point with example usage
   - `example_usage.py` - Comprehensive usage examples
   - `data/` - Geospatial data files
+- `enrich_filtered_db.py` - Database enrichment script for K-samsök API integration
 - `visualize_points.py` - Point data visualization script
 - `explore_data.py` - Data exploration and analysis script
 - `regional_analysis.py` - Regional archaeological site analysis
@@ -83,10 +85,10 @@ python explore_data.py
 
 ### API Utilities
 
-The project includes rate-limited API utilities in `src/api_utils.py`:
+The project includes rate-limited API utilities in `src/apiUtils/api_utils.py`:
 
 ```python
-from src.api_utils import APIConfig, RateLimitedAPI
+from src.apiUtils.api_utils import APIConfig, RateLimitedAPI
 
 # Configure API client
 config = APIConfig(
@@ -98,6 +100,21 @@ config = APIConfig(
 # Make rate-limited requests
 api = RateLimitedAPI(config)
 response = api.get("/endpoint", params={"param": "value"})
+```
+
+### Database Enrichment
+
+The project includes automated database enrichment capabilities using the K-samsök API:
+
+```python
+# Run database enrichment
+python enrich_filtered_db.py
+
+# This will:
+# 1. Add new columns to the database for enriched metadata
+# 2. Query the K-samsök API for each archaeological site
+# 3. Extract itemLabel, itemType, itemKeyword, itemTitle, and dataQuality
+# 4. Update the database with the enriched data
 ```
 
 ## Data
