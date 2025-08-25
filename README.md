@@ -22,9 +22,14 @@ A Python geospatial data processing project for handling fornlamningar (ancient 
    source venv/bin/activate  # On Windows: venv\Scripts\activate
    ```
 
-2. Install dependencies:
+2. Install Python dependencies:
    ```bash
    pip install -r requirements.txt
+   ```
+
+3. Install Node.js dependencies (for TypeScript database utilities):
+   ```bash
+   npm install
    ```
 
 ## Project Structure
@@ -35,6 +40,9 @@ A Python geospatial data processing project for handling fornlamningar (ancient 
   - `main.py` - Entry point with example usage
   - `example_usage.py` - Comprehensive usage examples
   - `data/` - Geospatial data files
+  - `js/` - TypeScript database utilities
+    - `db/` - Database connection and schema definitions
+    - `db_columns.ts` - Database analysis and query examples
 - `enrich_filtered_db.py` - Database enrichment script for K-samsök API integration
 - `visualize_points.py` - Point data visualization script
 - `explore_data.py` - Data exploration and analysis script
@@ -83,6 +91,21 @@ python explore_data.py
 - **`regional_analysis.py`**: Analyzes and maps archaeological sites in specific regions
 - **`explore_data.py`**: Provides detailed data exploration and quality analysis
 
+### TypeScript Database Utilities
+
+The project includes TypeScript utilities for database operations using Drizzle ORM:
+
+```bash
+# Build TypeScript files
+npm run build
+
+# Run database analysis
+npm run analyze
+
+# Development mode with watch
+npm run dev
+```
+
 ### API Utilities
 
 The project includes rate-limited API utilities in `src/apiUtils/api_utils.py`:
@@ -129,7 +152,7 @@ The project includes AI utilities for processing archaeological descriptions:
 # Generate visitor-friendly descriptions using Ollama
 from src.apiUtils.ollama_utils import generate_site_description
 
-description = generate_site_description(site_description, model="mistral")
+description = generate_site_description(site_description, model="phi3")
 ```
 
 ### Swedish to English Translation

@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 class OllamaConfig:
     """Configuration for Ollama API requests."""
     base_url: str = "http://localhost:11434"
-    model: str = "mistral"
+    model: str = "phi3"
     format: str = ""
     stream: bool = False
     timeout: int = 30
@@ -113,7 +113,7 @@ Write a brief, engaging description (1-3 sentences) of this archaeological site 
 
 # Convenience function for quick usage
 def generate_site_description(site_description: str, 
-                            model: str = "mistral",
+                            model: str = "phi3",
                             base_url: str = "http://localhost:11434",
                             custom_instruction: Optional[str] = None) -> str:
     """

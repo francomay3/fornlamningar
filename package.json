@@ -1,0 +1,39 @@
+{
+  "name": "fornlamningar",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "A Python geospatial data processing project for handling fornlamningar (ancient remains) data stored in GeoPackage format.",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs",
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "start": "node dist/js/db_columns.js",
+    "analyze": "tsc && node dist/js/db_columns.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/francomay3/fornlamningar.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/francomay3/fornlamningar/issues"
+  },
+  "homepage": "https://github.com/francomay3/fornlamningar#readme",
+  "dependencies": {
+    "better-sqlite3": "^12.2.0",
+    "drizzle-orm": "^0.44.4",
+    "sqlite3": "^5.1.7"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^24.3.0",
+    "typescript": "^5.9.2"
+  }
+}
