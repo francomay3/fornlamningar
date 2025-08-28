@@ -13,6 +13,9 @@ A Python geospatial data processing project for handling fornlamningar (ancient 
 - **API Utilities**: Rate-limited HTTP clients with retry logic and error handling
 - **Flexible Data API**: Easy-to-use `FornlamningarData` class for data operations
 - **Database Enrichment**: Automated enrichment of archaeological sites with metadata from K-samsök API
+- **AI-Powered Description Generation**: Automated generation of visitor-friendly descriptions using Ollama
+- **Database Filtering & Analysis**: Tools for filtering and analyzing archaeological data with statistical insights
+- **Enhanced Database Schema**: Extended database with parsed archaeological fields and metadata
 
 ## Setup
 
@@ -44,6 +47,8 @@ A Python geospatial data processing project for handling fornlamningar (ancient 
     - `db/` - Database connection and schema definitions
     - `db_columns.ts` - Database analysis and query examples
 - `enrich_filtered_db.py` - Database enrichment script for K-samsök API integration
+- `filter_generated_descriptions.py` - Script to filter database entries with generated descriptions
+- `verify_filtered_db.py` - Verification script for filtered database contents
 - `visualize_points.py` - Point data visualization script
 - `explore_data.py` - Data exploration and analysis script
 - `regional_analysis.py` - Regional archaeological site analysis
@@ -155,6 +160,30 @@ from src.apiUtils.ollama_utils import generate_site_description
 description = generate_site_description(site_description, model="phi3")
 ```
 
+### Database Filtering and Analysis
+
+The project includes tools for filtering and analyzing archaeological data:
+
+```bash
+# Filter database to only include entries with generated descriptions
+python filter_generated_descriptions.py
+
+# Verify filtered database contents
+python verify_filtered_db.py
+```
+
+The filtering process creates a new database (`fornlamningar_with_descriptions.sqlite`) containing only entries that have AI-generated descriptions, making it easier to work with enriched data.
+
+### Enhanced Database Schema
+
+The database schema has been extended with parsed archaeological fields:
+
+- **Parsed Fields**: `class`, `damage_status`, `location`, `investigation_status`, `province`, etc.
+- **Metadata**: `build_date`, `last_changed`, `organization`, `raa_number`
+- **Descriptive Fields**: `vegetation`, `terrain`, `orientation`, `title`
+
+These fields are automatically extracted from the original description text and stored as separate columns for easier querying and analysis.
+
 ### Swedish to English Translation
 
 Comprehensive mapping of Swedish archaeological terms to English:
@@ -196,6 +225,18 @@ The project includes multiple data formats for Swedish archaeological heritage d
   - **Perfect for**: Web applications, mobile apps, standard database operations
   - **Columns**: `inspireid`, `sitename`, `uuid`, `longitude`, `latitude`
   - **Indexed**: Fast queries on coordinates and identifiers
+
+- **`src/data/fornlamningar_filtered_20km.sqlite`** - Filtered database with AI-generated descriptions
+  - **1,491 archaeological sites** within 20km radius with enhanced metadata
+  - **AI-generated descriptions**: Visitor-friendly English descriptions
+  - **Extended schema**: 25+ columns including parsed archaeological fields
+  - **File size**: ~5.3MB
+  - **Perfect for**: Tourism applications, educational content, visitor information
+
+- **`src/data/fornlamningar_with_descriptions.sqlite`** - Filtered subset with descriptions only
+  - **Subset of filtered database** containing only entries with generated descriptions
+  - **File size**: ~0.5MB
+  - **Perfect for**: Applications requiring guaranteed description availability
 
 ### Data Pipeline
 

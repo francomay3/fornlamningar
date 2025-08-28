@@ -1,0 +1,337 @@
+{
+  "timestamp": "2025-08-25T11:30:27.147Z",
+  "database": "fornlamningar_filtered_20km.sqlite",
+  "totalRecords": 1491,
+  "columns": [
+    {
+      "column": "class",
+      "totalRecords": 1491,
+      "nonNullRecords": 1491,
+      "uniqueValues": 45,
+      "values": [
+        {
+          "value": "Stone setting",
+          "count": 624,
+          "percentage": 41.85
+        },
+        {
+          "value": "Cairn",
+          "count": 273,
+          "percentage": 18.31
+        },
+        {
+          "value": "Hut foundation",
+          "count": 232,
+          "percentage": 15.56
+        },
+        {
+          "value": "Burial mound",
+          "count": 72,
+          "percentage": 4.83
+        },
+        {
+          "value": "Charcoal production site",
+          "count": 49,
+          "percentage": 3.29
+        },
+        {
+          "value": "Rock carving / petroglyph",
+          "count": 45,
+          "percentage": 3.02
+        },
+        {
+          "value": "Stone-marked grave",
+          "count": 32,
+          "percentage": 2.15
+        },
+        {
+          "value": "Stone circle / stone row",
+          "count": 22,
+          "percentage": 1.48
+        },
+        {
+          "value": "Road marker",
+          "count": 21,
+          "percentage": 1.41
+        },
+        {
+          "value": "Stone chamber grave",
+          "count": 15,
+          "percentage": 1.01
+        },
+        {
+          "value": "Settlement site",
+          "count": 13,
+          "percentage": 0.87
+        },
+        {
+          "value": "Offering cairn",
+          "count": 12,
+          "percentage": 0.8
+        },
+        {
+          "value": "Mill",
+          "count": 12,
+          "percentage": 0.8
+        },
+        {
+          "value": "Pitfall trap",
+          "count": 8,
+          "percentage": 0.54
+        },
+        {
+          "value": "Stone labyrinth",
+          "count": 6,
+          "percentage": 0.4
+        },
+        {
+          "value": "Boundary marker",
+          "count": 6,
+          "percentage": 0.4
+        },
+        {
+          "value": "Shipwreck / boat remains",
+          "count": 4,
+          "percentage": 0.27
+        },
+        {
+          "value": "Hearth / fire pit",
+          "count": 4,
+          "percentage": 0.27
+        },
+        {
+          "value": "Bridge",
+          "count": 4,
+          "percentage": 0.27
+        },
+        {
+          "value": "Sacred spring / traditional well",
+          "count": 3,
+          "percentage": 0.2
+        },
+        {
+          "value": "House foundation, historical period",
+          "count": 3,
+          "percentage": 0.2
+        },
+        {
+          "value": "Apartment settlement remains",
+          "count": 3,
+          "percentage": 0.2
+        },
+        {
+          "value": "Single burial site",
+          "count": 2,
+          "percentage": 0.13
+        },
+        {
+          "value": "Other",
+          "count": 2,
+          "percentage": 0.13
+        },
+        {
+          "value": "Historic carving",
+          "count": 2,
+          "percentage": 0.13
+        },
+        {
+          "value": "Grave field / burial ground",
+          "count": 2,
+          "percentage": 0.13
+        },
+        {
+          "value": "Cemetery",
+          "count": 2,
+          "percentage": 0.13
+        },
+        {
+          "value": "Village or farmstead plot",
+          "count": 1,
+          "percentage": 0.07
+        },
+        {
+          "value": "Small industry area",
+          "count": 1,
+          "percentage": 0.07
+        },
+        {
+          "value": "Signal beacon",
+          "count": 1,
+          "percentage": 0.07
+        },
+        {
+          "value": "Settlement area",
+          "count": 1,
+          "percentage": 0.07
+        },
+        {
+          "value": "Remains resembling ancient monument",
+          "count": 1,
+          "percentage": 0.07
+        },
+        {
+          "value": "Quarry",
+          "count": 1,
+          "percentage": 0.07
+        },
+        {
+          "value": "Pitfall trap system",
+          "count": 1,
+          "percentage": 0.07
+        },
+        {
+          "value": "Other settlement remains",
+          "count": 1,
+          "percentage": 0.07
+        },
+        {
+          "value": "Grave (unspecified type)",
+          "count": 1,
+          "percentage": 0.07
+        },
+        {
+          "value": "Formation resembling ancient monument",
+          "count": 1,
+          "percentage": 0.07
+        },
+        {
+          "value": "Forestry remains area",
+          "count": 1,
+          "percentage": 0.07
+        },
+        {
+          "value": "Flat-ground grave",
+          "count": 1,
+          "percentage": 0.07
+        },
+        {
+          "value": "Fire-cracked stone mound",
+          "count": 1,
+          "percentage": 0.07
+        },
+        {
+          "value": "Dam embankment",
+          "count": 1,
+          "percentage": 0.07
+        },
+        {
+          "value": "Compass rose / directional marker",
+          "count": 1,
+          "percentage": 0.07
+        },
+        {
+          "value": "Clearing cairn",
+          "count": 1,
+          "percentage": 0.07
+        },
+        {
+          "value": "Boat landing site",
+          "count": 1,
+          "percentage": 0.07
+        },
+        {
+          "value": "Bloomery remains",
+          "count": 1,
+          "percentage": 0.07
+        }
+      ]
+    },
+    {
+      "column": "damage_status",
+      "totalRecords": 1491,
+      "nonNullRecords": 1491,
+      "uniqueValues": 5,
+      "values": [
+        {
+          "value": "Unknown",
+          "count": 1350,
+          "percentage": 90.54
+        },
+        {
+          "value": "Not damaged",
+          "count": 121,
+          "percentage": 8.12
+        },
+        {
+          "value": "Impact/Damage",
+          "count": 17,
+          "percentage": 1.14
+        },
+        {
+          "value": "Minor impact",
+          "count": 2,
+          "percentage": 0.13
+        },
+        {
+          "value": "Destroyed",
+          "count": 1,
+          "percentage": 0.07
+        }
+      ]
+    },
+    {
+      "column": "location",
+      "totalRecords": 1491,
+      "nonNullRecords": 1491,
+      "uniqueValues": 3,
+      "values": [
+        {
+          "value": "Visible above ground",
+          "count": 1466,
+          "percentage": 98.32
+        },
+        {
+          "value": "Not visible above ground",
+          "count": 21,
+          "percentage": 1.41
+        },
+        {
+          "value": "In building or under water",
+          "count": 4,
+          "percentage": 0.27
+        }
+      ]
+    },
+    {
+      "column": "investigation_status",
+      "totalRecords": 1491,
+      "nonNullRecords": 1491,
+      "uniqueValues": 4,
+      "values": [
+        {
+          "value": "Unknown",
+          "count": 1345,
+          "percentage": 90.21
+        },
+        {
+          "value": "Not investigated",
+          "count": 131,
+          "percentage": 8.79
+        },
+        {
+          "value": "Partially investigated",
+          "count": 12,
+          "percentage": 0.8
+        },
+        {
+          "value": "Fully investigated",
+          "count": 3,
+          "percentage": 0.2
+        }
+      ]
+    },
+    {
+      "column": "organization",
+      "totalRecords": 1491,
+      "nonNullRecords": 1491,
+      "uniqueValues": 1,
+      "values": [
+        {
+          "value": "RAÄ",
+          "count": 1491,
+          "percentage": 100
+        }
+      ]
+    }
+  ]
+}

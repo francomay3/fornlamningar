@@ -29,6 +29,7 @@
   "dependencies": {
     "better-sqlite3": "^12.2.0",
     "drizzle-orm": "^0.44.4",
+    "p-limit": "^7.1.0",
     "sqlite3": "^5.1.7"
   },
   "devDependencies": {
