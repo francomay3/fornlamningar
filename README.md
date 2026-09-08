@@ -1,298 +1,59 @@
-# Fornlamningar
+# fornlämningar
 
-A Python geospatial data processing project for handling fornlamningar (ancient remains) data stored in GeoPackage format.
+Data pipeline for a free app for finding and visiting Swedish archaeological
+sites. It turns Riksantikvarieämbetet's register of ~312,000 recorded remains
+into ~10,000 ranked, clustered map pins.
 
-## Features
+The app itself is a separate repo (`franco-may`, Next.js + MapLibre); this one
+only writes the vector tiles it reads.
 
-- **Geospatial Data Handling**: Load, explore, and manipulate GeoPackage files
-- **Data Analysis**: Statistical analysis and filtering capabilities
-- **Advanced Visualization**: Multiple visualization scripts for different data types and regions
-- **Interactive Mapping**: Folium-based interactive web maps
-- **Regional Analysis**: Focused analysis of specific Swedish regions
-- **Comprehensive Documentation**: Detailed geopackage structure documentation
-- **API Utilities**: Rate-limited HTTP clients with retry logic and error handling
-- **Flexible Data API**: Easy-to-use `FornlamningarData` class for data operations
-- **Database Enrichment**: Automated enrichment of archaeological sites with metadata from K-samsök API
-- **AI-Powered Description Generation**: Automated generation of visitor-friendly descriptions using Ollama
-- **Database Filtering & Analysis**: Tools for filtering and analyzing archaeological data with statistical insights
-- **Enhanced Database Schema**: Extended database with parsed archaeological fields and metadata
+[PIPELINE.md](PIPELINE.md) is the real document: what each stage does, what was
+measured, and which hypotheses turned out to be wrong.
 
-## Setup
+## Run it
 
-1. Create a virtual environment:
-   ```bash
-   python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-   ```
-
-2. Install Python dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-3. Install Node.js dependencies (for TypeScript database utilities):
-   ```bash
-   npm install
-   ```
-
-## Project Structure
-
-- `src/` - Source code
-  - `geodata.py` - Main geospatial data handling module
-  - `apiUtils/` - API utilities and documentation
-  - `main.py` - Entry point with example usage
-  - `example_usage.py` - Comprehensive usage examples
-  - `data/` - Geospatial data files
-  - `js/` - TypeScript database utilities
-    - `db/` - Database connection and schema definitions
-    - `db_columns.ts` - Database analysis and query examples
-- `enrich_filtered_db.py` - Database enrichment script for K-samsök API integration
-- `filter_generated_descriptions.py` - Script to filter database entries with generated descriptions
-- `verify_filtered_db.py` - Verification script for filtered database contents
-- `visualize_points.py` - Point data visualization script
-- `explore_data.py` - Data exploration and analysis script
-- `regional_analysis.py` - Regional archaeological site analysis
-- `tests/` - Test files
-- `docs/` - Documentation
-- `GEOPACKAGE_STRUCTURE.md` - Detailed data structure documentation
-- `requirements.txt` - Python dependencies
-
-## Usage
-
-### Basic Usage
-
-```python
-from geodata import FornlamningarData
-
-# Initialize data handler
-data_handler = FornlamningarData()
-
-# Load data
-gdf = data_handler.load_data()
-
-# Explore data
-info = data_handler.explore_data()
-stats = data_handler.get_statistics()
+```sh
+./run_pipeline.sh                 # all stages, ~4 min
+./run_pipeline.sh --from 5        # re-score and re-tile only
+./run_pipeline.sh --top 30000     # export more pins
 ```
 
-### Running Examples
+Stage 0 checks the inputs first: it rebuilds the OSM extracts by itself, and
+refuses to guess about the two expensive ones.
 
-```bash
-# Run main example
-python src/main.py
+## Stages
 
-# Run comprehensive examples
-python src/example_usage.py
+| # | script | output |
+|---|--------|--------|
+| — | `crawl_ksamsok.py` | `ksamsok_raw.sqlite` — raw K-samsök JSON-LD, resumable, run once |
+| 1 | `build_sites.py` | `sites` — parsed records, geometry, parsed dimensions (`dims.py`) |
+| 2 | `build_clusters.py` | `clusters` — one row per place a visitor drives to, not per stone |
+| 3 | `build_labels.py` | `labels` — weak labels from Wikidata plus `hand_labels.csv` |
+| 4 | `build_signals.py` | `signals` — distances to roads, buildings, boards, OSM sites |
+| 5 | `build_scores.py` | `scores` — L2 logistic regression (`logistic.py`) |
+| 6 | `build_tiles.py` | vector tiles, straight into the frontend repo |
 
-# Generate visualizations
-python visualize_points.py
-python regional_analysis.py
-python explore_data.py
-```
+`sample_for_review.py` draws stratified samples to hand-verify; its verdicts go
+into `hand_labels.csv`.
 
-### Visualization Scripts
+## Two scores
 
-- **`visualize_points.py`**: Creates static maps of individual archaeological sites
-- **`regional_analysis.py`**: Analyzes and maps archaeological sites in specific regions
-- **`explore_data.py`**: Provides detailed data exploration and quality analysis
+`score_intrinsic` judges a site only by what it *is* — class, size, description,
+access. `score_full` also credits Wikipedia articles and photographs.
 
-### TypeScript Database Utilities
-
-The project includes TypeScript utilities for database operations using Drizzle ORM:
-
-```bash
-# Build TypeScript files
-npm run build
-
-# Run database analysis
-npm run analyze
-
-# Development mode with watch
-npm run dev
-```
-
-### API Utilities
-
-The project includes rate-limited API utilities in `src/apiUtils/api_utils.py`:
-
-```python
-from src.apiUtils.api_utils import APIConfig, RateLimitedAPI
-
-# Configure API client
-config = APIConfig(
-    base_url="https://api.example.com",
-    rate_limit=5,  # requests per second
-    headers={'User-Agent': 'Fornlamningar-API-Client/1.0'}
-)
-
-# Make rate-limited requests
-api = RateLimitedAPI(config)
-response = api.get("/endpoint", params={"param": "value"})
-```
-
-### Database Enrichment
-
-The project includes comprehensive database enrichment capabilities using the K-samsök API:
-
-```python
-# Run enhanced database enrichment
-python enrich_filtered_db.py
-
-# This will:
-# 1. Query the K-samsök API for each archaeological site using UUID
-# 2. Extract comprehensive descriptions by following entity references
-# 3. Add detailed archaeological metadata including:
-#    - Rich site descriptions with geographic context
-#    - Archaeological specifications and measurements
-#    - Item numbers and classifications
-#    - Organization and data quality information
-# 4. Update the database with enhanced archaeological data
-```
-
-### AI-Powered Description Generation
-
-The project includes AI utilities for processing archaeological descriptions:
-
-```python
-# Generate visitor-friendly descriptions using Ollama
-from src.apiUtils.ollama_utils import generate_site_description
-
-description = generate_site_description(site_description, model="phi3")
-```
-
-### Database Filtering and Analysis
-
-The project includes tools for filtering and analyzing archaeological data:
-
-```bash
-# Filter database to only include entries with generated descriptions
-python filter_generated_descriptions.py
-
-# Verify filtered database contents
-python verify_filtered_db.py
-```
-
-The filtering process creates a new database (`fornlamningar_with_descriptions.sqlite`) containing only entries that have AI-generated descriptions, making it easier to work with enriched data.
-
-### Enhanced Database Schema
-
-The database schema has been extended with parsed archaeological fields:
-
-- **Parsed Fields**: `class`, `damage_status`, `location`, `investigation_status`, `province`, etc.
-- **Metadata**: `build_date`, `last_changed`, `organization`, `raa_number`
-- **Descriptive Fields**: `vegetation`, `terrain`, `orientation`, `title`
-
-These fields are automatically extracted from the original description text and stored as separate columns for easier querying and analysis.
-
-### Swedish to English Translation
-
-Comprehensive mapping of Swedish archaeological terms to English:
-
-```python
-from src.raa_class_mapping import RAA_CLASS_MAPPING
-
-# Translate Swedish archaeological classes
-swedish_class = "Stenkammargrav"
-english_class = RAA_CLASS_MAPPING.get(swedish_class)  # "Stone chamber grave"
-```
+The app uses `score_intrinsic`. Every documentation-derived signal correlates
+strongly with fame, and fame is exactly what an app for *finding* places must
+not assume: the sites worth surfacing are the ones nobody has written up yet.
 
 ## Data
 
-The project includes multiple data formats for Swedish archaeological heritage data:
+Tracked in git LFS, because nothing here can produce them:
 
-### Primary Data Sources
+- `src/data/fornlamningar_full.gpkg` — the RAÄ export, seeds the crawl
+- `src/data/signs/` — Kungsbacka's sign layer, kept as evidence of a dead end
+- `hand_labels.csv` — the only ground truth not derived from documentation
 
-- **`src/data/fornlamningar_full.gpkg`** - Complete GeoPackage database
-  - **342,879 total features** across 4 layers
-  - **Point sites**: 219,639 individual archaeological locations
-  - **Protected areas**: 92,939 polygon boundaries  
-  - **Linear features**: 30,301 linear archaeological structures
-  - **File size**: ~183MB
-  - **Complete documentation**: See `GEOPACKAGE_STRUCTURE.md` for detailed schema
-
-### Optimized Data Formats
-
-- **`src/data/fornlamningar_points.gpkg`** - Points-only GeoPackage
-  - **210,312 point features** (deduplicated from full database)
-  - **Simplified schema**: 4 columns vs 8 in full database
-  - **File size**: ~30MB (6.1x smaller than full database)
-  - **Optimized for**: Point-based analysis and visualization
-
-- **`src/data/fornlamningar_points.sqlite`** - Standard SQLite database
-  - **210,312 archaeological sites** with extracted coordinates
-  - **Standard SQLite format**: No special GIS dependencies required
-  - **File size**: 26.7MB
-  - **Perfect for**: Web applications, mobile apps, standard database operations
-  - **Columns**: `inspireid`, `sitename`, `uuid`, `longitude`, `latitude`
-  - **Indexed**: Fast queries on coordinates and identifiers
-
-- **`src/data/fornlamningar_filtered_20km.sqlite`** - Filtered database with AI-generated descriptions
-  - **1,491 archaeological sites** within 20km radius with enhanced metadata
-  - **AI-generated descriptions**: Visitor-friendly English descriptions
-  - **Extended schema**: 25+ columns including parsed archaeological fields
-  - **File size**: ~5.3MB
-  - **Perfect for**: Tourism applications, educational content, visitor information
-
-- **`src/data/fornlamningar_with_descriptions.sqlite`** - Filtered subset with descriptions only
-  - **Subset of filtered database** containing only entries with generated descriptions
-  - **File size**: ~0.5MB
-  - **Perfect for**: Applications requiring guaranteed description availability
-
-### Data Pipeline
-
-The project implements a **three-stage data optimization pipeline**:
-
-1. **Full Database** (`fornlamningar_full.gpkg`)
-   - Complete archaeological dataset with all geometry types
-   - 8 columns per feature including metadata and legal documents
-   - Suitable for comprehensive GIS analysis
-
-2. **Points Extraction** (`fornlamningar_points.gpkg`)
-   - **Filtering**: Kept only point features (removed polygons and lines)
-   - **Column Reduction**: Removed redundant columns:
-     - `designationschemevalue` (always "INSPIRE")
-     - `designationvalue` (always "archaeological") 
-     - `protectionclassificationvalue` (always "archaeological")
-     - `protectionclassificationvalue2` (mostly NULL)
-   - **Column Transformation**: 
-     - `legalfoundationdocument` → `uuid` (extracted UUID from URL format)
-   - **Deduplication**: Removed duplicate point features
-   - **Result**: 210,312 unique point sites with essential metadata
-
-3. **SQLite Conversion** (`fornlamningar_points.sqlite`)
-   - **Coordinate Extraction**: Converted geometry BLOB to `longitude`/`latitude` columns
-   - **Standard Format**: Regular SQLite database (no spatial extensions)
-   - **Performance Optimization**: Added indexes for fast queries
-   - **Metadata Preservation**: Included conversion info and spatial bounds
-   - **App-Ready**: Compatible with any SQLite-compatible framework
-
-### Usage Examples
-
-```python
-# Load full GeoPackage for GIS analysis
-from src.geodata import FornlamningarData
-data_handler = FornlamningarData("src/data/fornlamningar_full.gpkg")
-full_data = data_handler.load_data()
-
-# Load points-only for visualization
-points_handler = FornlamningarData("src/data/fornlamningar_points.gpkg")
-points_data = points_handler.load_data()
-
-# Use SQLite for web/mobile apps
-import sqlite3
-conn = sqlite3.connect("src/data/fornlamningar_points.sqlite")
-sites = conn.execute("SELECT * FROM fornlamningar LIMIT 10").fetchall()
-```
-
-## Dependencies
-
-- `geopandas` - Geospatial data manipulation
-- `requests`, `aiohttp` - HTTP client libraries
-- `tenacity`, `backoff`, `ratelimit` - Retry and rate limiting utilities
-- `fiona` - Geospatial data I/O
-- `shapely` - Geometric operations
-- `pyproj` - Coordinate system transformations
-- `pandas` - Data manipulation
-- `numpy` - Numerical computing
-- `matplotlib` - Plotting and visualization
-- `folium` - Interactive mapping
+Everything else under `src/data/` is ignored: caches that cost a network
+round-trip to rebuild (`ksamsok_raw.sqlite`, `osm/`, `wikidata_cache/`) and
+`sites.sqlite`, which is a pure function of the two and rebuilds in minutes.
+See the data policy in [.gitignore](.gitignore).
