@@ -229,8 +229,11 @@ jspm_packages/
 #    rate-limited crawling (311,845 responses); re-fetching it to save 1.3 GB
 #    of local disk would be a bad trade.
 src/data/ksamsok_raw.sqlite
-src/data/ksamsok_raw.sqlite-wal
-src/data/ksamsok_raw.sqlite-shm
+# By pattern, not per file. These were listed one database at a time, so
+# descriptions.sqlite-wal and -shm were not covered and turned up as
+# untracked noise the moment that database existed.
+*.sqlite-wal
+*.sqlite-shm
 src/data/osm/
 src/data/wikidata_cache/
 
@@ -238,8 +241,6 @@ src/data/wikidata_cache/
 #    `./run_pipeline.sh` rebuilds all of it in ~4 minutes, so committing it
 #    would only mean a 700 MB LFS object going stale on every rerun.
 src/data/sites.sqlite
-src/data/sites.sqlite-wal
-src/data/sites.sqlite-shm
 src/data/tiles_input.geojsonl
 
 # Review samples: output of sample_for_review.py. The verdicts they collect
