@@ -18,19 +18,12 @@ class to the pipeline without giving it a family fails loudly instead of
 silently landing in a bucket it does not belong to.
 """
 
-FAMILY_LABEL = {
-    'graves': 'Graves & burial grounds',
-    'rockart': 'Rune stones & rock art',
-    'forts': 'Forts & castles',
-    'religious': 'Churches & sacred places',
-    'settlement': 'Settlements & dwellings',
-    'farming': 'Farming & earthworks',
-    'industry': 'Mining, iron & industry',
-    'transport': 'Roads, bridges & boundaries',
-    'maritime': 'Coast & seafaring',
-    'hunting': 'Hunting traps',
-    'misc': 'Other & uncertain',
-}
+# Family display names used to live here and ship inside the generated
+# filterFamilies.ts. They do not any more: the export carries only the id, and
+# each frontend owns its own wording (the app in sv.json, the web demo in
+# familyLabels.ts). Shipping the string made the pipeline the owner of UI copy
+# in a single language, so the app could not be translated without
+# regenerating data.
 
 # One icon per family for the filter list, picked from the map set. Chosen for
 # legibility at ~22 px rather than for being the most numerous class: `bridge`

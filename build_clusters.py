@@ -265,14 +265,23 @@ def main():
         if gt:
             geom[cid].update(gt)
 
-    best = {}
-    for cid, d in conn.execute("""
-        SELECT sc.cluster_id, s.beskrivning FROM site_clusters sc
+    # The representative site: the one whose description, measurements and
+    # class the pin will actually show.
+    #
+    # Ordered exactly as build_tiles.py picks its representative uuid
+    # (description_len DESC, uuid), so the two cannot disagree. NULL lengths
+    # sort last under DESC, which is what we want: a site with text beats one
+    # without.
+    best, rep_class = {}, {}
+    for cid, cls, d in conn.execute("""
+        SELECT sc.cluster_id, s.class_sv, s.beskrivning FROM site_clusters sc
         JOIN sites s ON s.uuid = sc.uuid
-        WHERE s.beskrivning IS NOT NULL
+        ORDER BY sc.cluster_id, s.description_len DESC, s.uuid
     """):
-        if d and len(d) > len(best.get(cid, "")):
-            best[cid] = d
+        if cid not in rep_class:
+            rep_class[cid] = cls
+            if d:
+                best[cid] = d
 
     out = []
     for r in agg:
@@ -282,7 +291,21 @@ def main():
             if r["mine"] is not None else None
         out.append((
             cid, method.get(cid, "raa"), r["n_sites"],
-            c.most_common(1)[0][0] if c else None, r["n_classes"],
+            # The representative site's class, NOT the commonest one.
+            #
+            # Modal choice made the pin contradict itself: the icon came from
+            # whichever class had the most records, while the text and the
+            # measurements came from the site with the longest description. At
+            # Anundshog two recorded stretches of "Fardvag" outvoted the huge
+            # mound, so the marker was a road and the text was a grave field.
+            # 862 of the exported 10,000 disagreed that way.
+            #
+            # This also decides the icon, the filter family, the typological
+            # period and one of the score features, so one criterion for the
+            # whole pin is worth more than picking the "best" class by some
+            # other measure.
+            rep_class.get(cid) or (c.most_common(1)[0][0] if c else None),
+            r["n_classes"],
             "; ".join(f"{k}×{v}" for k, v in c.most_common(4)),
             r["name"], r["has_name"], r["raa_group"],
             r["parish"], r["parish_code"], r["municipality"],

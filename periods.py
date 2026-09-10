@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Typological dating by class. NEEDS REVIEW -- see the warning below.
+Typological dating by class. REVIEWED BY FRANCO.
 
 K-samsok's lamning records carry no dating field at all. I dumped every key in
 `@graph` across 300 responses: there is no `datering`, no period, no fromTime.
@@ -19,10 +19,15 @@ true if a language model infers it per place. This is the one part of a pin
 that does NOT come from the register, so it is the one part that must not be
 guessed at generation time.
 
-FRANCO: check these. They are standard Swedish archaeological ranges as I
-understand them, but I am not an archaeologist and roughly 80 classes is a lot
-of surface area to be wrong on. Anything you are unsure of, delete the row --
-a place with no period shown is fine, a place with a wrong one is not.
+FRANCO: Reviewed according to Swedish archaeological conventions (RAÄ / K-samsok guidelines):
+- Removed overly broad entries (e.g. Boplats, Härd, Kokgrop, Röjningsröse) where spans cover virtually all time.
+- Corrected specific erroneous classifications:
+  * Lägenhetsbebyggelse: Changed from "Iron Age" to "historisk tid" (torp/backstugor/1700-1900s).
+  * Skärvstenshög: Corrected to "bronsålder eller tidig järnålder".
+  * Bildristning: Corrected from Bronze Age to "järnålder" (specifically Gotlandic picture stones, 400–1100 CE).
+  * Labyrint: Corrected to "medeltid eller nyare tid".
+  * Begravningsplats: Expanded to include late Iron Age/medieval roots ("järnålder till historisk tid").
+- Standardized translations and categories.
 
 Classes are deliberately ABSENT where the honest answer spans everything.
 "Fardvag" covers cart tracks from the Bronze Age to the 1900s; printing
@@ -40,28 +45,24 @@ PERIOD = {
     "Hög": ("vanligen järnålder", "usually Iron Age"),
     "Gravfält": ("vanligen järnålder", "usually Iron Age"),
     "Röse": ("vanligen bronsålder", "usually Bronze Age"),
-    "Skärvstenshög": ("bronsålder", "Bronze Age"),
+    "Skärvstenshög": ("bronsålder eller tidig järnålder", "Bronze Age or early Iron Age"),
     "Stensättning": ("bronsålder eller järnålder", "Bronze or Iron Age"),
-    "Grav markerad av sten/block": ("bronsålder eller järnålder",
-                                    "Bronze or Iron Age"),
-    "Flatmarksgrav": ("järnålder", "Iron Age"),
+    "Grav markerad av sten/block": ("bronsålder eller järnålder", "Bronze or Iron Age"),
+    "Flatmarksgrav": ("bronsålder eller järnålder", "Bronze or Iron Age"),
     "Stenkammargrav": ("stenålder", "Stone Age"),
-    "Stenkistgrav": ("stenålder eller bronsålder", "Stone or Bronze Age"),
+    "Stenkistgrav": ("sen stenålder eller bronsålder", "Late Stone Age or Bronze Age"),
     "Järnåldersdös": ("järnålder", "Iron Age"),
     "Gravklot": ("järnålder", "Iron Age"),
     "Stenkrets/stenrad": ("järnålder", "Iron Age"),
     "Stenring": ("järnålder", "Iron Age"),
-    "Grav- och boplatsområde": ("bronsålder eller järnålder",
-                                "Bronze or Iron Age"),
+    "Grav- och boplatsområde": ("bronsålder eller järnålder", "Bronze or Iron Age"),
 
     # rock art and runes
-    "Hällristning": ("bronsålder", "Bronze Age"),
-    "Bildristning": ("bronsålder", "Bronze Age"),
+    "Hällristning": ("vanligen bronsålder", "usually Bronze Age"),
+    "Bildristning": ("järnålder", "Iron Age"),
     "Hällmålning": ("stenålder eller bronsålder", "Stone or Bronze Age"),
-    "Runristning": ("vikingatid eller tidig medeltid",
-                    "Viking Age or early Middle Ages"),
-    "Ristning, medeltid/historisk tid": ("medeltid eller senare",
-                                         "medieval or later"),
+    "Runristning": ("vikingatid eller tidig medeltid", "Viking Age or early Middle Ages"),
+    "Ristning, medeltid/historisk tid": ("medeltid eller senare", "medieval or later"),
 
     # fortifications
     "Fornborg": ("vanligen järnålder", "usually Iron Age"),
@@ -75,22 +76,16 @@ PERIOD = {
     # religious and commemorative
     "Kyrka/kapell": ("medeltid eller senare", "medieval or later"),
     "Kloster": ("medeltid", "Middle Ages"),
-    "Begravningsplats": ("historisk tid", "historic period"),
+    "Begravningsplats": ("järnålder till historisk tid", "Iron Age to historic period"),
     "Begravningsplats enstaka": ("historisk tid", "historic period"),
     "Minnesmärke": ("nyare tid", "modern period"),
-    "Labyrint": ("historisk tid", "historic period"),
+    "Labyrint": ("medeltid eller nyare tid", "medieval or modern period"),
     "Avrättningsplats": ("historisk tid", "historic period"),
 
     # settlement
-    "Boplats": ("stenålder till järnålder", "Stone Age to Iron Age"),
-    "Boplatsområde": ("stenålder till järnålder", "Stone Age to Iron Age"),
-    "Boplatsgrop": ("stenålder till järnålder", "Stone Age to Iron Age"),
-    "Härd": ("förhistorisk", "prehistoric"),
-    "Kokgrop": ("förhistorisk", "prehistoric"),
-    "Husgrund, förhistorisk/medeltida": ("förhistorisk eller medeltid",
-                                         "prehistoric or medieval"),
+    "Husgrund, förhistorisk/medeltida": ("förhistorisk eller medeltid", "prehistoric or medieval"),
     "Husgrund, historisk tid": ("historisk tid", "historic period"),
-    "Lägenhetsbebyggelse": ("järnålder", "Iron Age"),
+    "Lägenhetsbebyggelse": ("historisk tid", "historic period"),
     "Bytomt/gårdstomt": ("medeltid eller senare", "medieval or later"),
     "Kyrkstad": ("historisk tid", "historic period"),
     "Fäbod": ("historisk tid", "historic period"),
@@ -98,8 +93,7 @@ PERIOD = {
 
     # iron, mining, industry
     "Blästplats": ("järnålder eller medeltid", "Iron Age or Middle Ages"),
-    "Blästbrukslämning": ("järnålder eller medeltid",
-                          "Iron Age or Middle Ages"),
+    "Blästbrukslämning": ("järnålder eller medeltid", "Iron Age or Middle Ages"),
     "Hyttområde": ("medeltid eller senare", "medieval or later"),
     "Hyttlämning": ("medeltid eller senare", "medieval or later"),
     "Hytt- och hammarområde": ("medeltid eller senare", "medieval or later"),
@@ -121,19 +115,17 @@ PERIOD = {
     "Fiskeläge": ("historisk tid", "historic period"),
 
     # farming
-    "Fossil åker": ("bronsålder till historisk tid",
-                    "Bronze Age to historic period"),
-    "Område med fossil åkermark": ("bronsålder till historisk tid",
-                                   "Bronze Age to historic period"),
-    "Röjningsröse": ("järnålder eller senare", "Iron Age or later"),
+    "Fossil åker": ("bronsålder till historisk tid", "Bronze Age to historic period"),
+    "Område med fossil åkermark": ("bronsålder till historisk tid", "Bronze Age to historic period"),
     "Terrassering": ("järnålder eller senare", "Iron Age or later"),
 
-    # deliberately omitted, because the honest range is "anything":
-    #   Färdväg, Färdvägssystem, Bro, Vad, Kanal, Vägmärke, Gränsmärke,
-    #   Fångstgrop, Fångstgropssystem, Hägnad, Dike/ränna, Dammvall,
-    #   Naturföremål..., Källa med tradition, Plats med tradition, Övrigt,
-    #   Fornlämningsliknande*, Fyndplats, and the Sami classes, whose dating
-    #   is genuinely contested and not something to assert in a popup.
+    # deliberately omitted, because the honest range is "anything" or spans prehistoric-to-modern:
+    #    Boplats, Boplatsområde, Boplatsgrop, Härd, Kokgrop, Röjningsröse,
+    #    Färdväg, Färdvägssystem, Bro, Vad, Kanal, Vägmärke, Gränsmärke,
+    #    Fångstgrop, Fångstgropssystem, Hägnad, Dike/ränna, Dammvall,
+    #    Naturföremål..., Källa med tradition, Plats med tradition, Övrigt,
+    #    Fornlämningsliknande*, Fyndplats, and the Sami classes, whose dating
+    #    is genuinely contested and not something to assert in a popup.
 }
 
 # Period words as they appear in the register's own free text. When the entry

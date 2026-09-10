@@ -391,16 +391,34 @@ def main():
         "SELECT sc.cluster_id, MAX(l.label * COALESCE(l.weight, 1.0)) "
         "FROM labels l JOIN site_clusters sc ON sc.uuid = l.uuid "
         "WHERE l.label > 0 GROUP BY sc.cluster_id")}
-    # Verified negatives are stored but NOT yet used to fit weights: the current
-    # estimator compares positives against the base rate over all 245k clusters,
-    # which has no slot for them. They need a proper discriminative model
-    # (logistic regression) to contribute. Reported here so the gap is visible.
+    # Where each positive came from, kept per cluster and written out with the
+    # score.
+    #
+    # The shipped score (score_intrinsic) uses no label-derived feature, so
+    # this is not an input to it -- the labels only shape the fitted weights,
+    # globally. It matters for the other direction: when a user eventually says
+    # "this does not deserve five stars", the first question is whether the
+    # label behind it was Franco's own judgement or a Wikidata proxy. Today
+    # that is 23 hand labels against 4,369 proxies, and without this column
+    # there is no way to tell them apart after the fact.
+    pos_src = {r[0]: r[1] for r in conn.execute(
+        "SELECT sc.cluster_id, GROUP_CONCAT(DISTINCT l.source) "
+        "FROM labels l JOIN site_clusters sc ON sc.uuid = l.uuid "
+        "WHERE l.label > 0 GROUP BY sc.cluster_id")}
+
+    # Verified negatives DO feed the fit -- see fit_logistic below. The log-lift
+    # baseline still cannot use them (it compares positives against the base
+    # rate over all 245k clusters, which has no slot for a known negative), and
+    # this note used to say they were unused for exactly that reason. That
+    # stopped being true when the logistic fit became the only shipped model,
+    # and the message stayed behind: it was telling us a gap existed that had
+    # already been closed.
     neg_all = {r[0] for r in conn.execute(
         "SELECT DISTINCT sc.cluster_id FROM labels l "
         "JOIN site_clusters sc ON sc.uuid = l.uuid WHERE l.label = 0")}
     if neg_all:
-        print(f"  note: {len(neg_all):,} verified negatives stored but not yet "
-              f"used to fit weights (needs logistic regression)")
+        print(f"  {len(neg_all):,} verified negatives, used by the logistic fit "
+              f"(the lift baseline cannot use them)")
 
     # Runestones are 83% of the label set; keeping them makes every weight a
     # runestone detector. Fit on everything else.
@@ -515,7 +533,10 @@ def main():
             score_intrinsic REAL,
             score_full REAL,
             excluded_hard INTEGER,
-            excluded_soft INTEGER
+            excluded_soft INTEGER,
+            -- Comma-joined `labels.source` values for this cluster's positive
+            -- labels; NULL for the ~99% with no label at all.
+            label_sources TEXT
         )
     """)
     Xa, _ = build_matrix(rows, feats, cw, kw, desc)
@@ -542,10 +563,11 @@ def main():
                        and r["dist_to_board_m"] <= 500))
         soft = int(bool(r["class_soft_blacklisted"]) and not rescued)
         out.append((r["cluster_id"], cw.get(r["dominant_class"] or "?", 0.0),
-                    kb, acc, nob, intrinsic, full, hard, soft))
+                    kb, acc, nob, intrinsic, full, hard, soft,
+                    pos_src.get(r["cluster_id"])))
     with conn:
         conn.executemany(
-            "INSERT INTO scores VALUES (?,?,?,?,?,?,?,?,?)", out)
+            "INSERT INTO scores VALUES (?,?,?,?,?,?,?,?,?,?)", out)
     conn.executescript("""
         CREATE INDEX idx_sc_full ON scores(score_full DESC);
         CREATE INDEX idx_sc_intr ON scores(score_intrinsic DESC);

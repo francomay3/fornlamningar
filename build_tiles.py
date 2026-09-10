@@ -7,7 +7,7 @@ already reads tippecanoe tiles. This reproduces the contract its existing tiles
 declare in metadata.json:
 
     layer:  archaeological_sites
-    fields: uuid, label, class, description, score
+    fields: uuid, label, class, family, score, stars
             (clustered / point_count / sqrt_point_count are added by tippecanoe)
 
 `score` is consumed by the frontend only as a MapLibre `symbol-sort-key`, so
@@ -36,7 +36,7 @@ import subprocess
 import sys
 import time
 
-from families import FAMILY, FAMILY_ICON, FAMILY_LABEL, FAMILY_ORDER
+from families import FAMILY, FAMILY_ICON, FAMILY_ORDER
 from periods import period_for
 
 DB = "src/data/sites.sqlite"
@@ -85,6 +85,36 @@ TIPPECANOE_OPTS = [
     # start with protobuf bytes (1a86...), not the gzip magic (1f8b...).
     "--no-tile-compression",
 ]
+
+
+# Star rating: percentile buckets, not a linear rescale of the raw score.
+#
+# The raw score is a power-law decay -- median 0.07, 85% of clusters below
+# 0.50, and a long thin tail. Mapping worst..best linearly onto 0..5 would put
+# ~9,500 of the exported 10,000 at zero stars and three at five, which is
+# useless as a filter and misleading as a display.
+#
+# Buckets over the RANK inside the exported set fix both: every band has
+# members by construction, and "3 stars and up" means a definite thing ("the
+# better half of what the app ships"). The cutoffs are cumulative percentiles
+# from the top, and `score` below is already exactly that percentile.
+#
+# There is no zero-star band. A site we know little about is not a bad site,
+# and one star already says "least remarkable of the ten thousand we picked".
+STAR_CUTOFFS = (
+    (90.0, 5),   # top 10%
+    (70.0, 4),   # next 20%
+    (40.0, 3),   # next 30%
+    (15.0, 2),   # next 25%
+)
+
+
+def stars_for(percentile):
+    """1..5 from a best-first percentile (100 = best in the exported set)."""
+    for cut, stars in STAR_CUTOFFS:
+        if percentile >= cut:
+            return stars
+    return 1
 
 
 def one_line(text, limit):
@@ -315,40 +345,114 @@ def write_descriptions(rows, out_dir, shard_chars, max_desc, ai=None,
 
 
 def write_families(rows, path):
-    """Emit the filter families with live counts.
+    """Emit the filter families, their classes, and live counts.
 
     The frontend used to hard-code 19 class names. Four of them were not in
     the export at all, so those checkboxes did nothing, while 82 classes fell
     into a single "Other" bucket -- including Fornborg, which is 813 clusters.
     Generated from the export, the list cannot drift from the data.
+
+    Each family also carries the classes actually present inside it, best
+    represented first, which is what the app's nested checkboxes offer once a
+    family is opened. Only classes with at least one cluster in the export
+    appear: a checkbox that can never match anything is worse than no
+    checkbox, which is the exact bug the hard-coded list had.
+
+    Family display names are deliberately NOT here: only the id ships, and
+    each frontend resolves it (the app through its own sv.json, the web demo
+    through a table next to its page). This file used to carry the English
+    string from FAMILY_LABEL, which quietly made the pipeline the owner of UI
+    copy in one language -- so the app could not be translated without
+    regenerating data, and a text change meant re-running an export.
+
+    Class names are different and DO ship: `class_sv` is the register's own
+    term for the thing, not a phrase we wrote. Translating those is a data
+    problem, not a formatting one, and there is no English column to fall back
+    on.
     """
-    counts = {}
-    for r in rows:
-        fam = FAMILY.get(r["dominant_class"] or "", "misc")
-        counts[fam] = counts.get(fam, 0) + 1
-    present = [f for f in FAMILY_ORDER if counts.get(f)]
-    rows_ts = "\n".join(
-        f'  {{ id: {f!r}, label: {FAMILY_LABEL[f]!r}, '
-        f'icon: {FAMILY_ICON[f]!r}, count: {counts[f]} }},'
-        .replace("'", '"') for f in present)
+    # Counted once per star threshold, not once overall.
+    #
+    # A count next to a checkbox exists so you can tell a filter that will
+    # empty the map from one that will not, and a count that ignores the star
+    # threshold does the opposite: "Kust och sjofart 22" with a 4-star
+    # threshold on, when four survive it, is worse than no number at all.
+    #
+    # Five numbers rather than a live recount, because a site has exactly one
+    # class -- so choosing other families cannot change this family's count,
+    # and the star threshold is the only filter that crosses. That makes the
+    # whole cross-product five columns wide, which is a few kilobytes and no
+    # runtime cost, instead of parsing 2.3 MB in the app to recount on every
+    # tap.
+    #
+    # counts[i] is the number surviving `stars >= i + 1`, so counts[0] is the
+    # unfiltered total.
+    def empty():
+        return [0, 0, 0, 0, 0]
+
+    n_rows = len(rows)
+    fam_counts, cls_counts = {}, {}
+    for i, r in enumerate(rows):
+        cls = r["dominant_class"] or ""
+        fam = FAMILY.get(cls, "misc")
+        stars = stars_for(round(100.0 * (n_rows - i) / n_rows, 2))
+        fc = fam_counts.setdefault(fam, empty())
+        cc = cls_counts.setdefault(fam, {}).setdefault(cls, empty()) if cls else None
+        for k in range(stars):
+            fc[k] += 1
+            if cc is not None:
+                cc[k] += 1
+    present = [f for f in FAMILY_ORDER if fam_counts.get(f, empty())[0]]
+
+    def js(value):
+        return json.dumps(value, ensure_ascii=False)
+
+    blocks = []
+    for f in present:
+        # Descending count, then name, so the order is stable across runs
+        # even when two classes tie.
+        classes = sorted(cls_counts.get(f, {}).items(),
+                         key=lambda kv: (-kv[1][0], kv[0]))
+        inner = "".join(
+            f"      {{ id: {js(c)}, counts: {js(n)} }},\n" for c, n in classes)
+        blocks.append(
+            f"  {{\n"
+            f"    id: {js(f)},\n"
+            f"    icon: {js(FAMILY_ICON[f])},\n"
+            f"    counts: {js(fam_counts[f])},\n"
+            f"    classes: [\n{inner}    ],\n"
+            f"  }},")
+
     with open(path, "w", encoding="utf-8") as f:
         f.write("// GENERATED by build_tiles.py -- do not edit by hand.\n"
-                "// Families present in the exported tiles, with their cluster\n"
-                "// counts. This is the same grouping the exporter thins by,\n"
-                "// which is what makes filtering backfill instead of leaving\n"
-                "// holes.\n"
-                "export type FilterFamily = {\n"
+                "// Families present in the exported tiles, with the classes\n"
+                "// inside each and their cluster counts.\n"
+                "//\n"
+                "// The family is the unit the exporter thins by, which is\n"
+                "// what makes hiding a family backfill instead of leaving\n"
+                "// holes. Narrowing to individual classes is finer than that\n"
+                "// and has to re-thin on the device; see thinning.ts.\n"
+                "export type FilterClass = {\n"
+                "  /** The register's own Swedish class name, used as label. */\n"
                 "  id: string;\n"
-                "  label: string;\n"
+                "  /** counts[i] survives `stars >= i + 1`; [0] is the total. */\n"
+                "  counts: number[];\n"
+                "};\n\n"
+                "export type FilterFamily = {\n"
+                "  /** Resolve to a display name in the frontend, not here. */\n"
+                "  id: string;\n"
                 "  /** Glyph name; served as "
                 "/fornlamningar-icons/svg/<icon>.svg */\n"
                 "  icon: string;\n"
-                "  count: number;\n"
+                "  /** counts[i] survives `stars >= i + 1`; [0] is the total. */\n"
+                "  counts: number[];\n"
+                "  /** Present in the export, best represented first. */\n"
+                "  classes: FilterClass[];\n"
                 "};\n\n"
                 "export const FILTER_FAMILIES: FilterFamily[] = [\n"
-                f"{rows_ts}\n];\n\n"
+                + "\n".join(blocks) + "\n];\n\n"
                 "export const ALL_FAMILY_IDS = FILTER_FAMILIES.map(f => f.id);\n")
-    print(f"  {len(present)} filter families -> {path}")
+    n_cls = sum(len(cls_counts.get(f, {})) for f in present)
+    print(f"  {len(present)} filter families, {n_cls} classes -> {path}")
 
 
 def main():
@@ -454,6 +558,12 @@ def main():
         cum += hist[z]
         shown.append(f"z{z}:{cum:,}")
     print("  visible by zoom (cumulative): " + "  ".join(shown))
+    star_hist = {}
+    for i in range(n):
+        s = stars_for(round(100.0 * (n - i) / n, 2))
+        star_hist[s] = star_hist.get(s, 0) + 1
+    print("  stars: " + "  ".join(f"{s}*:{star_hist.get(s, 0):,}"
+                                  for s in (5, 4, 3, 2, 1)))
 
     os.makedirs(os.path.dirname(args.geojson) or ".", exist_ok=True)
     t0 = time.time()
@@ -461,6 +571,7 @@ def main():
     with open(args.geojson, "w", encoding="utf-8") as f:
         for i, r in enumerate(rows):
             cls = r["dominant_class"] or ""
+            pct = round(100.0 * (n - i) / n, 2)
             if r["name"]:
                 label = r["name"]
                 named += 1
@@ -481,8 +592,14 @@ def main():
                     # granularity, so ship the family rather than making the
                     # frontend expand 153 class names back into groups.
                     "family": FAMILY.get(cls, "misc"),
-                    # Percentile, best-first. Ordering is all the frontend uses.
-                    "score": round(100.0 * (n - i) / n, 2),
+                    # Percentile, best-first. Ordering is all the frontend
+                    # uses it for (symbol-sort-key).
+                    "score": pct,
+                    # The same percentile bucketed for display and filtering.
+                    # Derived here rather than in the app so that "5 stars"
+                    # means the same thing everywhere, and so the app never
+                    # sees the raw score it would be tempted to render.
+                    "stars": stars_for(pct),
                 },
                 "tippecanoe": {"minzoom": minzoom[i]},
             }, ensure_ascii=False) + "\n")
