@@ -36,8 +36,15 @@ import subprocess
 import sys
 import time
 
+from families import FAMILY, FAMILY_ICON, FAMILY_LABEL, FAMILY_ORDER
+from periods import period_for
+
 DB = "src/data/sites.sqlite"
 DEFAULT_OUT = os.path.expanduser("~/projects/franco-may/public/tiles")
+DEFAULT_DESC_OUT = os.path.expanduser("~/projects/franco-may/public/descriptions")
+DEFAULT_GROUPS_OUT = os.path.expanduser(
+    "~/projects/franco-may/app/fornlamningar/filterFamilies.ts")
+AI_DB = "src/data/descriptions.sqlite"
 GEOJSON = "src/data/tiles_input.geojsonl"
 LAYER = "archaeological_sites"
 
@@ -59,14 +66,19 @@ TIPPECANOE_OPTS = [
     # ourselves in assign_minzoom() and hand tippecanoe a per-feature
     # tippecanoe.minzoom, which it always honours.
     "--drop-rate=1",
-    # Kept only as a tile-size safety net. It merges nearby points and places
-    # the merged feature at their AVERAGE position, which is why maxzoom must
-    # stay 14: at z14 nothing clusters and positions are exact to under a
-    # metre. (With `-zg` tippecanoe picked maxzoom 9, Hunehals borg landed
-    # 595 m off, and MapLibre overzooms the deepest tile, so that displacement
-    # then persisted at every zoom.)
-    "--cluster-densest-as-needed", "--extend-zooms-if-still-dropping",
-    "--cluster-distance=5",
+    # NO clustering. `--cluster-distance=5` used to merge anything within 5 px
+    # into one feature carrying a point_count -- so the browser never received
+    # the individual candidates. Decoded, the z0 tile held 11 features standing
+    # in for all 10,000 points. That made client-side reselection impossible:
+    # when a filter hid an icon, there was nothing in the tile to put in its
+    # place, so the map just gained a hole. It also averaged positions, which
+    # is how Hunehals borg once landed 595 m from its true location.
+    #
+    # `--drop-densest-as-needed` is the safety net instead: if a tile ever
+    # exceeds the 500 KB vector-tile budget it DROPS the densest features
+    # rather than merging them, so no position is ever invented. Measured worst
+    # tile with the current settings is 218 KB, so it should stay dormant.
+    "--drop-densest-as-needed", "--extend-zooms-if-still-dropping",
     # Tiles served as plain static files from Next.js `public/` arrive without a
     # Content-Encoding header, so MapLibre cannot know they are gzipped and
     # fails with "Unable to parse the tile". Write them raw instead: a .pbf must
@@ -93,6 +105,32 @@ def one_line(text, limit):
 # which map pins stay distinguishable. 12 was visibly too sparse when zooming
 # out; 8 emptied the regional zooms again.
 CELLS_PER_TILE = 24
+
+
+def assign_minzoom_by_family(rows, maxzoom, cells_per_tile=CELLS_PER_TILE):
+    """Run the thinning grid once per family, not once over everything.
+
+    Thinning globally means a tile contains, for each patch of ground, only the
+    single best cluster of ANY family. Hide that one with a filter and the
+    patch goes empty -- there is no runner-up in the tile to promote. Per
+    family, every family has its own well-spread set at every zoom, so any
+    filter selection (always a union of families) stays evenly covered and
+    MapLibre's collision engine does the final pick by score.
+
+    The cost is bounded and small: a family with few members is simply fully
+    visible from z0. Measured on the top 10,000 it takes the export from
+    12.3 MB to 14.6 MB, worst tile 71 KB -> 218 KB.
+    """
+    buckets = {}
+    for i, r in enumerate(rows):
+        buckets.setdefault(FAMILY.get(r["dominant_class"] or "", "misc"),
+                           []).append(i)
+    out = [maxzoom] * len(rows)
+    for idxs in buckets.values():
+        sub = [rows[i] for i in idxs]
+        for i, z in zip(idxs, assign_minzoom(sub, maxzoom, cells_per_tile)):
+            out[i] = z
+    return out
 
 
 def assign_minzoom(rows, maxzoom, cells_per_tile=CELLS_PER_TILE):
@@ -132,6 +170,187 @@ def assign_minzoom(rows, maxzoom, cells_per_tile=CELLS_PER_TILE):
     return minzoom
 
 
+def load_dims(db, rows):
+    """Parsed dimensions of each cluster's best-described member."""
+    conn = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
+    out = {}
+    for cid, a, b, c in conn.execute("""
+            SELECT x.cluster_id, s.dim_len_m, s.dim_height_m, s.dim_area_m2
+              FROM site_clusters x JOIN sites s ON s.uuid = x.uuid
+             WHERE s.uuid = (SELECT s2.uuid FROM site_clusters y
+                               JOIN sites s2 ON s2.uuid = y.uuid
+                              WHERE y.cluster_id = x.cluster_id
+                              ORDER BY s2.description_len DESC, s2.uuid LIMIT 1)"""):
+        out[cid] = (a, b, c)
+    conn.close()
+    return out
+
+
+def load_ai_descriptions(path):
+    """Read the generated visitor descriptions, if any exist yet.
+
+    Optional by design. The file is built by build_descriptions.py over hours
+    of local model time and lives outside sites.sqlite precisely so the
+    pipeline can be rebuilt without it; so this stage has to work whether it
+    is there, half-finished, or absent. Whatever is missing falls back to the
+    raw register text.
+
+    Rows a check flagged are skipped: a number that could not be traced back
+    to the source, or a reach for "mysterious". Not something to ship, and the
+    raw Swedish is at least true.
+
+    `dim-in-prose` is exempt. It only records that the model mentioned a
+    measurement in the prose when the size is also shown as subtext -- a
+    blemish, not a falsehood, and it fires on about a quarter of rows.
+    Treating it as a failure would throw away a quarter of good descriptions.
+    """
+    cosmetic = {"dim-in-prose"}
+    if not os.path.exists(path):
+        return {}
+    conn = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+    try:
+        rows = conn.execute(
+            "SELECT cluster_id, title, content, title_en, content_en, flags "
+            "FROM ai_descriptions WHERE content <> ''").fetchall()
+    except sqlite3.OperationalError:
+        return {}
+    finally:
+        conn.close()
+    out = {}
+    for cid, title, content, title_en, content_en, flags in rows:
+        real = {f.split(":")[0] for f in (flags or "").split(",") if f} - cosmetic
+        if real:
+            continue
+        out[cid] = {"sv": (title, content), "en": (title_en, content_en)}
+    skipped = len(rows) - len(out)
+    print(f"  {len(out):,} generated descriptions available"
+          + (f", {skipped:,} skipped as flagged" if skipped else ""))
+    return out
+
+
+def write_descriptions(rows, out_dir, shard_chars, max_desc, ai=None,
+                       lang="en", dims=None):
+    """Write descriptions as uuid-sharded JSON, outside the tiles.
+
+    Description text was 60% of every tile's bytes: the same export weighs
+    16.4 MB with it inline and 6.0 MB without. And it was dead weight -- a
+    visitor reads one description per click, but paid for a few hundred of
+    them on every tile fetch.
+
+    Sharding on the first `shard_chars` of the uuid gives 256 files of ~26 KB
+    for 10,000 clusters. Small enough that a click costs one tiny request,
+    numerous enough that no single file is wasteful, and the frontend derives
+    the path straight from the uuid it already has -- no manifest to keep in
+    sync. They are immutable static files, so the browser caches each shard
+    after the first click in its neighbourhood.
+
+    Truncation is off by default now. Inline, 120 characters was the most we
+    could afford; out here the full RAA text costs nothing at map load.
+    """
+    ai = ai or {}
+    shards, n_ai = {}, 0
+    for r in rows:
+        uuid = r["uuid"] or ""
+        if not uuid:
+            continue
+        entry = {}
+        got = ai.get(r["cluster_id"])
+        if got:
+            # Swedish is the canonical text; fall back to it if the English
+            # pass has not reached this row yet. Half-translated is fine --
+            # every place still has something true to show.
+            title, content = got.get(lang) or (None, None)
+            if not content:
+                title, content = got["sv"]
+            # A generated title is a better popup heading than the fallback
+            # label, which for an unnamed place is just its class.
+            if title:
+                entry["title"] = title
+            entry["content"] = content
+            n_ai += 1
+        else:
+            text = one_line(r["best_description"], max_desc)
+            if not text:
+                continue
+            entry["content"] = text
+            entry["raw"] = True     # untranslated register text, for the UI
+
+        # Size travels as numbers, not prose. dims.py already parsed it out of
+        # the Swedish text for 91% of eligible places, so there is no reason to
+        # let a model restate it and no reason to bake a language into it --
+        # the frontend renders it as subtext in whatever locale it is showing.
+        d = (dims or {}).get(r["cluster_id"])
+        if d and any(d):
+            entry["size"] = {k: v for k, v in
+                             zip(("across_m", "high_m", "area_m2"), d) if v}
+
+        # Age is the one thing on a pin that is not derived from the register:
+        # K-samsok has no dating field at all and the free text names a period
+        # in under 4% of entries. It comes from the reviewed table in
+        # periods.py, and `basis` says whether the register stated it or the
+        # class implies it, so the UI can hedge accordingly.
+        per = period_for(r["dominant_class"], r["best_description"])
+        if per:
+            entry["period"] = {"text": per[0] if lang == "sv" else per[1],
+                               "basis": per[2]}
+
+        shards.setdefault(uuid[:shard_chars].lower(), {})[uuid] = entry
+
+    if os.path.isdir(out_dir):
+        for fn in os.listdir(out_dir):
+            if fn.endswith(".json"):
+                os.remove(os.path.join(out_dir, fn))
+    os.makedirs(out_dir, exist_ok=True)
+    total = 0
+    for key, payload in shards.items():
+        path = os.path.join(out_dir, f"{key}.json")
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(payload, f, ensure_ascii=False, separators=(",", ":"))
+        total += os.path.getsize(path)
+    n = sum(len(v) for v in shards.values())
+    print(f"  {n:,} descriptions in {len(shards)} shards "
+          f"({n_ai:,} generated, {n - n_ai:,} raw register text), "
+          f"{total/1e6:.1f} MB total, {total/max(len(shards),1)/1024:.0f} KB "
+          f"each -> {out_dir}")
+
+
+def write_families(rows, path):
+    """Emit the filter families with live counts.
+
+    The frontend used to hard-code 19 class names. Four of them were not in
+    the export at all, so those checkboxes did nothing, while 82 classes fell
+    into a single "Other" bucket -- including Fornborg, which is 813 clusters.
+    Generated from the export, the list cannot drift from the data.
+    """
+    counts = {}
+    for r in rows:
+        fam = FAMILY.get(r["dominant_class"] or "", "misc")
+        counts[fam] = counts.get(fam, 0) + 1
+    present = [f for f in FAMILY_ORDER if counts.get(f)]
+    rows_ts = "\n".join(
+        f'  {{ id: {f!r}, label: {FAMILY_LABEL[f]!r}, '
+        f'icon: {FAMILY_ICON[f]!r}, count: {counts[f]} }},'
+        .replace("'", '"') for f in present)
+    with open(path, "w", encoding="utf-8") as f:
+        f.write("// GENERATED by build_tiles.py -- do not edit by hand.\n"
+                "// Families present in the exported tiles, with their cluster\n"
+                "// counts. This is the same grouping the exporter thins by,\n"
+                "// which is what makes filtering backfill instead of leaving\n"
+                "// holes.\n"
+                "export type FilterFamily = {\n"
+                "  id: string;\n"
+                "  label: string;\n"
+                "  /** Glyph name; served as "
+                "/fornlamningar-icons/svg/<icon>.svg */\n"
+                "  icon: string;\n"
+                "  count: number;\n"
+                "};\n\n"
+                "export const FILTER_FAMILIES: FilterFamily[] = [\n"
+                f"{rows_ts}\n];\n\n"
+                "export const ALL_FAMILY_IDS = FILTER_FAMILIES.map(f => f.id);\n")
+    print(f"  {len(present)} filter families -> {path}")
+
+
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--db", default=DB)
@@ -140,9 +359,31 @@ def main():
     p.add_argument("--score", choices=("intrinsic", "full"), default="intrinsic",
                    help="intrinsic = discovery (ignores existing documentation); "
                         "full = also credits Wikipedia/photos")
-    p.add_argument("--max-desc", type=int, default=280,
-                   help="truncate descriptions; 0 keeps full text. This text "
-                        "ships inside the tiles and dominates their size")
+    p.add_argument("--max-desc", type=int, default=0,
+                   help="truncate descriptions; 0 keeps the full RAA text. "
+                        "These now ship OUTSIDE the tiles, so there is no "
+                        "reason to truncate unless you want shorter popups")
+    p.add_argument("--desc-out", default=DEFAULT_DESC_OUT,
+                   help="directory for the sharded description files")
+    p.add_argument("--ai-db", default=AI_DB,
+                   help="generated visitor descriptions; used when present")
+    p.add_argument("--no-ai-desc", action="store_true",
+                   help="ignore the generated descriptions and ship the raw "
+                        "RAA text for everything")
+    p.add_argument("--lang", choices=("en", "sv"), default="sv",
+                   help="which generated text to ship; Swedish is canonical "
+                        "and is used as the fallback either way")
+    # The DEFAULT is what ships, so it has to be the language the app is in.
+    # run_pipeline.sh does not pass --lang, so leaving this at "en" meant any
+    # full rebuild would quietly switch the app back to English -- the same
+    # trap that made build_scores.py refit with the worse model for a while.
+    # Swedish is also the canonical text: it is what the model wrote from the
+    # source, with no translation pass in between to go wrong.
+    p.add_argument("--desc-shard-chars", type=int, default=2,
+                   help="uuid prefix length used as the shard key; 2 gives "
+                        "256 shards")
+    p.add_argument("--groups-out", default=DEFAULT_GROUPS_OUT,
+                   help="TS file listing the filter families and their counts")
     p.add_argument("--include-excluded", action="store_true",
                    help="also emit blacklisted / soft-excluded clusters")
     p.add_argument("--min-score", type=float, default=None,
@@ -191,6 +432,10 @@ def main():
 
     if not rows:
         sys.exit("no clusters matched the filters")
+    orphans = sorted({r["dominant_class"] for r in rows
+                      if r["dominant_class"] and r["dominant_class"] not in FAMILY})
+    if orphans:
+        sys.exit(f"classes with no family in families.py: {orphans}")
     n = len(rows)
     print(f"exporting {n:,} clusters"
           + (f" (top {args.top:,})" if args.top else "")
@@ -198,7 +443,8 @@ def main():
     if args.top:
         print(f"  score range kept: {rows[0]['score']:.2f} .. {rows[-1]['score']:.2f}")
 
-    minzoom = assign_minzoom(rows, args.maxzoom, args.cells_per_tile)
+    minzoom = assign_minzoom_by_family(rows, args.maxzoom,
+                                       args.cells_per_tile)
     hist = {}
     for z in minzoom:
         hist[z] = hist.get(z, 0) + 1
@@ -231,7 +477,10 @@ def main():
                     "uuid": r["uuid"] or "",
                     "label": label,
                     "class": cls,
-                    "description": one_line(r["best_description"], args.max_desc),
+                    # The filter granularity has to match the thinning
+                    # granularity, so ship the family rather than making the
+                    # frontend expand 153 class names back into groups.
+                    "family": FAMILY.get(cls, "misc"),
                     # Percentile, best-first. Ordering is all the frontend uses.
                     "score": round(100.0 * (n - i) / n, 2),
                 },
@@ -240,6 +489,11 @@ def main():
     gj = os.path.getsize(args.geojson) / 1e6
     print(f"  geojsonl {gj:.1f} MB, {named:,} with a folk name "
           f"({time.time()-t0:.0f}s)")
+
+    ai = {} if args.no_ai_desc else load_ai_descriptions(args.ai_db)
+    write_descriptions(rows, args.desc_out, args.desc_shard_chars,
+                       args.max_desc, ai, args.lang, load_dims(args.db, rows))
+    write_families(rows, args.groups_out)
 
     if args.skip_tippecanoe:
         print(f"  kept {args.geojson}")

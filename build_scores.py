@@ -373,9 +373,6 @@ def main():
     p.add_argument("--db", default=DB)
     p.add_argument("--top", type=int, default=25)
     p.add_argument("--seed", type=int, default=1)
-    p.add_argument("--model", choices=("lift", "logistic"), default="lift",
-                   help="lift = log-lift naive Bayes (assumes independence); "
-                        "logistic = joint fit, decorrelates and uses negatives")
     args = p.parse_args()
 
     conn = sqlite3.connect(args.db)
@@ -458,16 +455,26 @@ def main():
 
     # --- fit the logistic model too, so the two can be compared ------------ #
     neg_all = neg_all if 'neg_all' in dir() else set()
-    lr_model = None
-    if args.model == "logistic":
-        print("\nfitting logistic regression...")
-        lr_model = fit_logistic(fit_rows, feats, cw, kw, desc,
-                                pos_all, neg_all, train, seed=args.seed)
-        w_lr, b_lr, mu, sd, names = lr_model
-        top = sorted(zip(names, w_lr), key=lambda x: -abs(x[1]))[:12]
-        print("  pesos mas fuertes (decorrelacionados):")
-        for n_, v in top:
-            print(f"    {n_:<18}{v:+.3f}")
+    # The model is no longer selectable, and that is the point. Log-lift used
+    # to be an option AND the default, which cost us: run_pipeline.sh does not
+    # pass --model, so a full rebuild silently refitted with the worse model.
+    # The score range moved from 9.92..1.03 to 16.08..5.40 and nothing looked
+    # broken -- the ranking was just quietly worse.
+    #
+    # Lift double-counts correlated features. Near a road, near a building and
+    # photographed on Wikidata are largely one fact -- that a place is known
+    # and reachable -- and lift rewards it three times.
+    #
+    # The lift score is still COMPUTED, as the baseline the logistic fit is
+    # measured against below. It is simply no longer shippable.
+    print("\nfitting logistic regression...")
+    lr_model = fit_logistic(fit_rows, feats, cw, kw, desc,
+                            pos_all, neg_all, train, seed=args.seed)
+    w_lr, b_lr, mu, sd, names = lr_model
+    top = sorted(zip(names, w_lr), key=lambda x: -abs(x[1]))[:12]
+    print("  pesos mas fuertes (decorrelacionados):")
+    for n_, v in top:
+        print(f"    {n_:<18}{v:+.3f}")
 
     def full_score(r):
         return (score_of(r, feats, weights)
@@ -477,19 +484,14 @@ def main():
     # --- evaluate the honest score on held-out positives ------------------- #
     eval_rows = [r for r in fit_rows
                  if r["cluster_id"] not in train]          # drop train leakage
-    if lr_model:
-        Xe, _ = build_matrix(eval_rows, feats, cw, kw, desc)
-        pe = LR.predict((Xe - mu) / sd, w_lr, b_lr)
-        scored = [(float(pe[i]), int(r["cluster_id"] in test))
-                  for i, r in enumerate(eval_rows)]
-        lift_scored = [(full_score(r), int(r["cluster_id"] in test))
-                       for r in eval_rows]
-        a_lift = auc(lift_scored)
-        print(f"\n  comparacion en held-out:  lift AUC {a_lift:.4f}   "
-              f"logistic AUC {auc(scored):.4f}")
-    else:
-        scored = [(full_score(r), int(r["cluster_id"] in test))
-                  for r in eval_rows]
+    Xe, _ = build_matrix(eval_rows, feats, cw, kw, desc)
+    pe = LR.predict((Xe - mu) / sd, w_lr, b_lr)
+    scored = [(float(pe[i]), int(r["cluster_id"] in test))
+              for i, r in enumerate(eval_rows)]
+    a_lift = auc([(full_score(r), int(r["cluster_id"] in test))
+                  for r in eval_rows])
+    print(f"\n  comparacion en held-out:  lift AUC {a_lift:.4f}   "
+          f"logistic AUC {auc(scored):.4f}   (lift = baseline, not shipped)")
     a = auc(scored)
     scored.sort(key=lambda x: -x[0])
     n_test = sum(l for _, l in scored)
@@ -516,10 +518,8 @@ def main():
             excluded_soft INTEGER
         )
     """)
-    lr_all = None
-    if lr_model:
-        Xa, _ = build_matrix(rows, feats, cw, kw, desc)
-        lr_all = LR.predict((Xa - mu) / sd, w_lr, b_lr)
+    Xa, _ = build_matrix(rows, feats, cw, kw, desc)
+    lr_all = LR.predict((Xa - mu) / sd, w_lr, b_lr)
 
     out = []
     for i, r in enumerate(rows):
@@ -529,7 +529,9 @@ def main():
         nob = (score_of(r, NOTABILITY_FEATURES, weights)
                + score_of(r, SIZE_FEATURES, weights)
                + cw.get(r["dominant_class"] or "?", 0.0) + kb)
-        intrinsic = acc + nob if lr_all is None else float(lr_all[i]) * 10.0
+        # x10 only to put the probability on a readable 0-10 scale. Nothing
+        # downstream depends on the magnitude, only on the ordering.
+        intrinsic = float(lr_all[i]) * 10.0
         full = intrinsic + score_of(r, LABEL_DERIVED, lw)
         hard = int(bool(r["class_blacklisted"]))
         # Soft exclusion, with the escape hatch: any independent positive

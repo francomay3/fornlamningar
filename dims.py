@@ -28,9 +28,23 @@ import re
 NUM = r"\d+(?:[.,]\d+)?"
 
 # Bearings: "65 m S 20° O om", "12 m NÖ om", "5 m N om"
+#
+# NOT case-insensitive, and that matters more than it looks. With re.I the
+# compass class also matched the "s" and "st" of ordinary Swedish words, so
+# this ate the size statements it was standing next to:
+#
+#   "Brandlager, 2,40x0,80 m stort"      -> "2,40x tort"
+#   "uppbyggt av 0,3-0,5 m stora stenar" -> "0,3- tora stenar"
+#
+# Which cost twice. It lost 4,794 measurements outright, and worse, it made
+# the parser answer with the wrong number instead of none: "Gravfalt, 20x15 m
+# st" became "20x t", so the 20 m field was recorded as the 6 m domarring
+# mentioned later inside it. It also made RE_SIZE below unreachable.
+#
+# The register writes bearings in capitals ("5 m N om"). Across 60,000
+# descriptions exactly 9 are lowercase, so requiring capitals is safe.
 BEARING = re.compile(
-    rf"{NUM}\s*m\s*(?:[NSÖVO]{{1,3}}|[NSÖVO]\s*\d+\s*(?:°|cg|gr))\s*(?:[oO]m)?",
-    re.I)
+    rf"{NUM}\s*m\s*(?:[NSÖVO]{{1,3}}|[NSÖVO]\s*\d+\s*(?:°|cg|gr))\s*(?:[oO]m)?")
 
 # Where the text stops describing the monument and starts describing its parts.
 # Deliberately only PLURAL / collective terms: singular "stenblock" or "block"
@@ -59,6 +73,18 @@ RE_HIGH = re.compile(rf"({NUM})\s*m\s*(?:h\b|hög|höjd)", re.I)
 RE_LONG = re.compile(rf"({NUM})\s*m\s*(?:l\b|lång|längd)", re.I)
 RE_SIZE = re.compile(rf"({NUM})\s*m\s*st\b", re.I)
 
+# Two spellings that cost 632 measurements between them, both fixed by
+# normalising the text rather than by loosening the patterns above -- loosening
+# them would let "Belagen 5 m. Hogsta punkten" read as a height of 5 m.
+#
+# Abbreviations written with a full stop: "6 m.diam.", "2,30 m.l.", "1,4 m.h.".
+# Case-sensitive, so a sentence break before a capitalised word cannot match.
+DOT_ABBR = re.compile(
+    rf"({NUM})\s*m\.(?=\s*(?:diam|hög|höjd|lång|längd|h\b|l\b|br\b|tj\b))")
+# En and em dashes in ranges ("0,03–0,08 m"), and the multiplication sign
+# ("5×0,4 m"). Both appear in text typed decades apart.
+FANCY = str.maketrans({"–": "-", "—": "-", "×": "x", "\u2212": "-"})
+
 
 # Largest plausible horizontal extent. Grave fields genuinely reach several
 # hundred metres -- Li gravfalt at Fjaras Bracka is "ca 500x125 m" with ~160
@@ -81,6 +107,10 @@ def parse_dims(text, head=260):
     if not text:
         return None, None, None
     t = " ".join(text.split())
+
+    # Normalise spellings first, so the patterns below stay strict.
+    t = t.translate(FANCY)
+    t = DOT_ABBR.sub(r"\1 m ", t)
 
     # Drop bearings before anything else, so distances never look like sizes.
     t = BEARING.sub(" ", t)
@@ -126,7 +156,8 @@ def parse_dims(text, head=260):
             length = max(length or 0, v)
 
     # `N m st` is a size statement; only trust it if nothing better was found,
-    # because it is also how stone sizes are written.
+    # because it is also how stone sizes are written. This was dead code until
+    # the BEARING fix above: every "N m st" had already been eaten.
     if length is None:
         for mm in RE_SIZE.finditer(head_txt):
             v = _f(mm.group(1))

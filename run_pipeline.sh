@@ -26,7 +26,8 @@ JSON=""
 # Stage 6 only. Ranking always runs over every cluster; TOP just decides how
 # many of the best ones get exported as tiles.
 TOP=""
-TILE_ARGS="${TILE_ARGS:---max-desc 120}"
+# Descriptions ship outside the tiles now, so there is nothing to truncate.
+TILE_ARGS="${TILE_ARGS:-}"
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --from) FROM="$2"; shift 2 ;;
