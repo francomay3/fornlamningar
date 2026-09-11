@@ -42,9 +42,19 @@ CREATE TABLE IF NOT EXISTS features (
     content      TEXT,
     title_en     TEXT,               -- generated, second pass over the above
     content_en   TEXT,
-    class_sv     TEXT,               -- dominant class of the cluster
+    -- The class this place WEARS, from its representative member.
+    class_sv     TEXT,
     family       TEXT,               -- families.py id, not a label
+    -- What is actually in it: "Hög×3; Stensättning×2". A cluster is a place,
+    -- but it is not one thing, and 5,159 of 13,729 multi-class clusters mix
+    -- more than one FAMILY -- a fort and a hollow way at the same
+    -- coordinate. Every representative-choice bug in this pipeline came
+    -- from making the cluster win an internal election it should never have
+    -- had to hold, so the mix travels with it and a sheet can say both.
+    class_mix    TEXT,
     n_sites      INTEGER,            -- register rows inside this place
+    n_classes    INTEGER,
+    uuid         TEXT,               -- representative member, explicitly
     lamningsnummer TEXT,
     raa_url      TEXT,
     parish       TEXT, municipality TEXT, county TEXT,
@@ -135,6 +145,24 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_i_identity ON images(
     cluster_id, source, COALESCE(file, ''), COALESCE(image_url, ''),
     COALESCE(local_path, ''));
 CREATE INDEX IF NOT EXISTS idx_i_cluster ON images(cluster_id);
+
+-- Every register record inside a place, not only the one it wears.
+--
+-- This is the table that makes "identity is a set" real rather than a
+-- comment. The Fornsök link can list the members instead of picking one,
+-- and the 19,881 clusters whose representative was ambiguous stop needing
+-- a winner at all -- the ambiguity was never in the data, it was in
+-- insisting on a single answer.
+CREATE TABLE IF NOT EXISTS feature_sites (
+    cluster_id  TEXT NOT NULL,
+    uuid        TEXT NOT NULL,
+    class_sv    TEXT,
+    lamningsnummer TEXT,
+    raa_url     TEXT,
+    is_representative INTEGER DEFAULT 0,
+    PRIMARY KEY (cluster_id, uuid)
+);
+CREATE INDEX IF NOT EXISTS idx_fs_cluster ON feature_sites(cluster_id);
 """
 
 
@@ -245,14 +273,17 @@ def build_features(out):
         print(f"{len(gen):,} generated descriptions "
               f"({sum(1 for v in gen.values() if v[3]):,} with English)")
 
-    # The representative register row: what the app links to on Fornsök, and
-    # the same choice build_clusters.py made for the pin, so the link and the
-    # dot agree about which of the twenty graves is the one being shown.
-    rep = dict(w.execute("""
-        SELECT sc.cluster_id, s.uuid FROM site_clusters sc
-        JOIN sites s ON s.uuid = sc.uuid
-        GROUP BY sc.cluster_id
-        HAVING s.description_len = MAX(s.description_len)"""))
+    # The representative register row: what the app links to on Fornsök.
+    #
+    # Read from clusters.rep_uuid, which build_clusters.py decides once. This
+    # used to be its own GROUP BY / HAVING MAX(description_len), missing the
+    # "excluded classes lose first" clause and with no deterministic
+    # tie-break -- so for 19,881 of 40,656 multi-site clusters it named a
+    # different member than the tile did, and the "Visa i Fornsök" button
+    # would have opened a monument other than the one described.
+    rep = dict(w.execute(
+        "SELECT cluster_id, rep_uuid FROM clusters "
+        "WHERE rep_uuid IS NOT NULL"))
     lam = dict(w.execute("SELECT uuid, lamningsnummer FROM sites"))
     url = dict(w.execute("SELECT uuid, url FROM sites"))
 
@@ -260,11 +291,12 @@ def build_features(out):
     for r in w.execute("""
             SELECT c.cluster_id, c.lon, c.lat, c.name, c.dominant_class,
                    c.n_sites, c.parish, c.municipality, c.county,
+                   c.class_mix, c.n_classes,
                    sc.score_full, sc.excluded_hard, sc.excluded_soft
             FROM clusters c
             LEFT JOIN scores sc ON sc.cluster_id = c.cluster_id"""):
         (cid, lon, lat, name, cls, n_sites, parish, muni, county,
-         score, hard, soft) = r
+         class_mix, n_classes, score, hard, soft) = r
         (title, content, title_en, content_en, made_at, model,
          translated_at) = gen.get(cid, (None,) * 7)
         sign, snote, park, pnote = status.get(cid, (None,) * 4)
@@ -272,20 +304,41 @@ def build_features(out):
         out.execute("""
             INSERT OR REPLACE INTO features
               (cluster_id, lon, lat, name, title, content, title_en,
-               content_en, class_sv, family, n_sites, lamningsnummer,
+               content_en, class_sv, family, class_mix, n_sites, n_classes,
+               uuid, lamningsnummer,
                raa_url, parish, municipality, county, score, excluded,
                has_or_doesnt_need_sign, has_or_doesnt_need_parking,
                sign_status, sign_note, parking_status, parking_note,
                description_generated_at, description_model,
                description_translated_at, built_at)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,
-                    datetime('now'))
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,
+                    ?,?,datetime('now'))
         """, (cid, lon, lat, name, title, content, title_en, content_en,
-              cls, FAMILY.get(cls, "misc"), n_sites, lam.get(uuid),
+              cls, FAMILY.get(cls, "misc"), class_mix, n_sites, n_classes,
+              uuid, lam.get(uuid),
               url.get(uuid), parish, muni, county, score,
               1 if (hard or soft) else 0,
               sign_state(sign), sign_state(park),
               sign, snote, park, pnote, made_at, model, translated_at))
+        n += 1
+    out.commit()
+    return n
+
+
+def build_members(out):
+    """One row per register record inside each place."""
+    w = sqlite3.connect(paths.ro(paths.WORK), uri=True)
+    rep = dict(w.execute("SELECT cluster_id, rep_uuid FROM clusters"))
+    n = 0
+    for cid, uuid, cls, lam, url in w.execute("""
+            SELECT sc.cluster_id, s.uuid, s.class_sv, s.lamningsnummer, s.url
+            FROM site_clusters sc JOIN sites s ON s.uuid = sc.uuid"""):
+        out.execute("""
+            INSERT OR REPLACE INTO feature_sites
+              (cluster_id, uuid, class_sv, lamningsnummer, raa_url,
+               is_representative)
+            VALUES (?,?,?,?,?,?)
+        """, (cid, uuid, cls, lam, url, 1 if rep.get(cid) == uuid else 0))
         n += 1
     out.commit()
     return n
@@ -416,6 +469,8 @@ def main():
 
     n = build_features(out)
     print(f"features: {n:,} rows")
+    n = build_members(out)
+    print(f"members:  {n:,} register records")
     n = build_images(out)
     print(f"images:   {n:,} from Commons")
     n = pdf_images(out)

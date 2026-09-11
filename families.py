@@ -268,3 +268,36 @@ CLASS_BLACKLIST = {
 # Weak on its own (0.26x photograph lift) but 29.6% of the dataset and it does
 # contain good sites. Excluded by default, rescued by any positive evidence.
 CLASS_SOFT_BLACKLIST = {"Stensättning"}
+
+
+def representative_order(alias="s"):
+    """The ORDER BY that picks a cluster's representative site, once.
+
+    Returns (sql_fragment, params). Use it after `ORDER BY cluster_id,` and
+    take the first row per cluster.
+
+    This rule existed in FOUR places -- build_clusters.py, build_tiles.py,
+    build_places.py and write_families() -- and the copies drifted.
+    build_places.py had lost the "excluded classes lose first" clause, which
+    meant that for 19,881 of 40,656 multi-site clusters `features.raa_url`
+    pointed at a different member than the tile did. The visible symptom
+    would have been the "Visa i Fornsök" button opening a monument other
+    than the one the text describes.
+
+    The three parts, in order:
+      1. A blacklisted class loses. A grave field sharing an RAA number with
+         two fossil-field records must not be represented by a fossil field
+         -- that is how Blomsholms gravfält came to be called "Område med
+         fossil åkermark" and got excluded out of existence.
+      2. Longest description wins. It is the member somebody actually wrote
+         about, so its text and its class agree with each other.
+      3. uuid, purely to make the tie deterministic. Without it the same
+         build can pick different members on different runs, and half of the
+         19,881 divergences above were nothing but this.
+    """
+    holes = ",".join("?" * len(CLASS_BLACKLIST))
+    return (
+        f"CASE WHEN {alias}.class_sv IN ({holes}) THEN 1 ELSE 0 END, "
+        f"{alias}.description_len DESC, {alias}.uuid",
+        tuple(CLASS_BLACKLIST),
+    )

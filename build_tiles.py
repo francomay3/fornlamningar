@@ -203,16 +203,20 @@ def assign_minzoom(rows, maxzoom, cells_per_tile=CELLS_PER_TILE):
 
 
 def load_dims(db, rows):
-    """Parsed dimensions of each cluster's best-described member."""
+    """Parsed dimensions of the member this cluster wears.
+
+    Joined on clusters.rep_uuid. It used to pick "the best-described member"
+    with its own ORDER BY, which omitted the blacklist clause the other
+    copies had -- so the measurements in the sheet could describe a different
+    stone than the title, the icon and the text above them. A sheet reading
+    "Gånggrift -- 1.2 m" where the 1.2 m belongs to a nearby clearance cairn
+    is worse than no measurement, because it looks like a fact.
+    """
     conn = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
     out = {}
     for cid, a, b, c in conn.execute("""
-            SELECT x.cluster_id, s.dim_len_m, s.dim_height_m, s.dim_area_m2
-              FROM site_clusters x JOIN sites s ON s.uuid = x.uuid
-             WHERE s.uuid = (SELECT s2.uuid FROM site_clusters y
-                               JOIN sites s2 ON s2.uuid = y.uuid
-                              WHERE y.cluster_id = x.cluster_id
-                              ORDER BY s2.description_len DESC, s2.uuid LIMIT 1)"""):
+            SELECT c.cluster_id, s.dim_len_m, s.dim_height_m, s.dim_area_m2
+              FROM clusters c JOIN sites s ON s.uuid = c.rep_uuid"""):
         out[cid] = (a, b, c)
     conn.close()
     return out
@@ -520,27 +524,21 @@ def main():
 
     conn = sqlite3.connect(f"file:{args.db}?mode=ro", uri=True)
     conn.row_factory = sqlite3.Row
-    holes = ",".join("?" * len(CLASS_BLACKLIST))
     rows = conn.execute(f"""
         SELECT c.cluster_id, c.name, c.dominant_class, c.n_sites,
                c.lon, c.lat, c.best_description,
                {score_col} AS score,
-               -- The representative site. This ordering must stay identical
-               -- to build_clusters.py's, or the pin's description comes from
-               -- one member and its class and icon from another. The excluded
-               -- classes lose first for the same reason they do there.
-               (SELECT s.uuid FROM site_clusters x
-                  JOIN sites s ON s.uuid = x.uuid
-                 WHERE x.cluster_id = c.cluster_id
-                 ORDER BY CASE WHEN s.class_sv IN ({holes})
-                               THEN 1 ELSE 0 END,
-                          s.description_len DESC, s.uuid LIMIT 1) AS uuid
+               -- The representative site, READ rather than recomputed.
+               -- build_clusters.py decides it once and stores it; this used
+               -- to be a copy of that ORDER BY, which is how three other
+               -- copies of the same rule came to disagree.
+               c.rep_uuid AS uuid
         FROM clusters c
         JOIN scores sc ON sc.cluster_id = c.cluster_id
         WHERE {' AND '.join(where)}
         ORDER BY {score_col} DESC
         {f'LIMIT {args.top}' if args.top else ''}
-    """, tuple(CLASS_BLACKLIST)).fetchall()
+    """).fetchall()
     conn.close()
 
     if not rows:

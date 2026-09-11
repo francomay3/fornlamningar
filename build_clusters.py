@@ -14,7 +14,9 @@ Grouping strategy, in order of authority:
    apart. The key is therefore (parish_code, raa_group).
 2. A spatial guard splits any RAA group whose members are still far apart, so a
    stale or mis-keyed record cannot drag a cluster across the map.
-3. Sites with no usable RAA-nummer fall back to single-link spatial clustering
+3. Sites with no usable RAA-nummer are each their own place. They used to be
+   clustered spatially; that pass produced 2,024 clusters averaging 127 m of
+   spread, the worst of them 535 sites over six kilometres, so it was removed
    restricted to the same class, so a charcoal pit is never merged into a
    burial mound.
 
@@ -23,7 +25,7 @@ Writes: src/data/sites.sqlite  (tables `clusters` and `site_clusters`)
 
 Usage:
     python build_clusters.py
-    python build_clusters.py --raa-split 500 --fallback-radius 150
+    python build_clusters.py --raa-split 500
 """
 
 import argparse
@@ -34,7 +36,7 @@ import sqlite3
 import sys
 import time
 
-from families import CLASS_BLACKLIST
+from families import CLASS_BLACKLIST, representative_order
 
 import paths
 
@@ -97,9 +99,14 @@ DROP TABLE IF EXISTS site_clusters;
 
 CREATE TABLE clusters (
     cluster_id     TEXT PRIMARY KEY,
-    method         TEXT,      -- 'raa' | 'spatial' | 'singleton'
+    method         TEXT,      -- 'raa' | 'singleton' ('spatial' is gone)
     n_sites        INTEGER,
     dominant_class TEXT,
+    -- The member this cluster wears: its class, its icon, its coordinate and
+    -- its description all come from this one site. Stored, not re-derived,
+    -- because the rule lived in four places and they drifted -- see
+    -- families.representative_order for what that cost.
+    rep_uuid       TEXT,
     n_classes      INTEGER,
     class_mix      TEXT,
     name           TEXT,      -- representative folk name, if any
@@ -141,8 +148,6 @@ def main():
     p.add_argument("--db", default=DB)
     p.add_argument("--raa-split", type=float, default=500.0,
                    help="split an RAA group if members exceed this distance (m)")
-    p.add_argument("--fallback-radius", type=float, default=150.0,
-                   help="single-link radius for sites without an RAA-nummer (m)")
     p.add_argument("--progress-json", action="store_true")
     args = p.parse_args()
     J = args.progress_json
@@ -197,25 +202,29 @@ def main():
             assign[uuid] = cid
             method[cid] = "raa"
 
-    # --- pass 2: spatial fallback, same class only ------------------------ #
-    by_class = collections.defaultdict(list)
-    singletons = []
+    # --- pass 2: everything without an RAA group is its own place --------- #
+    #
+    # There used to be a single-link spatial pass here, grouping same-class
+    # sites within a fallback radius. It is gone, and the measurement that
+    # killed it:
+    #
+    #   method    clusters   mean spread   max spread
+    #   raa         38,632         45 m       1,091 m
+    #   spatial      2,024        127 m       5,978 m
+    #
+    # The worst spatial cluster held 535 sites strung over six kilometres and
+    # called them one place. Grouping by RAA group is the county saying "these
+    # records are one monument" and it holds up: half its clusters are inside
+    # 31 m. Grouping by proximity is us guessing, and single-link chains --
+    # A near B, B near C -- so a line of fangstgropar along a ridge becomes a
+    # single destination with one pin somewhere in the middle of it.
+    #
+    # A pit system IS one archaeological site. It is not one place you drive
+    # to, and this database is about places you drive to.
+    #
+    # Franco's call, and it also removes 2,024 of the hardest cases from
+    # every downstream question about which member a cluster should wear.
     for r in ungrouped:
-        if r["centroid_e"] is None:
-            singletons.append(r)
-        else:
-            by_class[r["class_sv"] or "?"].append(r)
-
-    for cls, members in by_class.items():
-        sub = single_link(
-            [(m["uuid"], m["centroid_e"], m["centroid_n"]) for m in members],
-            args.fallback_radius,
-        )
-        for uuid, root in sub.items():
-            cid = f"sp:{root}"
-            assign[uuid] = cid
-            method[cid] = "spatial"
-    for r in singletons:
         cid = f"one:{r['uuid']}"
         assign[r["uuid"]] = cid
         method[cid] = "singleton"
@@ -291,18 +300,17 @@ def main():
     # representative site fixed a different disagreement (862 clusters whose
     # icon and description came from different members) and quietly dropped
     # this protection on the way.
-    holes = ",".join("?" * len(CLASS_BLACKLIST))
-    best, rep_class, rep_pos = {}, {}, {}
-    for cid, cls, d, lon, lat in conn.execute(f"""
-        SELECT sc.cluster_id, s.class_sv, s.beskrivning, s.lon, s.lat
+    rep_sql, rep_params = representative_order("s")
+    best, rep_class, rep_pos, rep_uuid = {}, {}, {}, {}
+    for cid, uuid, cls, d, lon, lat in conn.execute(f"""
+        SELECT sc.cluster_id, s.uuid, s.class_sv, s.beskrivning, s.lon, s.lat
         FROM site_clusters sc
         JOIN sites s ON s.uuid = sc.uuid
-        ORDER BY sc.cluster_id,
-                 CASE WHEN s.class_sv IN ({holes}) THEN 1 ELSE 0 END,
-                 s.description_len DESC, s.uuid
-    """, tuple(CLASS_BLACKLIST)):
+        ORDER BY sc.cluster_id, {rep_sql}
+    """, rep_params):
         if cid not in rep_class:
             rep_class[cid] = cls
+            rep_uuid[cid] = uuid
             if lon is not None and lat is not None:
                 rep_pos[cid] = (lon, lat)
             if d:
@@ -330,6 +338,7 @@ def main():
             # whole pin is worth more than picking the "best" class by some
             # other measure.
             rep_class.get(cid) or (c.most_common(1)[0][0] if c else None),
+            rep_uuid.get(cid),
             r["n_classes"],
             "; ".join(f"{k}×{v}" for k, v in c.most_common(4)),
             r["name"], r["has_name"], r["raa_group"],
@@ -364,7 +373,7 @@ def main():
         ))
 
     conn.executemany(
-        f"INSERT INTO clusters VALUES ({','.join('?'*29)})", out
+        f"INSERT INTO clusters VALUES ({','.join('?'*30)})", out
     )
     conn.execute("DROP INDEX IF EXISTS idx_sc_tmp")
     conn.executescript(INDEXES)
