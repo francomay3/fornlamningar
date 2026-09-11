@@ -109,6 +109,7 @@ CREATE TABLE IF NOT EXISTS generation_sources (
 TRUST = {
     "county_page": 1.0,
     "county_pdf": 1.0,
+    "county_plan": 0.9,
     "sign_ocr": 1.0,
     "wikipedia": 0.8,
     "county_attr": 0.6,
@@ -172,6 +173,26 @@ def from_wikipedia(out, cl):
     return n
 
 
+def dataset_licences(l):
+    """dataset id -> (licence, url), from what the county declared.
+
+    Read out of the catalogue metadata by `crawl_lansstyrelsen.py
+    --licences`. 43 of 59 datasets name a licence -- 27 CC BY 4.0 and 16
+    CC0 -- so most of the county text can be republished with attribution,
+    which is what the `usable` flag on these rows was waiting for. The
+    remaining 18 stay unresolved and stay unusable.
+    """
+    urls = {"CC BY 4.0": "https://creativecommons.org/licenses/by/4.0/",
+            "CC BY-SA 4.0": "https://creativecommons.org/licenses/by-sa/4.0/",
+            "CC0 1.0": "https://creativecommons.org/publicdomain/zero/1.0/"}
+    try:
+        rows = l.execute("SELECT id, licence FROM datasets "
+                         "WHERE licence IS NOT NULL").fetchall()
+    except sqlite3.OperationalError:
+        return {}               # --licences has not been run yet
+    return {i: (lic, urls.get(lic)) for i, lic in rows}
+
+
 def from_counties(out):
     """The county boards: folder blurbs and geodata description fields.
 
@@ -184,10 +205,11 @@ def from_counties(out):
     if not os.path.exists(LST_DB):
         return 0, 0
     l = sqlite3.connect(f"file:{LST_DB}?mode=ro", uri=True)
+    lic_of = dataset_licences(l)
     n_pdf = n_attr = 0
 
-    for cluster_id, name, props, ds_title, county in l.execute("""
-            SELECT DISTINCT m.cluster_id, o.name, o.props, d.title, d.county
+    for cluster_id, name, props, ds_id, county in l.execute("""
+            SELECT DISTINCT m.cluster_id, o.name, o.props, d.id, d.county
             FROM matches m
             JOIN objects o ON o.dataset_id = m.dataset_id
                           AND o.obj_id = m.obj_id
@@ -196,8 +218,11 @@ def from_counties(out):
         blob = json.loads(props) if props else {}
         if not isinstance(blob, dict):
             continue
+        lic, lic_url = lic_of.get(ds_id, (None, None))
         blurb = blob.get("blurb")
         if blurb and len(blurb) > 40:
+            # The folder PDFs have no catalogue record, so nothing has
+            # declared their terms; they stay parked.
             n_pdf += add(out, cluster_id, "county_pdf", blurb, lang="sv",
                          title=name, publisher=f"Länsstyrelsen ({county})",
                          licence="unresolved", usable=0)
@@ -206,15 +231,21 @@ def from_counties(out):
         # names the publisher chose.
         for key, val in blob.items():
             k = key.lower()
-            if not isinstance(val, str) or len(val) < 60:
+            # 40, not 60. Vasternorrland's survey notes run short -- "Har
+            # inspekterats av Pia Nykvist som tolkar den som grav" is 48
+            # characters and is the only thing anyone has said about that
+            # site beyond its dimensions.
+            if not isinstance(val, str) or len(val) < 40:
                 continue
             if val.lower().startswith(("http", "\\\\", "/")):
                 continue
-            if k.startswith(("beskr", "kommentar", "anm", "referens")):
+            if k.startswith(("beskr", "kommentar", "anm", "referens",
+                             "varde")):
                 n_attr += add(out, cluster_id, "county_attr", val, lang="sv",
                               title=name,
                               publisher=f"Länsstyrelsen ({county})",
-                              licence="unresolved", usable=0)
+                              licence=lic or "unresolved", licence_url=lic_url,
+                              usable=1 if lic else 0)
     return n_pdf, n_attr
 
 
@@ -256,6 +287,87 @@ def from_county_pages(out):
         n += add(out, cluster_id, "county_page", text, lang="sv", title=title,
                  publisher=f"Länsstyrelsen ({county})", url=url,
                  licence="unresolved", usable=0)
+    return n
+
+
+def from_plans(out):
+    """Skane's management plans: the description, the goal and the sign.
+
+    These are the only per-object documents in the corpus that were written by
+    somebody standing at the place with a responsibility for how it looks. The
+    description says what is there, and "Malsattning" says what the county is
+    trying to make it into -- "Gles bokskog med sikt mot gamla landsvagen" is
+    a better answer to "what will I see" than any measurement in the register.
+
+    The join needs no guessing: each plan lists its own Fornsok uuids, so the
+    link is the register's own primary key. Plans that list none fall back to
+    the county object's geometry match, which is why both paths are here.
+    """
+    if not os.path.exists(LST_DB):
+        return 0
+    l = sqlite3.connect(f"file:{LST_DB}?mode=ro", uri=True)
+    try:
+        rows = l.execute("SELECT obj, url, name, kommun, description, goal, "
+                         "care, sign, parking FROM plans").fetchall()
+    except sqlite3.OperationalError:
+        return 0            # --plans has not been run yet
+    # uuid -> cluster, via the plan's own Fornsok links first.
+    sites = sqlite3.connect(f"file:{SITES_DB}?mode=ro", uri=True)
+    cl = cluster_map(sites)
+    direct = {}
+    for obj, uuid in l.execute("SELECT obj, uuid FROM plan_sites "
+                               "WHERE uuid IS NOT NULL"):
+        if uuid in cl:
+            direct.setdefault(obj, set()).add((cl[uuid], uuid))
+    # Fallback for the plans that print no Fornsok link: the clusters the
+    # county OBJECT matched. The join runs through the pdf url in the
+    # object's own props -- the first version keyed this on objects.name,
+    # which is the monument's name and never equals a plan id, so the
+    # fallback matched nothing at all and quietly halved the yield.
+    by_url = {}
+    for ds_id, obj_id, props in l.execute(
+            "SELECT dataset_id, obj_id, props FROM objects "
+            "WHERE props IS NOT NULL"):
+        try:
+            pr = json.loads(props)
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(pr, dict):
+            continue
+        for v in pr.values():
+            if isinstance(v, str) and "Skotselplaner_Fornvard" in v:
+                by_url.setdefault(v.split("#")[0].strip(),
+                                  set()).add((ds_id, obj_id))
+    obj_clusters = {}
+    for ds_id, obj_id, cid in l.execute(
+            "SELECT dataset_id, obj_id, cluster_id FROM matches "
+            "WHERE how <> 'in_landscape' AND cluster_id IS NOT NULL"):
+        obj_clusters.setdefault((ds_id, obj_id), set()).add(cid)
+    fallback = {}
+    for u, objs in by_url.items():
+        cids = set()
+        for key in objs:
+            cids |= obj_clusters.get(key, set())
+        if cids:
+            fallback[u] = {(c, None) for c in cids}
+
+    n = 0
+    for obj, url, name, kommun, desc, goal, care, sign, park in rows:
+        targets = direct.get(obj) or fallback.get(url) or set()
+        # The sign and parking status ride along as a sentence, because the
+        # thing generating a description cannot read a column. They are also
+        # kept as columns in lansstyrelsen.sqlite for the scorer to use.
+        facts = []
+        if sign:
+            facts.append(f"Skylt: {sign}.")
+        if park:
+            facts.append(f"Parkering: {park}.")
+        body = " ".join(x for x in (desc, goal and f"Malsattning: {goal}",
+                                    " ".join(facts)) if x)
+        for cid, uuid in targets:
+            n += add(out, cid, "county_plan", body, uuid=uuid, lang="sv",
+                     title=name, publisher=f"Lansstyrelsen Skane ({kommun})",
+                     url=url, licence="unresolved", usable=0)
     return n
 
 
@@ -314,6 +426,9 @@ def main():
     n = from_county_pages(out)
     out.commit()
     print(f"  county_page: {n:,} rows offered")
+    n = from_plans(out)
+    out.commit()
+    print(f"  county_plan: {n:,} rows offered")
     print()
     status(out)
 

@@ -586,6 +586,306 @@ def fetch_pdfs(out):
         print(f"    {n} lämningsnummer")
 
 
+
+# ---------------------------------------------------------------------------
+# Skotselplaner: one management plan per maintained monument
+#
+# 206 PDFs under ext-dokument.lansstyrelsen.se/skane/Skotselplaner_Fornvard/,
+# each linked from the Skane fornvard object it describes, so the county has
+# already done the join -- no proximity guessing. Three things in them that
+# exist nowhere else in this pipeline:
+#
+#   1. "Status for skylt" -- whether the place HAS A SIGN, and a comment
+#      saying what is wrong with it. Kungsbacka's antikvarie told us no
+#      national sign layer exists, and that is still true; this is one county
+#      keeping its own list for its own objects. 206 rows is not a country,
+#      but it is the only ground truth on signage we have ever found.
+#   2. "Status for P-plats" -- parking, the thing OSM only lets us guess at
+#      by distance.
+#   3. A "Beskrivning" written to be read, plus "Malsattning" and
+#      "Skotselanvisning" -- what the county is trying to make the place look
+#      like, which is as close to "what will I see when I get there" as any
+#      source we hold.
+# ---------------------------------------------------------------------------
+
+PLAN_PREFIX = "http://ext-dokument.lansstyrelsen.se/skane/Skotselplaner_Fornvard/"
+
+# The label column of the header table. Listed explicitly rather than parsed
+# as "two or more spaces" because several PDFs wrap a long label onto its own
+# line with the value above it (M198 puts "Gravhog" before "Typ enligt RAA"),
+# and a generic splitter reads those as a field named Gravhog.
+PLAN_FIELDS = [
+    "Fornvardsobjekt", "Namn", "Kommun", "Socken", "Prioritet",
+    "Typ enligt RAA", "Skotselavtal", "Skotsel", "Avtalsperiod", "Flora",
+    "Besiktigad datum", "Areal (ha)", "Utford vard", "Status for skylt",
+    "Skylt kommentar", "Status for P-plats", "P-plats kommentar",
+    "Markagares medgivande", "Upprattad datum", "Reviderad datum",
+    "Handlaggare", "RI-omrade", "Kategori", "Tidsalder",
+]
+PLAN_SECTIONS = ["Beskrivning", "Malsattning", "Skotselanvisning",
+                 "Tillganglighet", "Ovrigt"]
+
+UUID_RE = re.compile(r"/lamning/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}"
+                     r"-[0-9a-f]{4}-[0-9a-f]{12})", re.I)
+
+PLAN_SCHEMA = """
+CREATE TABLE IF NOT EXISTS plans (
+    obj         TEXT PRIMARY KEY,       -- 'M322', the county's own object id
+    url         TEXT NOT NULL,
+    name        TEXT,
+    kommun      TEXT,
+    socken      TEXT,
+    raa_type    TEXT,
+    priority    TEXT,
+    -- Verbatim, not normalised to a boolean. The vocabulary is a human's
+    -- ("Finns OK", "Problem", "Behovs ej", blank) and collapsing it here
+    -- would throw away the difference between "no sign needed" and "the sign
+    -- is broken", which is exactly the distinction a visitor cares about.
+    sign        TEXT,
+    sign_note   TEXT,
+    parking     TEXT,
+    parking_note TEXT,
+    inspected   TEXT,
+    revised     TEXT,
+    category    TEXT,
+    period      TEXT,
+    description TEXT,
+    goal        TEXT,
+    care        TEXT,
+    props       TEXT,
+    fetched_at  TEXT
+);
+CREATE TABLE IF NOT EXISTS plan_sites (
+    obj         TEXT NOT NULL,
+    uuid        TEXT,                   -- from the plan's own Fornsok links
+    lamning     TEXT,                   -- 'L1989:9819'
+    PRIMARY KEY (obj, uuid, lamning)
+);
+"""
+
+
+def _deaccent(s):
+    """For label matching only -- pdftotext is reliable on a/o umlauts but
+    the field list above is written in ASCII so it stays greppable."""
+    for a, b in (("\u00e5", "a"), ("\u00e4", "a"), ("\u00f6", "o"),
+                 ("\u00c5", "A"), ("\u00c4", "A"), ("\u00d6", "O")):
+        s = s.replace(a, b)
+    return s
+
+
+def parse_plan(text):
+    """Header fields, prose sections and register ids out of one plan."""
+    lines = [ln.rstrip() for ln in text.split("\n")]
+    flat = _deaccent("\n".join(lines))
+
+    fields = {}
+    for ln in lines:
+        raw = ln.strip()
+        # Match the LABEL against a de-accented copy, but slice the VALUE out
+        # of the raw line. Deaccenting the whole line and slicing from that
+        # was the first version, and it wrote "Behovs ej" and "Vastra Hoby"
+        # into the database -- stripping the diacritics out of Swedish names
+        # we intend to show a Swedish user. _deaccent() is one-to-one on
+        # length, so the offset carries across unchanged.
+        flat_ln = _deaccent(raw)
+        for lab in PLAN_FIELDS:
+            if flat_ln.startswith(lab):
+                val = raw[len(lab):].strip()
+                if val:
+                    fields.setdefault(lab, val)
+                break
+
+    # Sections: from a heading line to the next heading. The headings are
+    # centred, so they arrive as a lot of leading whitespace and one word.
+    heads = []
+    for i, ln in enumerate(lines):
+        s = _deaccent(ln).strip()
+        if s in PLAN_SECTIONS:
+            heads.append((i, s))
+    # The register-id block ends the prose wherever it starts.
+    end = len(lines)
+    for i, ln in enumerate(lines):
+        s = _deaccent(ln).strip()
+        if s.rstrip(":") in ("Fornsok", "Forn-ID") or s.startswith("Forn-ID"):
+            end = min(end, i)
+    sections = {}
+    for hi, (i, name) in enumerate(heads):
+        stop = heads[hi + 1][0] if hi + 1 < len(heads) else end
+        body = " ".join(x.strip() for x in lines[i + 1:stop] if x.strip())
+        if body:
+            sections[name] = re.sub(r"\s{2,}", " ", body)
+
+    uuids = sorted(set(m.lower() for m in UUID_RE.findall(text)))
+    nums = sorted(set(LAMNING_RE.findall(text)))
+    return fields, sections, uuids, nums
+
+
+def fetch_plans(out):
+    import os
+    import subprocess
+    import tempfile
+
+    out.executescript(PLAN_SCHEMA)
+    out.commit()
+
+    # The links are already in the objects table; the county did the join.
+    links = {}
+    for ds_id, obj_id, props in out.execute(
+            "SELECT dataset_id, obj_id, props FROM objects "
+            "WHERE props IS NOT NULL"):
+        try:
+            p = json.loads(props)
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(p, dict):
+            continue
+        for v in p.values():
+            if isinstance(v, str) and PLAN_PREFIX.split("//")[1] in v:
+                u = v.split("#")[0].strip()
+                links.setdefault(u, (ds_id, obj_id))
+
+    todo = [u for u in sorted(links)
+            if not out.execute("SELECT 1 FROM plans WHERE url=? AND "
+                               "description IS NOT NULL", (u,)).fetchone()]
+    print(f"{len(links):,} management plans, {len(todo):,} to fetch")
+
+    ok = signs = parks = 0
+    for i, url in enumerate(todo, 1):
+        # Six of these filenames contain a space ("M46 a.pdf"), which urllib
+        # rejects outright rather than escaping. The unescaped form stays the
+        # database key -- it is what the county published.
+        blob = get(urllib.parse.quote(url, safe=":/?&=%"), raw=True,
+                   timeout=120)
+        if not blob:
+            continue
+        with tempfile.TemporaryDirectory() as tmp:
+            pdf = os.path.join(tmp, "p.pdf")
+            with open(pdf, "wb") as f:
+                f.write(blob)
+            txt = os.path.join(tmp, "p.txt")
+            subprocess.run(["pdftotext", "-layout", pdf, txt],
+                           capture_output=True, text=True)
+            if not os.path.exists(txt):
+                continue
+            with open(txt, encoding="utf-8", errors="replace") as f:
+                text = f.read()
+
+        fields, sec, uuids, nums = parse_plan(text)
+        # The FILENAME is the key, not the Fornvardsobjekt field. Six objects
+        # are split across several plans ("M46 a.pdf" .. "M46 d.pdf") and all
+        # four say Fornvardsobjekt M46 inside, so keying on the field silently
+        # collapsed four documents into one row. The parsed field is still in
+        # props for anyone who wants to group them back together.
+        obj = url.rsplit("/", 1)[-1]
+        if obj.lower().endswith(".pdf"):
+            obj = obj[:-4]
+        sign = fields.get("Status for skylt")
+        park = fields.get("Status for P-plats")
+        out.execute("""
+            INSERT OR REPLACE INTO plans
+              (obj, url, name, kommun, socken, raa_type, priority,
+               sign, sign_note, parking, parking_note, inspected, revised,
+               category, period, description, goal, care, props, fetched_at)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,datetime('now'))
+        """, (obj, url, fields.get("Namn"), fields.get("Kommun"),
+              fields.get("Socken"), fields.get("Typ enligt RAA"),
+              fields.get("Prioritet"), sign, fields.get("Skylt kommentar"),
+              park, fields.get("P-plats kommentar"),
+              fields.get("Besiktigad datum"), fields.get("Reviderad datum"),
+              fields.get("Kategori"), fields.get("Tidsalder"),
+              sec.get("Beskrivning"), sec.get("Malsattning"),
+              sec.get("Skotselanvisning"),
+              json.dumps(fields, ensure_ascii=False)))
+        for u in uuids or [None]:
+            for n in nums or [None]:
+                if u or n:
+                    out.execute("INSERT OR IGNORE INTO plan_sites VALUES "
+                                "(?,?,?)", (obj, u, n))
+        ok += 1
+        signs += bool(sign)
+        parks += bool(park)
+        if i % 20 == 0:
+            out.commit()
+            print(f"  {i:,}/{len(todo):,}")
+        time.sleep(0.3)
+    out.commit()
+
+    n, desc, uu = out.execute("""
+        SELECT COUNT(*), SUM(description IS NOT NULL),
+               (SELECT COUNT(DISTINCT uuid) FROM plan_sites
+                 WHERE uuid IS NOT NULL) FROM plans""").fetchone()
+    print(f"  {ok:,} parsed; {n:,} plans, {desc or 0:,} with a description, "
+          f"{uu:,} register uuids named directly")
+    print(f"  sign status on {signs:,}; parking status on {parks:,}")
+
+
+# The licence each county declares in the catalogue, mapped to what we can
+# write in an attribution line. Swedish, because that is what the metadata
+# says; "inga tillampliga villkor" ("no applicable conditions") is a
+# statement about access constraints and NOT a licence grant, so it is not in
+# this table -- a dataset whose only constraint line says that stays
+# unresolved rather than being read as permission.
+LICENCE_MAP = [
+    (re.compile(r"erk[äa]nnande.*4\.0|\bcc[ -]?by[ -]?4\.0", re.I),
+     ("CC BY 4.0", "https://creativecommons.org/licenses/by/4.0/")),
+    (re.compile(r"erk[äa]nnande.*dela.*lika|\bcc[ -]?by[ -]?sa", re.I),
+     ("CC BY-SA 4.0", "https://creativecommons.org/licenses/by-sa/4.0/")),
+    (re.compile(r"\bcc0\b|public domain|noll 1\.0", re.I),
+     ("CC0 1.0", "https://creativecommons.org/publicdomain/zero/1.0/")),
+]
+
+
+def fetch_licences(out):
+    """Read the licence out of each dataset's own catalogue metadata.
+
+    Every county row in the corpus was parked at usable = 0 because nobody
+    had checked whether we are allowed to republish the text. The answer was
+    in the metadata the whole time: ISO 19139 carries it in
+    MD_LegalConstraints, and most of these say "Creative commons Erkannande
+    4.0 Internationell" -- CC BY 4.0, which we can use with attribution.
+
+    Datasets that declare nothing usable stay unresolved. That is the honest
+    outcome for them, not a default of yes.
+    """
+    try:
+        out.execute("ALTER TABLE datasets ADD COLUMN licence TEXT")
+    except sqlite3.OperationalError:
+        pass                            # already added by an earlier run
+    ids = [r[0] for r in out.execute(
+        "SELECT id FROM datasets WHERE id NOT LIKE 'pdf:%'")]
+    print(f"{len(ids)} catalogue records")
+    found = 0
+    for i, rec in enumerate(ids, 1):
+        xml = get(CSW, {"service": "CSW", "version": "2.0.2",
+                        "request": "GetRecordById", "id": rec,
+                        "elementSetName": "full",
+                        "outputSchema": "http://www.isotc211.org/2005/gmd"})
+        lic = None
+        if xml:
+            texts = [re.sub(r"<[^>]+>", "", m).strip() for m in re.findall(
+                r"<gmd:otherConstraints[^>]*>(.*?)</gmd:otherConstraints>",
+                xml, re.S)]
+            for t in texts:
+                for rx, val in LICENCE_MAP:
+                    if rx.search(t):
+                        lic = val
+                        break
+                if lic:
+                    break
+        out.execute("UPDATE datasets SET licence=? WHERE id=?",
+                    (lic[0] if lic else None, rec))
+        found += bool(lic)
+        if i % 10 == 0:
+            out.commit()
+            print(f"  {i}/{len(ids)}")
+        time.sleep(0.3)
+    out.commit()
+    print(f"  {found} of {len(ids)} declare a licence we can act on")
+    for lic, n in out.execute("SELECT COALESCE(licence,'(unresolved)'), "
+                              "COUNT(*) FROM datasets GROUP BY 1 ORDER BY 2 "
+                              "DESC"):
+        print(f"    {n:3d}  {lic}")
+
 PAGE_SCHEMA = """
 CREATE TABLE IF NOT EXISTS pages (
     url         TEXT PRIMARY KEY,
@@ -941,6 +1241,8 @@ def main():
     p.add_argument("--join", action="store_true")
     p.add_argument("--all", action="store_true")
     p.add_argument("--pages", action="store_true")
+    p.add_argument("--plans", action="store_true")
+    p.add_argument("--licences", action="store_true")
     p.add_argument("--status", action="store_true")
     args = p.parse_args()
 
@@ -955,10 +1257,16 @@ def main():
         fetch_pdfs(out)
     if args.pages or args.all:
         fetch_pages(out)
+    if args.plans or args.all:
+        fetch_plans(out)
+    if args.licences or args.all:
+        fetch_licences(out)
     if args.join or args.all:
         sites = sqlite3.connect(f"file:{args.sites_db}?mode=ro", uri=True)
         join(sites, out)
-    if args.status or not (args.discover or args.fetch or args.join or args.all):
+    if args.status or not (args.discover or args.fetch or args.join
+                           or args.pages or args.plans
+                           or args.licences or args.all):
         status(out)
 
 
