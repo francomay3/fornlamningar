@@ -1065,6 +1065,285 @@ def fetch_pdf_images(out):
     print(f"  {total} images; {with_lam or 0} tied to a lamningsnummer, "
           f"{with_credit or 0} with a credit, {(mb or 0)/1e6:.1f} MB")
 
+
+# ---------------------------------------------------------------------------
+# Kulturmiljoprogram: the county's own account of WHY a place is there
+#
+# 616 PDFs, and unlike everything else in this corpus they are consistent.
+# 380 of the 381 Varmland files carry all six headings -- Namn, Nummer,
+# Socken, Sammanfattning, Beskrivning, Kulturhistoriskt varde -- which is
+# 99.7% structural regularity against the Halland folders where the two
+# files put their prose on opposite sides of the number block.
+#
+# 207 of the 381 concern archaeology (92 predominantly, 115 alongside built
+# heritage); the other 174 are farmsteads and manor houses and are skipped.
+#
+# These describe AREAS, not monuments, which is what makes them wrong for
+# scoring and right for text. The register measures the heap of stones; this
+# says why it is there:
+#
+#   register     "Rose, 8 m i diam och 1,2 m h. Overtorvat..."
+#   programme    "...de tre gravrosena vid Hallbergshojden har anlagts i
+#                 karaktaristiskt lage pa ett hojdparti. De star som goda
+#                 representanter for det sa kallade inre sydvastsvenska
+#                 rosestraket..."
+#
+# The join needs no guessing again: each county object links its own PDF.
+# ---------------------------------------------------------------------------
+
+# (url marker, kind, parser). One list rather than three near-identical
+# functions -- fetch_plans and from_plans each grew their own copy of a join
+# and the second one silently halved the yield, so the third instance of a
+# pattern gets factored instead of pasted.
+DOC_SOURCES = [
+    ("Varmland/Dokumentarkiv", "programme_varmland"),
+    ("Kalmar/Kulturmiljoprogram", "programme_kalmar"),
+    ("halland/KMV_Program", "programme_halland"),
+]
+
+DOC_SECTIONS = ("Sammanfattning", "Beskrivning", "Kulturhistoriskt värde",
+                "Kulturhistoriskt varde")
+
+DOC_SCHEMA = """
+CREATE TABLE IF NOT EXISTS documents (
+    url         TEXT PRIMARY KEY,
+    kind        TEXT NOT NULL,
+    dataset_id  TEXT, obj_id TEXT,
+    name        TEXT,
+    number      TEXT,
+    socken      TEXT,
+    kommun      TEXT,
+    summary     TEXT,               -- Sammanfattning: one sentence, the gist
+    description TEXT,               -- Beskrivning: the history
+    value       TEXT,               -- Kulturhistoriskt värde: why it matters
+    -- Whether the document mentions archaeology at all. 174 of 381 do not:
+    -- they are about farm buildings. Recorded rather than filtered at fetch
+    -- time so the decision stays visible and reversible.
+    archaeology INTEGER,
+    n_chars     INTEGER,
+    http_status INTEGER,
+    fetched_at  TEXT
+);
+"""
+
+ARCH_WORDS = (
+    "fornlämning", "gravfält", "gravrös", "röse", "stensättning",
+    "hällristning", "runsten", "fornborg", "domarring", "skeppssättning",
+    "gånggrift", "dös", "hällkista", "bronsålder", "järnålder", "stenålder",
+    "fångstgrop", "gravhög", "treudd", "älvkvarn", "labyrint", "skålgrop",
+)
+
+
+def parse_halland(text):
+    """A Halland area sheet: labels in column 0, body indented under them.
+
+        Beteckning    56. Vessingehogen
+        Lage          Ek karta 4C 4g, Veinge socken, raa nr 64
+        Beskrivning   Forhistorisk gravhog belagen i de norra utkanterna...
+                      Gravhogen mater drygt 20 m i diameter och 2 m i hojd...
+        Motivering    Stor, forhistorisk gravhog, som inrymt stenkammargrav...
+
+    These are scans put through OCR and it shows -- "belagen" for "belagen",
+    "matar" for "mater", and the occasional "~Ardprogram" where the scanner
+    gave up. Kept anyway: the content is a 1923-24 excavation that found a
+    passage grave, amber beads and five or six skeletons, which is worth
+    more than the noise costs. Anything generated from these should be
+    treated as OCR-derived, hence the separate kind.
+    """
+    LABELS = ("Beteckning", "Lage", "Läge", "Beskrivning", "Motivering",
+              "Atgarder", "Åtgärder", "Referens", "Litteratur")
+    lines = text.split("\n")
+    fields, cur = {}, None
+    for ln in lines:
+        m = re.match(r"^(\S[^\s]*)\s{2,}(.*)$", ln)
+        lab = _deaccent(m.group(1)) if m else None
+        if m and lab in tuple(_deaccent(x) for x in LABELS):
+            cur = lab
+            fields.setdefault(cur, []).append(m.group(2).strip())
+        elif cur and ln.startswith("  ") and ln.strip():
+            fields[cur].append(ln.strip())
+        elif not ln.strip():
+            continue
+    out = {k: re.sub(r"\s{2,}", " ", " ".join(v)).strip()
+           for k, v in fields.items()}
+    got = {}
+    bet = out.get("Beteckning", "")
+    m = re.match(r"^(\d+)\.?\s*(.+)$", bet)
+    if m:
+        got["Nummer"], got["Namn"] = m.group(1), m.group(2)
+    elif bet:
+        got["Namn"] = bet
+    m = re.search(r"([A-ZÅÄÖ][a-zåäöé]+)\s+socken", out.get("Lage", ""))
+    if m:
+        got["Socken"] = m.group(1)
+    sec = {}
+    if out.get("Beskrivning"):
+        sec["Beskrivning"] = out["Beskrivning"]
+    if out.get("Motivering"):
+        sec["Kulturhistoriskt värde"] = out["Motivering"]
+    return got, sec
+
+
+def parse_kalmar(text):
+    """Prose out of a Kalmar entry, which carries no headings at all.
+
+    These are 2005 web pages printed to PDF -- the footer still reads
+    file:///G|/LstGIS/... -- so the structure is a numbered title, some
+    paragraphs, and then image captions. Paragraphs are separated by blank
+    lines and the prose ones are long; the captions ("Moshult fran norr")
+    and the repeated page header are short, which is the only reliable
+    discriminator available.
+    """
+    lines = text.split("\n")
+    head = None
+    for ln in lines:
+        m = re.match(r"^\s*(\d+)\s+(\S.*?)\s*$", ln)
+        if m:
+            head = (m.group(1), m.group(2))
+            break
+    paras, cur = [], []
+    for ln in lines:
+        s_ = ln.strip()
+        if not s_:
+            if cur:
+                paras.append(" ".join(cur))
+                cur = []
+            continue
+        if s_.startswith("file:///") or "/LstGIS/" in s_:
+            continue
+        if head and s_ == f"{head[0]} {head[1]}":
+            continue
+        cur.append(s_)
+    if cur:
+        paras.append(" ".join(cur))
+    # 120 characters: long enough to exclude every caption seen, short
+    # enough to keep the one-sentence entries.
+    body = " ".join(re.sub(r"\s{2,}", " ", p) for p in paras
+                    if len(p) >= 120)
+    fields = {}
+    if head:
+        fields["Nummer"], fields["Namn"] = head
+    return fields, ({"Beskrivning": body} if body else {})
+
+
+def parse_document(text):
+    """Labelled fields and prose sections out of a kulturmiljo PDF."""
+    lines = [ln.rstrip() for ln in text.split("\n")]
+    fields = {}
+    for ln in lines:
+        m = re.match(r"^\s*(Namn|Nummer|Kommun|Socken)\s*:\s*(.+?)\s*$", ln)
+        if m and m.group(1) not in fields:
+            fields[m.group(1)] = m.group(2).strip()
+
+    heads = [(i, _deaccent(ln).strip()) for i, ln in enumerate(lines)
+             if _deaccent(ln).strip() in
+             tuple(_deaccent(h) for h in DOC_SECTIONS)]
+    sections = {}
+    for hi, (i, name) in enumerate(heads):
+        stop = heads[hi + 1][0] if hi + 1 < len(heads) else len(lines)
+        body = " ".join(x.strip() for x in lines[i + 1:stop] if x.strip())
+        # The Varmland files end with a Lantmateriet map credit and a page
+        # number; neither is prose and both would otherwise ride along.
+        body = re.sub(r"\s*©?\s*Lantmäteriet.*$", "", body).strip()
+        if body:
+            sections[name] = re.sub(r"\s{2,}", " ", body)
+    return fields, sections
+
+
+def fetch_documents(out):
+    """One row per kulturmiljo document, joined through the object that links it."""
+    import os as _os
+    import subprocess
+    import tempfile
+
+    out.executescript(DOC_SCHEMA)
+    out.commit()
+
+    links = {}
+    for ds_id, obj_id, props in out.execute(
+            "SELECT dataset_id, obj_id, props FROM objects "
+            "WHERE props IS NOT NULL"):
+        try:
+            pr = json.loads(props)
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(pr, dict):
+            continue
+        for v in pr.values():
+            if not isinstance(v, str):
+                continue
+            # Strip BEFORE testing the suffix. These values arrive out of a
+            # shapefile attribute and 67 of the 74 Halland ones end with
+            # "\r\n", so `v.endswith(".pdf")` on the raw string is False and
+            # the first version of this loop quietly fetched 7 of 74.
+            u = v.split("#")[0].strip()
+            if not u.lower().endswith(".pdf"):
+                continue
+            for marker, kind in DOC_SOURCES:
+                if marker in u:
+                    links.setdefault(u, (kind, ds_id, obj_id))
+                    break
+
+    todo = [u for u in sorted(links)
+            if not out.execute("SELECT 1 FROM documents WHERE url=? AND "
+                               "n_chars IS NOT NULL", (u,)).fetchone()]
+    print(f"{len(links):,} documents linked, {len(todo):,} to fetch")
+
+    ok = arch = 0
+    for i, url in enumerate(todo, 1):
+        kind, ds_id, obj_id = links[url]
+        blob = get(urllib.parse.quote(url, safe=":/?&=%"), raw=True,
+                   timeout=300)
+        if not blob:
+            out.execute("INSERT OR REPLACE INTO documents (url, kind, "
+                        "http_status, fetched_at) VALUES (?,?,0,"
+                        "datetime('now'))", (url, kind))
+            continue
+        with tempfile.TemporaryDirectory() as tmp:
+            pdf = _os.path.join(tmp, "d.pdf")
+            with open(pdf, "wb") as f:
+                f.write(blob)
+            r = subprocess.run(["pdftotext", "-layout", pdf, "-"],
+                               capture_output=True, text=True,
+                               errors="replace")
+            text = r.stdout or ""
+
+        if kind == "programme_kalmar":
+            fields, sec = parse_kalmar(text)
+        elif kind == "programme_halland":
+            fields, sec = parse_halland(text)
+        else:
+            fields, sec = parse_document(text)
+        low = text.lower()
+        is_arch = int(any(wd in low for wd in ARCH_WORDS))
+        out.execute("""
+            INSERT OR REPLACE INTO documents
+              (url, kind, dataset_id, obj_id, name, number, socken, kommun,
+               summary, description, value, archaeology, n_chars,
+               http_status, fetched_at)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,200,datetime('now'))
+        """, (url, kind, ds_id, obj_id, fields.get("Namn"),
+              fields.get("Nummer"), fields.get("Socken"),
+              fields.get("Kommun"), sec.get("Sammanfattning"),
+              sec.get("Beskrivning"),
+              sec.get("Kulturhistoriskt varde")
+              or sec.get("Kulturhistoriskt värde"),
+              is_arch, len(text)))
+        ok += 1
+        arch += is_arch
+        if i % 25 == 0:
+            out.commit()
+            print(f"  {i:,}/{len(todo):,}")
+        time.sleep(0.25)
+    out.commit()
+
+    n, a, c, withdesc = out.execute("""
+        SELECT COUNT(*), SUM(archaeology), SUM(n_chars),
+               SUM(description IS NOT NULL) FROM documents""").fetchone()
+    print(f"  {ok:,} fetched; {n:,} documents, {a or 0:,} mention "
+          f"archaeology, {withdesc or 0:,} parsed a Beskrivning, "
+          f"{(c or 0):,} characters")
+
 PAGE_SCHEMA = """
 CREATE TABLE IF NOT EXISTS pages (
     url         TEXT PRIMARY KEY,
@@ -1423,6 +1702,7 @@ def main():
     p.add_argument("--plans", action="store_true")
     p.add_argument("--licences", action="store_true")
     p.add_argument("--images", action="store_true")
+    p.add_argument("--documents", action="store_true")
     p.add_argument("--status", action="store_true")
     args = p.parse_args()
 
@@ -1443,13 +1723,16 @@ def main():
         fetch_licences(out)
     if args.images or args.all:
         fetch_pdf_images(out)
+    if args.documents or args.all:
+        fetch_documents(out)
     if args.join or args.all:
         sites = sqlite3.connect(f"file:{args.sites_db}?mode=ro", uri=True)
         join(sites, out)
     if args.status or not (args.discover or args.fetch or args.join
                            or args.pages or args.plans
                            or args.licences
-                           or args.images or args.all):
+                           or args.images
+                           or args.documents or args.all):
         status(out)
 
 

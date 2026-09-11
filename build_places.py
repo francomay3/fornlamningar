@@ -166,9 +166,12 @@ def pdf_images(out):
     """Photographs lifted out of the county folders.
 
     Joined by lamningsnummer, which is the register's own designation, so
-    these land on a cluster without any proximity guessing. Every one is
-    stored with usable = 0: the folders declare no licence, and 36 of 117
-    carry a photographer's name at all.
+    these land on a cluster without any proximity guessing.
+
+    Stored usable, with the photographer where the folder names one (36 of
+    117) and the county as publisher otherwise. The folders declare no
+    licence; using them anyway is Franco's call, and attribution is what
+    keeps the worst case at "somebody asks and we remove it".
     """
     if not os.path.exists(paths.LANSSTYRELSEN):
         return 0
@@ -194,7 +197,7 @@ def pdf_images(out):
                 INSERT OR IGNORE INTO images
                   (cluster_id, source, file, local_path, author, credit,
                    licence, usable, fetched_at)
-                VALUES (?,?,?,?,?,?,?,0,datetime('now'))
+                VALUES (?,?,?,?,?,?,?,1,datetime('now'))
             """, (cid, "county_pdf", os.path.basename(path), path, credit,
                   f"Länsstyrelsen ({county})" if county else None,
                   "unresolved"))

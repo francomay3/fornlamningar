@@ -170,7 +170,30 @@ def parse_response(body: str) -> dict:
         "undersokningsstatus": desc.get("Undersökningsstatus"),
         "terrang": desc.get("Terräng"),
         "orientering": desc.get("Orientering"),
-        "referens": desc.get("Referens"),
+        # "Referens", singular, is not a key the API uses -- the real ones
+        # are "Referens: skriftlig kalla" and "Referens: kartmaterial". This
+        # column was NULL in all 311,844 rows from the day it was written,
+        # and nothing ever failed to say so.
+        "referens": desc.get("Referens: skriftlig källa"),
+        "referens_karta": desc.get("Referens: kartmaterial"),
+        # Three more typed description blocks that were being dropped.
+        #
+        # `tradition` is the one worth the rebuild: 4,241 sites where the
+        # surveyor wrote down what local people said about the place --
+        # "en tradition berattar att man skulle ga runt vallen nagra varv pa
+        # midsommarafton och onska sig nagot". Nothing else in this pipeline
+        # contains a sentence like that, and it is CC0 and already on disk.
+        #
+        # `ingaende_lamningar` is a structured inventory of what a site
+        # actually holds ("Rest sten, antal 6"), which is the difference
+        # between "a grave field" and "nine boulder graves and six standing
+        # stones".
+        #
+        # `vegetation` is what has grown over it, which decides whether a
+        # visitor sees anything at all.
+        "tradition": desc.get("Tradition"),
+        "ingaende_lamningar": desc.get("Ingående lämningar"),
+        "vegetation": desc.get("Vegetation"),
         # assessment
         "antikvarisk_bedomning": spec.get("Antikvarisk bedömning"),
         "aktualitetsstatus": spec.get("Aktualitetsstatus"),
@@ -285,7 +308,12 @@ CREATE TABLE sites (
     has_measurements INTEGER, description_len INTEGER,
     dim_len_m REAL, dim_height_m REAL, dim_area_m2 REAL,
     skadestatus TEXT, placering TEXT, undersokningsstatus TEXT,
-    terrang TEXT, orientering TEXT, referens TEXT,
+    terrang TEXT, orientering TEXT, referens TEXT, referens_karta TEXT,
+    -- Local tradition, as the surveyor recorded it. 4,241 sites, and the
+    -- only field in the register written about meaning rather than shape.
+    tradition TEXT,
+    ingaende_lamningar TEXT,
+    vegetation TEXT,
     antikvarisk_bedomning TEXT, aktualitetsstatus TEXT,
     title TEXT, keyword TEXT, has_name INTEGER,
     parish TEXT, parish_code TEXT, municipality TEXT, municipality_code TEXT,
@@ -314,7 +342,9 @@ COLUMNS = [
     "beskrivning_is_boilerplate", "has_measurements", "description_len",
     "dim_len_m", "dim_height_m", "dim_area_m2",
     "skadestatus", "placering", "undersokningsstatus", "terrang", "orientering",
-    "referens", "antikvarisk_bedomning", "aktualitetsstatus", "title", "keyword",
+    "referens", "referens_karta", "tradition", "ingaende_lamningar",
+    "vegetation",
+    "antikvarisk_bedomning", "aktualitetsstatus", "title", "keyword",
     "has_name", "parish", "parish_code", "municipality", "municipality_code",
     "county", "county_code", "province", "province_code", "lon", "lat",
     "has_point", "has_line", "has_polygon", "geom_types", "geom_type_count",

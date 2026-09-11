@@ -112,12 +112,30 @@ CREATE TABLE IF NOT EXISTS generation_sources (
 );
 """
 
+# USABLE IS A DECISION, LICENCE IS A FACT. They were the same thing here for
+# a while and that was wrong. `licence` records what the publisher declared,
+# including "unresolved" when nobody declared anything; `usable` records
+# whether we will draw on the row. Franco's call, stated plainly: the risk of
+# using an undeclared county text is that somebody asks us to take it down,
+# and then we take it down. What makes that the worst case is attribution --
+# every row carries its publisher and its url, so a generated description can
+# always say where it came from and what to remove.
+#
+# So nothing is parked for licence any more. The column still tells the
+# truth, which is what lets us revisit it.
+
 # Trust, and the ordering is the argument. A visitor page was written to get
 # somebody to the place; a survey entry was written to record that it exists.
 TRUST = {
     "county_page": 1.0,
     "county_pdf": 1.0,
     "county_plan": 0.9,
+    "county_programme": 0.9,
+    # Colour, not fact-checking: a recorded tradition is trustworthy AS a
+    # tradition, which is exactly what makes it worth telling.
+    "tradition": 0.9,
+    "register_parts": 0.6,
+    "register_vegetation": 0.4,
     "sign_ocr": 1.0,
     "wikipedia": 0.8,
     "county_attr": 0.6,
@@ -164,6 +182,85 @@ def from_register(sites, out, cl):
                  publisher="Riksantikvarieämbetet",
                  licence=CC0[0], licence_url=CC0[1],
                  url=f"https://app.raa.se/open/fornsok/lamning/{uuid}")
+    return n
+
+
+
+def from_register_extras(sites, out, cl):
+    """The typed description blocks that are not `Beskrivning`.
+
+    Every one of these was sitting in the API cache from the first crawl and
+    was being dropped on the floor, because build_sites.py only read six of
+    the ten `ksam:desc` types. `tradition` is the reason this function
+    exists: it is the only field in the whole register written about what a
+    place MEANS rather than what shape it is.
+
+        "En tradition beraettar att man skulle ga runt vallen nagra varv pa
+         midsommarafton och oenska sig nagot."
+
+    4,241 sites have one. Nothing else we hold sounds like that.
+
+    Separate kinds rather than one blob, because they answer different
+    questions and a generator should be able to weight them differently:
+    tradition is colour, ingaende_lamningar is inventory, vegetation decides
+    whether you will see anything when you arrive.
+    """
+    n = 0
+    for uuid, trad, parts, veg in sites.execute("""
+            SELECT uuid, tradition, ingaende_lamningar, vegetation
+            FROM sites
+            WHERE tradition IS NOT NULL OR ingaende_lamningar IS NOT NULL
+               OR vegetation IS NOT NULL"""):
+        cid = cl.get(uuid)
+        url = f"https://app.raa.se/open/fornsok/lamning/{uuid}"
+        for kind, text in (("tradition", trad),
+                           ("register_parts", parts),
+                           ("register_vegetation", veg)):
+            n += add(out, cid, kind, text, uuid=uuid, lang="sv",
+                     publisher="Riksantikvarieämbetet",
+                     licence=CC0[0], licence_url=CC0[1], url=url)
+    return n
+
+
+def from_documents(out):
+    """Kulturmiljoprogram: the county explaining why a place is there.
+
+    These describe AREAS, which is what makes them wrong for scoring and
+    right for prose. The register measures the heap of stones; a programme
+    entry says it is a good representative of the inner south-west Swedish
+    cairn belt. Only the ones that mention archaeology at all are offered --
+    174 of the 381 Varmland files are about farm buildings.
+    """
+    if not os.path.exists(LST_DB):
+        return 0
+    l = sqlite3.connect(f"file:{LST_DB}?mode=ro", uri=True)
+    try:
+        rows = l.execute("""
+            SELECT d.url, d.kind, d.name, d.summary, d.description, d.value,
+                   d.dataset_id, d.obj_id, ds.licence, ds.county
+            FROM documents d
+            LEFT JOIN datasets ds ON ds.id = d.dataset_id
+            WHERE d.archaeology = 1
+              AND (d.description IS NOT NULL OR d.summary IS NOT NULL)
+        """).fetchall()
+    except sqlite3.OperationalError:
+        return 0            # --documents has not been run yet
+    urls = {"CC BY 4.0": "https://creativecommons.org/licenses/by/4.0/",
+            "CC0 1.0": "https://creativecommons.org/publicdomain/zero/1.0/"}
+    where = {}
+    for ds_id, obj_id, cid in l.execute(
+            "SELECT dataset_id, obj_id, cluster_id FROM matches "
+            "WHERE how <> 'in_landscape' AND cluster_id IS NOT NULL"):
+        where.setdefault((ds_id, obj_id), set()).add(cid)
+    n = 0
+    for (url, kind, name, summ, desc_, val, ds_id, obj_id, lic,
+         county) in rows:
+        body = " ".join(x for x in (summ, desc_, val) if x)
+        for cid in where.get((ds_id, obj_id), ()):
+            n += add(out, cid, "county_programme", body, lang="sv",
+                     title=name, publisher=f"Länsstyrelsen ({county})",
+                     url=url, licence=lic or "unresolved",
+                     licence_url=urls.get(lic))
     return n
 
 
@@ -233,7 +330,7 @@ def from_counties(out):
             # declared their terms; they stay parked.
             n_pdf += add(out, cluster_id, "county_pdf", blurb, lang="sv",
                          title=name, publisher=f"Länsstyrelsen ({county})",
-                         licence="unresolved", usable=0)
+                         licence="unresolved")
             continue
         # Free-text fields out of the geodata, under whichever of the dozen
         # names the publisher chose.
@@ -252,8 +349,8 @@ def from_counties(out):
                 n_attr += add(out, cluster_id, "county_attr", val, lang="sv",
                               title=name,
                               publisher=f"Länsstyrelsen ({county})",
-                              licence=lic or "unresolved", licence_url=lic_url,
-                              usable=1 if lic else 0)
+                              licence=lic or "unresolved",
+                              licence_url=lic_url)
     return n_pdf, n_attr
 
 
@@ -294,7 +391,7 @@ def from_county_pages(out):
     for cluster_id, url, title, text, county in rows:
         n += add(out, cluster_id, "county_page", text, lang="sv", title=title,
                  publisher=f"Länsstyrelsen ({county})", url=url,
-                 licence="unresolved", usable=0)
+                 licence="unresolved")
     return n
 
 
@@ -337,7 +434,7 @@ def from_plans(out):
         for cid, uuid in targets:
             n += add(out, cid, "county_plan", body, uuid=uuid, lang="sv",
                      title=name, publisher=f"Lansstyrelsen Skane ({kommun})",
-                     url=url, licence="unresolved", usable=0)
+                     url=url, licence="unresolved")
     return n
 
 
@@ -386,9 +483,15 @@ def main():
     n = from_register(sites, out, cl)
     out.commit()
     print(f"  register:    {n:,} rows offered")
+    n = from_register_extras(sites, out, cl)
+    out.commit()
+    print(f"  reg extras:  {n:,} rows offered")
     n = from_wikipedia(out, cl)
     out.commit()
     print(f"  wikipedia:   {n:,} rows offered")
+    n = from_documents(out)
+    out.commit()
+    print(f"  county_prog: {n:,} rows offered")
     n_pdf, n_attr = from_counties(out)
     out.commit()
     print(f"  county_pdf:  {n_pdf:,} rows offered")
