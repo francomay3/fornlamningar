@@ -93,6 +93,64 @@ ACCESS2_FEATURES = {
     "bldg_gt_200":  lambda r: r["dist_to_building_m"] is None or r["dist_to_building_m"] > 200,
 }
 
+# The candidates added to answer a specific question: the score gets
+# AUC 0.90 against Wikidata positives and 0.60 against county
+# recommendations, and the gap is not a shortage of labels -- the county
+# labels were already in the fit when that was measured. So either the
+# features do not carry the signal, or we were missing features. These are
+# the cheapest ways to find out, kept in their own dict so they can be
+# switched off with --without and the difference read directly. The verdict
+# is in CANDIDATE_GROUPS below: both groups help, neither closes the gap.
+CANDIDATE_GROUPS = {
+    "parking": ("park_le_100", "park_le_500", "park_remote", "log_park"),
+    "digs": ("dug_here", "dig_le_500", "log_dig"),
+    # dug_here on its own, because it looked like the one to throw away and
+    # was not. Measured, each row being that group REMOVED:
+    #
+    #   removed             AUC      county-noWD   prec@100   rec@500
+    #   both candidates    0.8054      0.7243        51 %     168/2342
+    #   digs               0.8086      0.7269        56 %     190/2342
+    #   parking            0.8073      0.7278        56 %     180/2342
+    #   dug_here only      0.8089      0.7274        57 %     190/2342
+    #   nothing            0.8100      0.7297        60 %     191/2342
+    #
+    # So everything stays. Two things worth keeping straight:
+    #
+    # Parking and digs are near-additive, so they are not measuring the same
+    # fact -- and on the county metric, the one that actually means "worth the
+    # trip", digs alone edge out parking alone.
+    #
+    # dug_here has 1.17x lift and a decorrelated weight of -0.171, which
+    # reads like two reasons to drop it and is one fact seen twice. A
+    # NEGATIVE weight is still information: once log_road and log_way are
+    # accounted for, sitting inside an investigated area marks
+    # development-driven excavation, so the feature earns its place by
+    # pushing DOWN places that look reachable but are merely next to
+    # roadworks. Removing it costs 3 points of precision@100.
+    #
+    # It is still a bounding-box test over 31% of the country, so if it ever
+    # needs to carry more weight than this, do the point-in-polygon properly
+    # first.
+    "dug_here": ("dug_here",),
+}
+
+CANDIDATE_FEATURES = {
+    # Somewhere to leave the car, from OSM rather than from Trafikverket's
+    # motorway rest areas.
+    "park_le_100":  lambda r: (r["dist_to_parking_m"] is not None
+                               and r["dist_to_parking_m"] <= 100),
+    "park_le_500":  lambda r: (r["dist_to_parking_m"] is not None
+                               and r["dist_to_parking_m"] <= 500),
+    "park_remote":  lambda r: (r["dist_to_parking_m"] is None
+                               or r["dist_to_parking_m"] > 2000),
+    # Somebody has dug here. Read the schema comment in build_signals before
+    # believing this means the place is interesting: excavation in Sweden is
+    # development-driven, so it is mostly evidence that a road was built.
+    "dug_here":     lambda r: bool(r["dug_here"]),
+    "dig_le_500":   lambda r: (r["dist_to_dig_m"] is not None
+                               and r["dist_to_dig_m"] <= 500),
+}
+
 NOTABILITY_FEATURES = {
     "has_name":        lambda r: bool(r["has_name"]),
     "desc_gt_300":     lambda r: (r["best_description_len"] or 0) > 300,
@@ -111,7 +169,14 @@ NOTABILITY_FEATURES = {
 # OSM mappers and Wikipedia editors documenting the same famous places, which is
 # the same circularity as the labels themselves. Keeping them out of
 # score_intrinsic is what lets that score find undocumented sites.
+# Wikipedia readership belongs HERE and not among the candidates, and it took
+# writing it in the wrong place to see why: having views requires having an
+# article, so `views > 0` is `has_sitelinks` with extra resolution. It can
+# rank the documented 12% more finely. It cannot find anything undocumented,
+# which is the whole job of score_intrinsic.
 LABEL_DERIVED = {
+    "views_gt_100":     lambda r: (r["wiki_views_12m"] or 0) > 100,
+    "views_gt_1000":    lambda r: (r["wiki_views_12m"] or 0) > 1000,
     "has_sitelinks":    lambda r: (r["sitelinks"] or 0) > 0,
     "has_image":        lambda r: bool(r["has_image"]),
     "has_commons":      lambda r: bool(r["has_commons"]),
@@ -322,17 +387,26 @@ CONTINUOUS = [
     ("log_nsites",  lambda r: math.log1p(r["n_sites"] or 1)),
 ]
 
+# Continuous forms of the candidates, separated so --no-candidates removes the
+# boolean buckets and these together. Leaving them in CONTINUOUS would have
+# made the ablation measure nothing while appearing to work.
+CONTINUOUS_CANDIDATE = [
+    ("log_park",    lambda r: math.log1p(r["dist_to_parking_m"] if r["dist_to_parking_m"] is not None else 5000)),
+    ("log_dig",     lambda r: math.log1p(r["dist_to_dig_m"] if r["dist_to_dig_m"] is not None else 5000)),
+]
 
-def build_matrix(rows, feats, cw, kw, desc):
+
+def build_matrix(rows, feats, cw, kw, desc, cont=None):
     """Feature matrix for logistic regression: booleans + continuous + scalars."""
-    names = list(feats) + [n for n, _ in CONTINUOUS] + ["class_w", "keyword_w"]
+    cont = CONTINUOUS if cont is None else cont
+    names = list(feats) + [n for n, _ in cont] + ["class_w", "keyword_w"]
     X = np.zeros((len(rows), len(names)))
     for i, r in enumerate(rows):
         j = 0
         for _n, f in feats.items():
             X[i, j] = 1.0 if f(r) else 0.0
             j += 1
-        for _n, f in CONTINUOUS:
+        for _n, f in cont:
             X[i, j] = f(r)
             j += 1
         X[i, j] = cw.get(r["dominant_class"] or "?", 0.0); j += 1
@@ -341,7 +415,7 @@ def build_matrix(rows, feats, cw, kw, desc):
 
 
 def fit_logistic(rows, feats, cw, kw, desc, positives, negatives, train_pos,
-                 seed=1, neg_sample=40000):
+                 seed=1, neg_sample=40000, cont=None):
     """Fit on positives (weighted) vs verified negatives + sampled unlabelled.
 
     Most unlabelled clusters really are negative (base rate ~0.75%), so
@@ -364,7 +438,7 @@ def fit_logistic(rows, feats, cw, kw, desc, positives, negatives, train_pos,
     sw = np.r_[[train_pos[r["cluster_id"]] for r in pos_rows],
                np.full(len(neg_rows), 3.0),
                np.ones(len(sampled))]
-    X, names = build_matrix(train_rows, feats, cw, kw, desc)
+    X, names = build_matrix(train_rows, feats, cw, kw, desc, cont)
     Xs, mu, sd = LR.standardise(X)
     w, b = LR.fit(Xs, y, sample_weight=sw, l2=5.0, iters=4000)
     return w, b, mu, sd, names
@@ -375,6 +449,10 @@ def main():
     p.add_argument("--db", default=DB)
     p.add_argument("--top", type=int, default=25)
     p.add_argument("--seed", type=int, default=1)
+    p.add_argument("--without", action="append", default=[],
+                   choices=sorted(CANDIDATE_GROUPS) + ["candidates"],
+                   help="fit without a candidate group, to measure what it "
+                        "is worth. Repeatable.")
     args = p.parse_args()
 
     conn = sqlite3.connect(args.db)
@@ -440,6 +518,19 @@ def main():
 
     feats = {**ACCESS_FEATURES, **ACCESS2_FEATURES,
              **SIZE_FEATURES, **NOTABILITY_FEATURES}
+    drop = set()
+    for g in args.without:
+        if g == "candidates":
+            for names in CANDIDATE_GROUPS.values():
+                drop.update(names)
+        else:
+            drop.update(CANDIDATE_GROUPS[g])
+    feats.update({k: v for k, v in CANDIDATE_FEATURES.items()
+                  if k not in drop})
+    cont = list(CONTINUOUS) + [(n, f) for n, f in CONTINUOUS_CANDIDATE
+                               if n not in drop]
+    if drop:
+        print(f"  (excluded: {', '.join(sorted(drop))})")
     weights, stats = measure_weights(fit_rows, feats, train)
     for name in {**ACCESS_FEATURES, **ACCESS2_FEATURES}:
         if name in weights:
@@ -489,7 +580,8 @@ def main():
     # measured against below. It is simply no longer shippable.
     print("\nfitting logistic regression...")
     lr_model = fit_logistic(fit_rows, feats, cw, kw, desc,
-                            pos_all, neg_all, train, seed=args.seed)
+                            pos_all, neg_all, train, seed=args.seed,
+                            cont=cont)
     w_lr, b_lr, mu, sd, names = lr_model
     top = sorted(zip(names, w_lr), key=lambda x: -abs(x[1]))[:12]
     print("  pesos mas fuertes (decorrelacionados):")
@@ -504,7 +596,7 @@ def main():
     # --- evaluate the honest score on held-out positives ------------------- #
     eval_rows = [r for r in fit_rows
                  if r["cluster_id"] not in train]          # drop train leakage
-    Xe, _ = build_matrix(eval_rows, feats, cw, kw, desc)
+    Xe, _ = build_matrix(eval_rows, feats, cw, kw, desc, cont)
     pe = LR.predict((Xe - mu) / sd, w_lr, b_lr)
     scored = [(float(pe[i]), int(r["cluster_id"] in test))
               for i, r in enumerate(eval_rows)]
@@ -522,6 +614,46 @@ def main():
         print(f"  recall@{k:<5} {hits:>4}/{n_test}  ({100*hits/max(n_test,1):>5.1f}%)"
               f"   precision {100*hits/k:>5.2f}%   lift "
               f"{(hits/k)/(n_test/len(scored)):>5.1f}x")
+
+    # --- the same score against each definition of "good" ------------------ #
+    #
+    # One AUC over a mixed label set hides the only number that matters. The
+    # Wikidata positives and the county recommendations disagree about what is
+    # worth visiting, and the score is much better at agreeing with Wikidata
+    # -- which is unsurprising, because Wikidata positives are places somebody
+    # already wrote about, and most of our features measure exactly that.
+    # A county board recommending a place it maintains is a judgement about
+    # whether it is worth the trip, which is the question we actually mean.
+    # Reported separately so the shipped number cannot flatter itself.
+    by_src = {}
+    for cid in test:
+        for src in (pos_src.get(cid) or "?").split(","):
+            by_src.setdefault(src.strip(), set()).add(cid)
+    # The two Wikidata routes are one source of truth wearing two names:
+    # `wikidata_image` and `wikidata_sitelinks` both mean "somebody has
+    # already published about this". Grouped, because the interesting
+    # comparison is against the county boards, and leaving them apart made
+    # the set subtracted below empty -- the first version of this block
+    # looked up a source called "wikidata", which does not exist, and so
+    # silently reported the county AUC twice.
+    wd = set()
+    for k, v in by_src.items():
+        if k.startswith("wikidata"):
+            wd |= v
+    if wd:
+        by_src["wikidata (both routes)"] = wd
+    print("\n  the same model, scored against each definition of good:")
+    rows_by_cid = {r["cluster_id"]: i for i, r in enumerate(eval_rows)}
+    def auc_for(subset, label):
+        if len(subset) < 20:
+            return
+        sc = [(float(pe[i]), int(r["cluster_id"] in subset))
+              for i, r in enumerate(eval_rows)]
+        print(f"    {label:<34} n={len(subset):>5}   AUC {auc(sc):.4f}")
+    for src, subset in sorted(by_src.items(), key=lambda x: -len(x[1])):
+        auc_for(subset, src)
+    auc_for(by_src.get("county", set()) - wd, "county, excluding wikidata")
+    auc_for(by_src.get("hand", set()) - wd, "hand, excluding wikidata")
 
     # --- write scores ------------------------------------------------------ #
     conn.execute("DROP TABLE IF EXISTS scores")
@@ -550,7 +682,7 @@ def main():
         print(f"  {len(county_pos):,} clusters recommended by a county board "
               f"(rescues an excluded class)")
 
-    Xa, _ = build_matrix(rows, feats, cw, kw, desc)
+    Xa, _ = build_matrix(rows, feats, cw, kw, desc, cont)
     lr_all = LR.predict((Xa - mu) / sd, w_lr, b_lr)
 
     out = []

@@ -77,13 +77,32 @@ HIST="other_tags LIKE '%historic%'
 extract historic_pt   points        feat   osm_id,name,other_tags "$HIST"
 extract historic_poly multipolygons feat   osm_id,name,other_tags "$HIST"
 
+# Parking. Franco asked whether it is worth having, and the honest answer is
+# that we do not know yet -- but we can find out, and the wrong source was
+# already tried once: Trafikverket's `Rastplatser` are motorway rest areas
+# with toilets and a petrol pump, nowhere near a grave field. amenity=parking
+# includes the gravel pull-in at the end of a forest track, which is what
+# actually exists at these places. Points and polygons both, because a car
+# park is mapped either way depending on who mapped it.
+# NOTE the two different filters, and they are not interchangeable. The
+# comment above about other_tags is true of `tourism` and `historic`; it is
+# NOT true of `amenity`, which GDAL promotes to a real column on
+# multipolygons but not on points. Filtering the polygon layer on other_tags
+# returned 0 features and looked exactly like "Sweden maps no car parks as
+# areas" -- a plausible zero, which is the failure mode worth fearing.
+extract parking_pt    points        park   osm_id,name,other_tags \
+  'other_tags LIKE '"'"'%"amenity"=>"parking%'"'"''
+extract parking_poly  multipolygons park   osm_id,amenity,name \
+  "amenity LIKE 'parking%'"
+
 # Feature counts these filters produced when stage 4 was calibrated. OSM
 # grows, so newer extracts should come out slightly above these; a number far
 # BELOW one of them means a filter or the source extract has changed.
 echo
 echo "layer            size   rows (calibrated)"
 for spec in "sweden_ways:ways:2304476" "buildings:b:3904620" "boards:boards:7018" \
-            "historic_pt:feat:8258" "historic_poly:feat:576"; do
+            "historic_pt:feat:8258" "historic_poly:feat:576" \
+            "parking_pt:park:16128" "parking_poly:park:279426"; do
   IFS=: read -r f lyr expect <<<"$spec"
   n=$(python3 -c "import sqlite3,sys;print(sqlite3.connect('file:$DIR/$f.gpkg?mode=ro',uri=True).execute('select count(*) from \"$lyr\"').fetchone()[0])")
   printf "%-16s %5s  %9s (%s)\n" "$f.gpkg" "$(du -h "$DIR/$f.gpkg" | cut -f1)" "$n" "$expect"

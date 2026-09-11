@@ -51,6 +51,13 @@ BOARDS_GPKG = "src/data/osm/boards.gpkg"
 ARCH_GPKG = "src/data/osm/historic_pt.gpkg"
 ARCH_POLY_GPKG = "src/data/osm/historic_poly.gpkg"
 BUILDINGS_GPKG = "src/data/osm/buildings.gpkg"
+PARKING_GPKG = "src/data/osm/parking_pt.gpkg"
+PARKING_POLY_GPKG = "src/data/osm/parking_poly.gpkg"
+# RAA's own record of where archaeology has been dug. Two files: the areas an
+# assignment covered, and the trenches actually opened inside them.
+DIG_GPKG = ("src/data/raa/arkeologiska_uppdrag_undersökningsområden_"
+            "sverige.gpkg")
+WIKIMEDIA_DB = paths.WIKIMEDIA
 
 # Roads a car can use, as opposed to `dist_to_way_m` which is the union of ALL
 # ways including footpaths. Different question: "can I park near it?" rather
@@ -278,6 +285,74 @@ def load_points(path, layer):
     return np.array(out) if out else np.zeros((0, 2))
 
 
+
+def load_poly_centroids(path, layer, where=""):
+    """Envelope centres of a polygon layer.
+
+    A centre is not a polygon, and for a big area that matters -- but every
+    consumer here is a nearest-distance query where the alternative is
+    densifying 279,426 car parks, and a car park is small enough that its
+    centre is within metres of its edge. The excavation areas are the case
+    to watch: the biggest are hundreds of metres across, so `dug_here` uses
+    the bounding box rather than this.
+    """
+    conn = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+    out = []
+    q = f'SELECT geom FROM "{layer}" WHERE geom IS NOT NULL {where}'
+    for (blob,) in conn.execute(q):
+        e = gpkg_envelope(blob) if blob and len(blob) >= 40 else None
+        if e:
+            out.append(((e[0] + e[1]) / 2, (e[2] + e[3]) / 2))
+    conn.close()
+    return np.array(out) if out else np.zeros((0, 2))
+
+
+def load_dig_boxes(path):
+    """(emin, emax, nmin, nmax) for every investigated area.
+
+    Kept as boxes, not centres, because `dug_here` asks whether this place
+    falls INSIDE one and these polygons are large enough for the difference
+    to decide the answer.
+    """
+    conn = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+    layers = [r[0] for r in conn.execute(
+        "SELECT table_name FROM gpkg_contents WHERE data_type='features'")]
+    boxes = []
+    for lyr in layers:
+        if not lyr.endswith("polygon"):
+            continue
+        for (blob,) in conn.execute(f'SELECT geom FROM "{lyr}" '
+                                    "WHERE geom IS NOT NULL"):
+            e = gpkg_envelope(blob) if blob and len(blob) >= 40 else None
+            if e:
+                boxes.append(e)
+    conn.close()
+    return boxes
+
+
+def wiki_views(work_db, wm_db):
+    """cluster_id -> total trailing-12-month readership, sv + en.
+
+    Summed across languages and MAXed across the cluster's member sites: a
+    cluster is one place, and the readership of the place is the readership
+    of the article about it, wherever that article sits.
+    """
+    if not os.path.exists(wm_db):
+        return {}
+    wm = sqlite3.connect(f"file:{wm_db}?mode=ro", uri=True)
+    per_uuid = {}
+    for uuid, v in wm.execute("SELECT uuid, SUM(COALESCE(views_12m, 0)) "
+                              "FROM wiki_articles GROUP BY uuid"):
+        per_uuid[uuid] = v
+    w = sqlite3.connect(f"file:{work_db}?mode=ro", uri=True)
+    out = {}
+    for uuid, cid in w.execute("SELECT uuid, cluster_id FROM site_clusters"):
+        v = per_uuid.get(uuid)
+        if v is not None:
+            out[cid] = max(out.get(cid, 0), v)
+    return out
+
+
 SCHEMA = """
 DROP TABLE IF EXISTS signals;
 CREATE TABLE signals (
@@ -305,6 +380,28 @@ CREATE TABLE signals (
     dist_to_osm_arch_m REAL,
     dist_to_road_m REAL,
     dist_to_building_m REAL,
+    -- Somewhere to leave the car. Franco asked whether this is worth having
+    -- and the measurement below is the answer; the point of adding it is to
+    -- be able to say no with a number. Trafikverket's Rastplatser were tried
+    -- first and are the wrong dataset -- motorway service areas, nowhere
+    -- near a grave field. A car park at one of these places is a gravel
+    -- pull-in at the end of a forest track, which is what OSM has.
+    dist_to_parking_m REAL,
+    -- Distance to the nearest area RAA has archaeologically investigated,
+    -- and whether one covers this place.
+    --
+    -- READ THIS BEFORE TRUSTING IT. Excavation in Sweden is overwhelmingly
+    -- development-driven: someone digs because a road or a housing estate is
+    -- going in, not because the monument is remarkable. So a dig nearby is
+    -- evidence of CONSTRUCTION, and only indirectly of interest. It is in
+    -- here to be measured, not because the causal story is clean.
+    dist_to_dig_m REAL,
+    dug_here INTEGER,
+    -- Wikipedia readership over the trailing twelve months, summed across
+    -- sv and en. NULL means no article; 0 means an article nobody reads,
+    -- which is a different and useful fact. Only refines the ~12% of places
+    -- that have an article at all -- having views requires having a page.
+    wiki_views_12m INTEGER,
     neighbors_1km INTEGER,
     spatial_checked_at TEXT,
     wikidata_checked_at TEXT
@@ -315,6 +412,7 @@ CREATE INDEX idx_sig_class ON signals(dominant_class);
 CREATE INDEX idx_sig_way   ON signals(dist_to_way_m);
 CREATE INDEX idx_sig_board ON signals(dist_to_board_m);
 CREATE INDEX idx_sig_name  ON signals(has_name);
+CREATE INDEX idx_sig_views ON signals(wiki_views_12m DESC);
 """
 
 
@@ -326,6 +424,9 @@ def main():
     p.add_argument("--arch", default=ARCH_GPKG)
     p.add_argument("--arch-poly", default=ARCH_POLY_GPKG)
     p.add_argument("--buildings", default=BUILDINGS_GPKG)
+    p.add_argument("--parking", default=PARKING_GPKG)
+    p.add_argument("--parking-poly", default=PARKING_POLY_GPKG)
+    p.add_argument("--digs", default=DIG_GPKG)
     p.add_argument("--skip-spatial", action="store_true")
     p.add_argument("--progress-json", action="store_true")
     args = p.parse_args()
@@ -393,6 +494,8 @@ def main():
     print(f"  {len(worthy_agg):,} clusters con al menos un miembro no blacklisteado")
 
     way_grid = board_grid = arch_grid = road_grid = bldg_grid = None
+    park_grid = dig_grid = None
+    dig_boxes = []
     if not args.skip_spatial:
         if os.path.exists(args.ways):
             print("Loading OSM ways (all)...")
@@ -436,6 +539,28 @@ def main():
             a = np.array(ap)
             print(f"  {len(a):,} OSM archaeological_site features")
             arch_grid = PointGrid(a[:, 0], a[:, 1])
+        pk = []
+        if os.path.exists(args.parking):
+            pk.extend(load_points(args.parking, "park").tolist())
+        if os.path.exists(args.parking_poly):
+            pk.extend(load_poly_centroids(args.parking_poly, "park").tolist())
+        if pk:
+            pa = np.array(pk)
+            print(f"  {len(pa):,} car parks")
+            park_grid = PointGrid(pa[:, 0], pa[:, 1])
+            del pa, pk
+        else:
+            print(f"  ! {args.parking} missing; dist_to_parking_m will be NULL")
+        if os.path.exists(args.digs):
+            dig_boxes = load_dig_boxes(args.digs)
+            print(f"  {len(dig_boxes):,} investigated areas")
+            if dig_boxes:
+                dc = np.array([((b[0] + b[1]) / 2, (b[2] + b[3]) / 2)
+                               for b in dig_boxes])
+                dig_grid = PointGrid(dc[:, 0], dc[:, 1])
+                del dc
+        else:
+            print(f"  ! {args.digs} missing; dist_to_dig_m will be NULL")
         if os.path.exists(args.buildings):
             bp = load_building_centroids(args.buildings)
             print(f"  {len(bp):,} building centroids")
@@ -451,12 +576,20 @@ def main():
     ok = ~np.isnan(ce)
     dens_grid = PointGrid(ce[ok], cn[ok], cell=1000.0)
 
+    views = wiki_views(args.db, WIKIMEDIA_DB)
+    if views:
+        nz = sum(1 for v in views.values() if v)
+        print(f"  {len(views):,} places have a Wikipedia article "
+              f"({nz:,} with any readership)")
+
     now = time.strftime("%Y-%m-%dT%H:%M:%S")
     out = []
     t0 = time.time()
     for i, r in enumerate(rows):
         e, n = r["centroid_e"], r["centroid_n"]
         dw = db = da = dr = dbl = None
+        dpk = ddig = None
+        dug = 0
         nb = None
         if e is not None:
             if way_grid:
@@ -469,6 +602,19 @@ def main():
                 dr = road_grid.nearest(e, n)
             if bldg_grid:
                 dbl = bldg_grid.nearest(e, n, max_search=2000.0)
+            if park_grid:
+                dpk = park_grid.nearest(e, n, max_search=5000.0)
+            if dig_grid:
+                ddig = dig_grid.nearest(e, n, max_search=5000.0)
+                # Containment is checked against the bounding boxes only when
+                # the centre is close enough for it to be possible, which
+                # keeps a 74,000-box scan off the hot path for the 95% of
+                # places that were never dug near.
+                if ddig is not None and ddig <= 2000.0:
+                    for b in dig_boxes:
+                        if b[0] <= e <= b[1] and b[2] <= n <= b[3]:
+                            dug = 1
+                            break
             k = dens_grid._range(int(e // 1000.0) * 100_000 + int(n // 1000.0))
             nb = int(k[1] - k[0]) if k else 0
         # `dominant_class` from build_clusters is the most FREQUENT class, which
@@ -512,7 +658,8 @@ def main():
             r["best_description_len"], r["all_boilerplate"],
             r["any_measurements"], r["any_visible"],
             r["sitelinks"], r["has_image"], r["has_commons"],
-            dw, db, da, dr, dbl, nb,
+            dw, db, da, dr, dbl, dpk, ddig, dug, views.get(r["cluster_id"]),
+            nb,
             now if not args.skip_spatial else None, now,
         ))
         if i and i % 20000 == 0:
@@ -521,7 +668,7 @@ def main():
     conn.executescript(SCHEMA)
     with conn:
         conn.executemany(
-            f"INSERT INTO signals VALUES ({','.join('?'*27)})", out)
+            f"INSERT INTO signals VALUES ({','.join('?'*31)})", out)
     conn.executescript(INDEXES)
     conn.commit()
     print(f"Wrote {len(out):,} signal rows in {time.time()-t0:.0f}s")
