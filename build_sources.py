@@ -96,7 +96,19 @@ CREATE TABLE IF NOT EXISTS sources (
     -- Off for rows kept for provenance but not fed to the model: a licence we
     -- have not cleared, or a user comment awaiting moderation.
     usable      INTEGER DEFAULT 1,
-    fetched_at  TEXT,
+    -- TWO dates, because there are two questions and one column only ever
+    -- answered the first.
+    --   fetched_at     when the CONTENT was obtained upstream. Says whether
+    --                  what we hold has fallen behind its source.
+    --   first_seen_at  when THIS ROW entered the corpus. Says whether the
+    --                  data existed when a description was written.
+    -- They come apart exactly where it matters. `tradition` was published
+    -- into an API response crawled on 7 September, but we only started
+    -- PARSING that field on the 11th; 679 places have a description written
+    -- on the 9th that has never seen their tradition, and a staleness rule
+    -- built on fetched_at called every one of them current.
+    fetched_at    TEXT,
+    first_seen_at TEXT,
     UNIQUE (cluster_id, kind, lang, url, text)
 );
 CREATE INDEX IF NOT EXISTS idx_src_cluster ON sources(cluster_id);
@@ -148,18 +160,45 @@ BYSA4 = ("CC BY-SA 4.0", "https://creativecommons.org/licenses/by-sa/4.0/")
 
 
 def add(out, cluster_id, kind, text, **kw):
+    """One source row. `fetched_at` is WHEN THE CONTENT WAS OBTAINED.
+
+    It used to be datetime('now'), which is when this script happened to
+    run. Every row in the corpus then carried the same timestamp within four
+    seconds -- register text crawled on the 7th, Wikipedia on the 10th and
+    county documents today all claimed 12:29:44 -- and the column reset to
+    now on every rebuild, so nothing could ever look stale. That is worse
+    than having no column: it answers the maintenance question confidently
+    and wrongly.
+
+    Callers pass the upstream cache's own timestamp. The fallback is still
+    now, for a source that genuinely has no better answer.
+    """
     if not cluster_id or not text or not str(text).strip():
         return 0
     out.execute("""
         INSERT OR IGNORE INTO sources
           (cluster_id, uuid, kind, lang, title, text, author, publisher,
-           licence, licence_url, url, trust, usable, fetched_at)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,datetime('now'))
+           licence, licence_url, url, trust, usable, fetched_at,
+           first_seen_at)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,
+                COALESCE(?, datetime('now')), datetime('now'))
     """, (cluster_id, kw.get("uuid"), kind, kw.get("lang"), kw.get("title"),
           " ".join(str(text).split()), kw.get("author"), kw.get("publisher"),
           kw.get("licence"), kw.get("licence_url"), kw.get("url"),
-          TRUST.get(kind, 0.5), kw.get("usable", 1)))
+          TRUST.get(kind, 0.5), kw.get("usable", 1), kw.get("fetched_at")))
     return 1
+
+
+def register_fetched(limit_uuids=None):
+    """uuid -> when the API response behind it was crawled.
+
+    311,845 rows out of raa_api.sqlite. Loaded as a dict because the
+    alternative is a correlated subquery per source row.
+    """
+    if not os.path.exists(paths.RAA_API):
+        return {}
+    a = sqlite3.connect(paths.ro(paths.RAA_API), uri=True)
+    return dict(a.execute("SELECT uuid, fetched_at FROM responses"))
 
 
 def cluster_map(sites):
@@ -173,6 +212,7 @@ def from_register(sites, out, cl):
     template sentence that says nothing, and feeding those to the model taught
     it to write template sentences back.
     """
+    when = register_fetched()
     n = 0
     for uuid, text in sites.execute("""
             SELECT uuid, beskrivning FROM sites
@@ -181,6 +221,7 @@ def from_register(sites, out, cl):
         n += add(out, cl.get(uuid), "register", text, uuid=uuid, lang="sv",
                  publisher="Riksantikvarieämbetet",
                  licence=CC0[0], licence_url=CC0[1],
+                 fetched_at=when.get(uuid),
                  url=f"https://app.raa.se/open/fornsok/lamning/{uuid}")
     return n
 
@@ -205,6 +246,7 @@ def from_register_extras(sites, out, cl):
     tradition is colour, ingaende_lamningar is inventory, vegetation decides
     whether you will see anything when you arrive.
     """
+    when = register_fetched()
     n = 0
     for uuid, trad, parts, veg in sites.execute("""
             SELECT uuid, tradition, ingaende_lamningar, vegetation
@@ -218,7 +260,8 @@ def from_register_extras(sites, out, cl):
                            ("register_vegetation", veg)):
             n += add(out, cid, kind, text, uuid=uuid, lang="sv",
                      publisher="Riksantikvarieämbetet",
-                     licence=CC0[0], licence_url=CC0[1], url=url)
+                     licence=CC0[0], licence_url=CC0[1], url=url,
+                     fetched_at=when.get(uuid))
     return n
 
 
@@ -237,7 +280,8 @@ def from_documents(out):
     try:
         rows = l.execute("""
             SELECT d.url, d.kind, d.name, d.summary, d.description, d.value,
-                   d.dataset_id, d.obj_id, ds.licence, ds.county
+                   d.dataset_id, d.obj_id, ds.licence, ds.county,
+                   d.fetched_at
             FROM documents d
             LEFT JOIN datasets ds ON ds.id = d.dataset_id
             WHERE d.archaeology = 1
@@ -254,13 +298,13 @@ def from_documents(out):
         where.setdefault((ds_id, obj_id), set()).add(cid)
     n = 0
     for (url, kind, name, summ, desc_, val, ds_id, obj_id, lic,
-         county) in rows:
+         county, when) in rows:
         body = " ".join(x for x in (summ, desc_, val) if x)
         for cid in where.get((ds_id, obj_id), ()):
             n += add(out, cid, "county_programme", body, lang="sv",
                      title=name, publisher=f"Länsstyrelsen ({county})",
                      url=url, licence=lic or "unresolved",
-                     licence_url=urls.get(lic))
+                     licence_url=urls.get(lic), fetched_at=when)
     return n
 
 
@@ -269,12 +313,13 @@ def from_wikipedia(out, cl):
         return 0
     w = sqlite3.connect(f"file:{WIKI_DB}?mode=ro", uri=True)
     n = 0
-    for uuid, lang, title, extract, url in w.execute(
-            "SELECT uuid, lang, title, extract, url FROM wiki_articles "
-            "WHERE extract IS NOT NULL AND extract <> ''"):
+    for uuid, lang, title, extract, url, when in w.execute(
+            "SELECT uuid, lang, title, extract, url, fetched_at "
+            "FROM wiki_articles WHERE extract IS NOT NULL AND extract <> ''"):
         n += add(out, cl.get(uuid), "wikipedia", extract, uuid=uuid,
                  lang=lang, title=title, publisher=f"Wikipedia ({lang})",
-                 licence=BYSA4[0], licence_url=BYSA4[1], url=url)
+                 licence=BYSA4[0], licence_url=BYSA4[1], url=url,
+                 fetched_at=when)
     return n
 
 
@@ -313,8 +358,9 @@ def from_counties(out):
     lic_of = dataset_licences(l)
     n_pdf = n_attr = 0
 
-    for cluster_id, name, props, ds_id, county in l.execute("""
-            SELECT DISTINCT m.cluster_id, o.name, o.props, d.id, d.county
+    for cluster_id, name, props, ds_id, county, when in l.execute("""
+            SELECT DISTINCT m.cluster_id, o.name, o.props, d.id, d.county,
+                   d.fetched_at
             FROM matches m
             JOIN objects o ON o.dataset_id = m.dataset_id
                           AND o.obj_id = m.obj_id
@@ -330,7 +376,7 @@ def from_counties(out):
             # declared their terms; they stay parked.
             n_pdf += add(out, cluster_id, "county_pdf", blurb, lang="sv",
                          title=name, publisher=f"Länsstyrelsen ({county})",
-                         licence="unresolved")
+                         licence="unresolved", fetched_at=when)
             continue
         # Free-text fields out of the geodata, under whichever of the dozen
         # names the publisher chose.
@@ -350,7 +396,7 @@ def from_counties(out):
                               title=name,
                               publisher=f"Länsstyrelsen ({county})",
                               licence=lic or "unresolved",
-                              licence_url=lic_url)
+                              licence_url=lic_url, fetched_at=when)
     return n_pdf, n_attr
 
 
@@ -377,7 +423,8 @@ def from_county_pages(out):
     l = sqlite3.connect(f"file:{LST_DB}?mode=ro", uri=True)
     try:
         rows = l.execute("""
-            SELECT DISTINCT m.cluster_id, p.url, p.title, p.text, p.county
+            SELECT DISTINCT m.cluster_id, p.url, p.title, p.text, p.county,
+                   p.fetched_at
             FROM pages p
             JOIN page_objects po ON po.url = p.url
             JOIN matches m ON m.dataset_id = po.dataset_id
@@ -388,10 +435,10 @@ def from_county_pages(out):
     except sqlite3.OperationalError:
         return 0            # --pages has not been run yet
     n = 0
-    for cluster_id, url, title, text, county in rows:
+    for cluster_id, url, title, text, county, when in rows:
         n += add(out, cluster_id, "county_page", text, lang="sv", title=title,
                  publisher=f"Länsstyrelsen ({county})", url=url,
-                 licence="unresolved")
+                 licence="unresolved", fetched_at=when)
     return n
 
 
@@ -413,13 +460,14 @@ def from_plans(out):
     l = sqlite3.connect(f"file:{LST_DB}?mode=ro", uri=True)
     try:
         rows = l.execute("SELECT obj, url, name, kommun, description, goal, "
-                         "care, sign, parking FROM plans").fetchall()
+                         "care, sign, parking, fetched_at "
+                         "FROM plans").fetchall()
     except sqlite3.OperationalError:
         return 0            # --plans has not been run yet
     where = plan_clusters(l, SITES_DB)
 
     n = 0
-    for obj, url, name, kommun, desc, goal, care, sign, park in rows:
+    for obj, url, name, kommun, desc, goal, care, sign, park, when in rows:
         targets = {(c, None) for c in where.get(obj, ())}
         # The sign and parking status ride along as a sentence, because the
         # thing generating a description cannot read a column. They are also
@@ -434,7 +482,7 @@ def from_plans(out):
         for cid, uuid in targets:
             n += add(out, cid, "county_plan", body, uuid=uuid, lang="sv",
                      title=name, publisher=f"Lansstyrelsen Skane ({kommun})",
-                     url=url, licence="unresolved")
+                     url=url, licence="unresolved", fetched_at=when)
     return n
 
 

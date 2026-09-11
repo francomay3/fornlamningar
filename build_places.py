@@ -70,6 +70,30 @@ CREATE TABLE IF NOT EXISTS features (
     n_sources    INTEGER,            -- rows in `sources` for this place
     n_images     INTEGER,
     uses_wikipedia INTEGER,          -- did the generated text draw on it
+
+    -- WHEN, for every kind of content, because the maintenance question is
+    -- never "what do we have" but "what has gone out of date".
+    --
+    -- The pair that matters is description_generated_at against
+    -- sources_newest_at: if a source arrived after the text was written,
+    -- the text has not seen it. That is `stale`, and it is derived here
+    -- rather than asked at query time so it appears in an export and in the
+    -- app without anyone re-deriving the rule.
+    --
+    -- These are the CONTENT timestamps, not the build timestamp. `built_at`
+    -- is when this row was assembled and is nearly useless for deciding
+    -- anything -- it is now on every rebuild.
+    description_generated_at  TEXT,
+    description_model         TEXT,
+    description_translated_at TEXT,
+    -- Newest CONTENT date among this place's sources.
+    sources_newest_at         TEXT,
+    -- Newest date at which a source row APPEARED. This is the one `stale`
+    -- compares against: a field we only started parsing yesterday is new to
+    -- us even though the API published it last week.
+    sources_first_seen_at     TEXT,
+    images_newest_at          TEXT,
+    stale                     INTEGER,
     built_at     TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_f_score  ON features(score DESC);
@@ -215,7 +239,8 @@ def build_features(out):
     if os.path.exists(paths.GENERATED):
         g = sqlite3.connect(paths.ro(paths.GENERATED), uri=True)
         for row in g.execute("SELECT cluster_id, title, content, title_en, "
-                             "content_en FROM ai_descriptions"):
+                             "content_en, created_at, model, translated_at "
+                             "FROM ai_descriptions"):
             gen[row[0]] = row[1:]
         print(f"{len(gen):,} generated descriptions "
               f"({sum(1 for v in gen.values() if v[3]):,} with English)")
@@ -240,8 +265,8 @@ def build_features(out):
             LEFT JOIN scores sc ON sc.cluster_id = c.cluster_id"""):
         (cid, lon, lat, name, cls, n_sites, parish, muni, county,
          score, hard, soft) = r
-        title, content, title_en, content_en = gen.get(cid,
-                                                       (None,) * 4)
+        (title, content, title_en, content_en, made_at, model,
+         translated_at) = gen.get(cid, (None,) * 7)
         sign, snote, park, pnote = status.get(cid, (None,) * 4)
         uuid = rep.get(cid)
         out.execute("""
@@ -251,15 +276,16 @@ def build_features(out):
                raa_url, parish, municipality, county, score, excluded,
                has_or_doesnt_need_sign, has_or_doesnt_need_parking,
                sign_status, sign_note, parking_status, parking_note,
-               built_at)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,
+               description_generated_at, description_model,
+               description_translated_at, built_at)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,
                     datetime('now'))
         """, (cid, lon, lat, name, title, content, title_en, content_en,
               cls, FAMILY.get(cls, "misc"), n_sites, lam.get(uuid),
               url.get(uuid), parish, muni, county, score,
               1 if (hard or soft) else 0,
               sign_state(sign), sign_state(park),
-              sign, snote, park, pnote))
+              sign, snote, park, pnote, made_at, model, translated_at))
         n += 1
     out.commit()
     return n
@@ -295,7 +321,7 @@ def build_images(out):
 
 
 def rollups(out):
-    """The counts on `features` that summarise the other two tables."""
+    """The counts and dates on `features` that summarise the other tables."""
     out.execute("""
         UPDATE features SET n_images = COALESCE((
             SELECT COUNT(*) FROM images i
@@ -315,6 +341,37 @@ def rollups(out):
     except sqlite3.OperationalError:
         # build_sources.py has not written into this file yet.
         pass
+
+    out.execute("""
+        UPDATE features SET images_newest_at = (
+            SELECT MAX(i.fetched_at) FROM images i
+             WHERE i.cluster_id = features.cluster_id)""")
+    try:
+        out.execute("""
+            UPDATE features SET sources_newest_at = (
+                SELECT MAX(s.fetched_at) FROM sources s
+                 WHERE s.cluster_id = features.cluster_id)""")
+    except sqlite3.OperationalError:
+        pass
+    try:
+        out.execute("""
+            UPDATE features SET sources_first_seen_at = (
+                SELECT MAX(s.first_seen_at) FROM sources s
+                 WHERE s.cluster_id = features.cluster_id)""")
+    except sqlite3.OperationalError:
+        pass
+    # A description is stale when a source row APPEARED after it was written
+    # -- not when the content was published. Using fetched_at here missed
+    # every one of the 679 places whose tradition we had held in an unparsed
+    # JSON field since before the text was generated.
+    # NULL, not 0, where there is no description: "not stale" would claim the
+    # text is current when there is no text.
+    out.execute("""
+        UPDATE features SET stale = CASE
+            WHEN description_generated_at IS NULL THEN NULL
+            WHEN sources_first_seen_at IS NULL THEN 0
+            WHEN sources_first_seen_at > description_generated_at THEN 1
+            ELSE 0 END""")
     out.commit()
 
 
@@ -326,7 +383,8 @@ def status(out):
             ("  also in English", "content_en IS NOT NULL"),
             ("with a folk name", "name IS NOT NULL"),
             ("with at least one image", "n_images > 0"),
-            ("excluded from export", "excluded = 1")):
+            ("excluded from export", "excluded = 1"),
+            ("stale: a source is newer than the text", "stale = 1")):
         c, = out.execute(f"SELECT COUNT(*) FROM features WHERE {q}").fetchone()
         print(f"  {c:>9,}  {label}")
     print("\n  sign / parking, where a county told us:")

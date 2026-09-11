@@ -415,7 +415,15 @@ def main():
                 model=excluded.model, prompt_version=excluded.prompt_version,
                 source_hash=excluded.source_hash, flags=excluded.flags,
                 elapsed_ms=excluded.elapsed_ms,
-                created_at=CURRENT_TIMESTAMP""",
+                created_at=CURRENT_TIMESTAMP,
+                -- Regenerating replaces the Swedish text, so any English
+                -- sitting beside it is a translation of a sentence that no
+                -- longer exists. Cleared, which also puts the row back into
+                -- run_translate's queue: it selects on content_en IS NULL.
+                -- Without this, a regenerated place kept its old English
+                -- for ever and nothing would have reported a problem.
+                title_en=NULL, content_en=NULL,
+                translated_by=NULL, translated_at=NULL""",
             (pl["cluster_id"], pl["uuid"], pl["lamning"], res["title"],
              res["content"], a.model, dp.PROMPT_VERSION,
              source_hash(pl["model_input"]), ",".join(flags),
