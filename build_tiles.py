@@ -37,6 +37,7 @@ import sys
 import time
 
 from families import CLASS_BLACKLIST, FAMILY, FAMILY_ICON, FAMILY_ORDER
+from titles import resolve_title
 from periods import period_for
 
 import paths
@@ -222,6 +223,41 @@ def load_dims(db, rows):
     return out
 
 
+def load_resolved_names(work_db, wiki_db):
+    """cluster_id -> the place's name, by titles.resolve_title.
+
+    The SAME rule describe_place.payload uses, because the alternative was
+    two rules and they fought: this function replaces an override that used
+    clusters.name directly, which is the register's folk name. For Li
+    gravfält the model correctly returned "Li gravfält" and the override
+    replaced it with "Frodestenen" -- the standing stone inside the grave
+    field -- so the fix for titles burying names reintroduced the same bug
+    from the other side.
+
+    Still needed even though the generator now resolves the name itself:
+    8,749 of the 8,899 descriptions were written before that change and
+    carry a generic heading.
+    """
+    w = sqlite3.connect(f"file:{work_db}?mode=ro", uri=True)
+    names = dict(w.execute("SELECT cluster_id, name FROM clusters "
+                           "WHERE name IS NOT NULL"))
+    wiki = {}
+    if os.path.exists(wiki_db):
+        wm = sqlite3.connect(f"file:{wiki_db}?mode=ro", uri=True)
+        cl = dict(w.execute("SELECT uuid, cluster_id FROM site_clusters"))
+        for uuid, title in wm.execute("SELECT uuid, title FROM wiki_articles "
+                                      "WHERE lang = 'sv'"):
+            cid = cl.get(uuid)
+            if cid:
+                wiki.setdefault(cid, title)
+    out = {}
+    for cid in set(names) | set(wiki):
+        t, _src = resolve_title(wiki.get(cid), names.get(cid))
+        if t:
+            out[cid] = t
+    return out
+
+
 def load_ai_descriptions(path):
     """Read the generated visitor descriptions, if any exist yet.
 
@@ -235,12 +271,20 @@ def load_ai_descriptions(path):
     to the source, or a reach for "mysterious". Not something to ship, and the
     raw Swedish is at least true.
 
-    `dim-in-prose` is exempt. It only records that the model mentioned a
-    measurement in the prose when the size is also shown as subtext -- a
-    blemish, not a falsehood, and it fires on about a quarter of rows.
-    Treating it as a failure would throw away a quarter of good descriptions.
+    `dims` (and the older `dim-in-prose`) is exempt. It only records that the
+    model put more measurements in the prose than the one the prompt allows,
+    when the size is also shown as subtext -- a blemish, not a falsehood, and
+    it fires on about a fifth of rows. Treating it as a failure would throw
+    away a fifth of good descriptions.
+
+    BOTH names are listed, and that is not tidiness. The flag was renamed
+    from the boolean `dim-in-prose` to the counting `dims:N` so the rate
+    could be measured, and this set was not updated -- so `dims:3` stripped
+    to `dims`, missed the exemption, and 29 perfectly good descriptions
+    silently stopped being exported. The old name stays for rows generated
+    before the rename.
     """
-    cosmetic = {"dim-in-prose"}
+    cosmetic = {"dim-in-prose", "dims"}
     if not os.path.exists(path):
         return {}
     conn = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
@@ -265,7 +309,7 @@ def load_ai_descriptions(path):
 
 
 def write_descriptions(rows, out_dir, shard_chars, max_desc, ai=None,
-                       lang="en", dims=None):
+                       lang="en", dims=None, resolved=None):
     """Write descriptions as uuid-sharded JSON, outside the tiles.
 
     Description text was 60% of every tile's bytes: the same export weighs
@@ -298,9 +342,31 @@ def write_descriptions(rows, out_dir, shard_chars, max_desc, ai=None,
             title, content = got.get(lang) or (None, None)
             if not content:
                 title, content = got["sv"]
-            # A generated title is a better popup heading than the fallback
-            # label, which for an unnamed place is just its class.
-            if title:
+            # A generated title beats the fallback label, which for an
+            # unnamed place is just its class.
+            #
+            # But a FOLK NAME beats the generated title, and this used to go
+            # the other way. The model writes from the register text, so when
+            # that text does not repeat the name it writes what it sees:
+            #
+            #   Frodestenen        -> "Gravfält med 160 fornlämningar"
+            #   Kungsbacken        -> "Gravfält med 10 högar"
+            #   Blankehög          -> "Hög"
+            #
+            # 125 of the 1,577 named places in the export lost their name
+            # that way, and the map label is the same string, so a stone that
+            # people have called Frodestenen for centuries appeared as a
+            # count of graves. Where the generated title already contains the
+            # name -- 1,452 of 1,577 -- it is richer, so it stays.
+            # The generated title is dropped, not kept as a subtitle: the
+            # shard schema in sync-assets.sh has six fixed columns and would
+            # have discarded a seventh key without a word. What it was
+            # carrying -- "160 fornlämningar" -- is in the content text
+            # anyway.
+            name = (resolved or {}).get(r["cluster_id"]) or r["name"]
+            if name and title and name.lower() not in title.lower():
+                entry["title"] = name
+            elif title:
                 entry["title"] = title
             entry["content"] = content
             n_ai += 1
@@ -616,7 +682,8 @@ def main():
 
     ai = {} if args.no_ai_desc else load_ai_descriptions(args.ai_db)
     write_descriptions(rows, args.desc_out, args.desc_shard_chars,
-                       args.max_desc, ai, args.lang, load_dims(args.db, rows))
+                       args.max_desc, ai, args.lang, load_dims(args.db, rows),
+                       load_resolved_names(args.db, paths.WIKIMEDIA))
     write_families(rows, args.groups_out)
 
     if args.skip_tippecanoe:
@@ -634,6 +701,16 @@ def main():
     tiles = sum(len([f for f in fs if f.endswith(".pbf")])
                 for _, _, fs in os.walk(out))
     print(f"\n{tiles:,} tiles, {total/1e6:.1f} MB -> {out}")
+    # The web app pins the tile URL with a cache-busting query parameter, and
+    # NOTHING updates it -- it is a hand edit in page.tsx that was sitting
+    # uncommitted at v=16 while the committed value was v=13. Ship tiles
+    # without bumping it and every returning browser serves the old ones,
+    # which looks like the build not having worked. Printed rather than
+    # patched: having the data pipeline rewrite the app's source is the kind
+    # of coupling that breaks the day someone reformats that line.
+    print("   REMEMBER: bump ?v=N on the tiles URL in "
+          "franco-may/app/fornlamningar/page.tsx, or browsers keep the "
+          "old tiles")
     if not args.keep_geojson:
         os.remove(args.geojson)
 

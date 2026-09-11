@@ -30,6 +30,7 @@ Usage:
 import argparse
 import json
 import re
+import os
 import sqlite3
 import sys
 import time
@@ -37,6 +38,7 @@ import urllib.error
 import urllib.request
 
 import paths
+from titles import resolve_title
 
 DB = paths.WORK
 HOST = "http://localhost:11434"
@@ -99,16 +101,33 @@ standing stone. Do not confuse them, and never change what kind of site it \
 is: a hällkista stays a hällkista, it does not become a stenkrets.
 - Counts must be exact. If the input says 85 remains of which 31 are mounds, \
 do not write "85 högar".
-- You have 45 words and the input has more. Keep the SPECIFIC and drop the \
-generic: a folk name, the wording of an inscription, cup marks, a shelter \
-built over it, an old map that names it, a tree growing out of it. Those are \
-worth more to a reader than a dimension.
+- "max_words" is your budget and the input usually has more. Keep the \
+SPECIFIC and drop the generic: a folk name, the wording of an inscription, \
+cup marks, a shelter built over it, an old map that names it, a tree growing \
+out of it. Those are worth more to a reader than a dimension.
+- AT MOST ONE measurement in the whole content, and only when the size IS \
+the remarkable thing -- a 4.7 m standing stone, a 30 m cairn. The size field \
+is shown to the reader beside your text, so a second measurement is a word \
+spent twice. Raising the word budget made this worse, not better: half the \
+descriptions came back listing diameters because there was suddenly room. \
+Room is not a reason.
+- "sources" is what other people have written about this place: a Wikipedia \
+article, a county visitor page, a management plan, an inventory of what the \
+site contains. Use them. They are usually the only material that says why \
+anyone would go, where the survey text says only what is there.
+- A source with kind "folklore" is a recorded TRADITION. It is true that \
+people said it; it is not an archaeological finding. Write it as what it is \
+-- "enligt traditionen", "det sägs att" -- and never as fact.
+- Where sources disagree with the survey text on a name or a count, say \
+nothing rather than pick a winner.
 - Plain Swedish. No exclamation marks. Do not open with "Detta är" or \
 "Lämningen utgörs av".
 - If the input has no real content beyond a generic disclaimer, return an \
 empty string for content.
 
-title, in two cases:
+title, in two cases. Note "name" is now resolved upstream -- it is the \
+place's actual name, taken from Wikipedia where Wikipedia names it and from \
+the register otherwise -- so when it is present it is not a suggestion:
 - If the "name" field is not null, the title is EXACTLY that name and nothing \
 else. Do not add the type, a colon, a description or a place.
       name "Anundshög"  ->  WRONG "Gravfält med skeppssättningar, Anundshög, \
@@ -126,7 +145,9 @@ even after a comma -- the map already shows where the place is, and "Gravhög \
 i Fjärås" tells the reader nothing that "Gravhög" does not. Never invent a \
 poetic name. Under 45 characters.
 
-content: 1 to 3 sentences, at most 45 words."""
+content: at most "max_words" words. One sentence is enough for a place \
+whose whole record is a measurement; use the budget when there is something \
+to say, and do not pad to reach it."""
 
 EXAMPLES = [
     ({"class": "Runristning", "name": None, "location": "Stala, Orust",
@@ -196,7 +217,85 @@ stays "Äggastenarna", not "the Egg Stones"; "Ales stenar" stays "Ales stenar". 
 Translating a name makes it impossible to find the place on a sign or a map."""
 
 
-def payload(conn, cluster_id):
+def load_sources(cluster_id, places_db=None):
+    """Everything anybody has written about this place, from the corpus.
+
+    THIS IS THE FUNCTION THAT WAS MISSING. Until now `payload` handed the
+    model one field -- the register's own survey text -- and nothing else,
+    which is why Li gravfält came out as three sentences about damaged stone
+    settings while six sources sat unused in places.sqlite, among them a
+    Wikipedia article that gives the place its name and a recorded tradition
+    that Carl XV stood there and said "noble blood has flowed here, it
+    behoves us to honour it".
+
+    Sources come back ordered by trust, each labelled with its kind, so the
+    prompt can weigh a county visitor page differently from a survey note.
+    `tradition` is relabelled `folklore` on the way out: it is trustworthy AS
+    folklore and the model has to know not to state it as archaeology.
+    """
+    import paths
+    places_db = places_db or paths.PLACES
+    if not os.path.exists(places_db):
+        return []
+    db = sqlite3.connect(f"file:{places_db}?mode=ro", uri=True)
+    try:
+        rows = db.execute("""
+            SELECT kind, publisher, title, text FROM sources
+             WHERE cluster_id = ? AND usable = 1 AND text <> ''
+             ORDER BY trust DESC, LENGTH(text) DESC""",
+                          (cluster_id,)).fetchall()
+    except sqlite3.OperationalError:
+        return []
+    finally:
+        db.close()
+    out, seen = [], set()
+    for kind, publisher, title, text in rows:
+        t = " ".join(text.split())
+        # The same sentence can arrive twice -- a page linked from two county
+        # objects, a folder blurb repeated per lamningsnummer. Sending it
+        # twice would make the model treat it as corroborated.
+        key = t[:160]
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append({"kind": "folklore" if kind == "tradition" else kind,
+                    "publisher": publisher, "title": title, "text": t})
+    return out
+
+
+def word_budget(sources, register_text):
+    """How many words the description may run to.
+
+    Scaled by the words available in the sources OTHER than the register,
+    with the register as a fixed floor.
+
+    Franco's rule was total words across all sources, and the first version
+    did exactly that. Measured over 150 places near Kungsbacka it went
+    wrong in a specific way: 103 of them have no source but the register,
+    and their median text grew from ~27 to 38 words purely because their
+    SURVEY text is long. A verbose survey is not interesting material -- it
+    is more stones measured -- so counting it toward the budget buys length
+    from the one source that has least to say. Li gravfalt earns 100 words
+    because somebody wrote an article and recorded a tradition; a cairn
+    whose record runs to 200 words of dimensions earns 45, the same as a
+    cairn described in ten.
+
+    The register is still the spine of every description. It just does not
+    get to decide how long one is.
+    """
+    extra = sum(len(s["text"].split()) for s in sources)
+    if extra == 0:
+        return 45
+    if extra < 100:
+        return 70
+    if extra < 300:
+        return 100
+    if extra < 700:
+        return 130
+    return 160
+
+
+def payload(conn, cluster_id, places_db=None):
     """Everything the model is allowed to know about a place."""
     r = conn.execute("""
         SELECT c.cluster_id, c.name, c.dominant_class, c.n_sites, c.n_classes,
@@ -205,10 +304,10 @@ def payload(conn, cluster_id):
                s.uuid, s.lamningsnummer, s.dim_len_m, s.dim_height_m,
                s.dim_area_m2, s.terrang
           FROM clusters c
-          LEFT JOIN sites s ON s.uuid = (
-               SELECT s2.uuid FROM site_clusters x JOIN sites s2 ON s2.uuid = x.uuid
-                WHERE x.cluster_id = c.cluster_id
-                ORDER BY s2.description_len DESC, s2.uuid LIMIT 1)
+          -- clusters.rep_uuid, not a sixth copy of the representative rule.
+          -- The copy that used to be here had no blacklist clause, so the
+          -- model could be describing a different member than the pin shows.
+          LEFT JOIN sites s ON s.uuid = c.rep_uuid
          WHERE c.cluster_id = ?""", (cluster_id,)).fetchone()
     if r is None:
         return None
@@ -219,12 +318,24 @@ def payload(conn, cluster_id):
         dims.append(f"length/diameter {r['dim_len_m']:g} m")
     if r["dim_height_m"]:
         dims.append(f"height {r['dim_height_m']:g} m")
+
+    register = " ".join((r["best_description"] or "").split())
+    sources = load_sources(cluster_id, places_db)
+    # The register text is already in `sources` as kind='register'; keep the
+    # dedicated field too, because every prompt example is written against it
+    # and the model treats it as the spine of the description.
+    extra = [s for s in sources if s["kind"] != "register"]
+
+    title, _src = resolve_title(wiki_title=wiki_title_for(sources),
+                                register_name=r["name"])
     out = {
         "class": r["dominant_class"],
-        "name": r["name"],
+        "name": title,
         "location": f"{place}, {r['county']}" if r["county"] else place,
-        "source": " ".join((r["best_description"] or "").split()),
+        "source": register,
     }
+    if extra:
+        out["sources"] = extra
     if (r["n_sites"] or 1) > 1:
         out["group"] = (f"{r['n_sites']} recorded remains within "
                         f"{round(r['spread_m'] or 0)} m: {r['class_mix']}")
@@ -232,9 +343,18 @@ def payload(conn, cluster_id):
         out["size"] = ", ".join(dims)
     if r["terrang"]:
         out["surroundings"] = " ".join(r["terrang"].split())
+    out["max_words"] = word_budget(extra, register)
     return {"cluster_id": r["cluster_id"], "uuid": r["uuid"],
             "lamning": r["lamningsnummer"], "boilerplate": r["all_boilerplate"],
-            "model_input": out}
+            "title": title, "model_input": out}
+
+
+def wiki_title_for(sources):
+    """The Swedish Wikipedia article title among a place's sources, if any."""
+    for s in sources:
+        if s["kind"] == "wikipedia" and s.get("title"):
+            return s["title"]
+    return None
 
 
 def messages(model_input):
@@ -491,9 +611,14 @@ def check(result, model_input):
     # Not an error, just the rule the model breaks most. Measured rather than
     # argued about: the size is shown as subtext anyway, so a duplicated
     # dimension is a blemish, not a falsehood. Worth knowing the rate.
-    if re.search(r"\d+(?:[.,]\d+)?\s*(?:m|meter|metres|meters|cm)\b",
-                 result["content"], re.I):
-        flags.append("dim-in-prose")
+    # COUNT them, do not just detect one. The prompt allows exactly one
+    # measurement -- the case where the size is the remarkable thing -- so a
+    # boolean flag could not tell "a 4.7 m standing stone" from a list of
+    # four diameters, and could not show whether tightening the rule worked.
+    dims = len(re.findall(r"\d+(?:[.,]\d+)?\s*(?:m|meter|metres|meters|cm)\b",
+                          result["content"], re.I))
+    if dims > 1:
+        flags.append(f"dims:{dims}")
     return flags
 
 

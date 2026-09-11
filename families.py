@@ -255,6 +255,20 @@ CLASS_BLACKLIST = {
     "Boplatsvall", "Skärvstenshög", "Fossil åker",
     "Område med fossil åkermark", "Kemisk industri", "Förvaringsanläggning",
     "Område med skogsbrukslämningar",
+    # A legal boundary, not a monument. 118 records whose entire description
+    # is administrative -- "Gränslinjebestämt område. Ingående RAÄ-nr 81 i
+    # Fjärås sn." -- and what they delimit is a monument that already has its
+    # own record and its own pin. At Fjärås the boundary sits 180 m from
+    # Frodestenen's grave field and describes it in the language of a land
+    # survey.
+    #
+    # 39 of the 118 had reached the exported 10,000, where they show as a pin
+    # with no name, no generated title and a sentence of bureaucracy. Franco
+    # tapped one of them expecting Li gravfält.
+    #
+    # NOT "Gränsmärke" (1,149): a boundary MARKER is a real stone somebody
+    # put there, and some of them are worth walking to.
+    "Gränsbestämt område",
 }
 # "Fossil åker" above used to read "Fossil åkermark", which is not a class the
 # register has: the two real names are "Fossil åker" (8,276 sites) and "Område
