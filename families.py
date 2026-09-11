@@ -223,3 +223,48 @@ FAMILY = {
     'Hornsamling': 'misc',
     'Övrigt': 'misc',
 }
+
+
+# --------------------------------------------------------------------------- #
+# Exclusions
+#
+# These live here, with the rest of the class taxonomy, because two separate
+# stages need them: build_signals decides which clusters are excluded, and
+# build_clusters has to avoid LABELLING a cluster with an excluded class when
+# it has a better member. They used to live only in build_signals, which is
+# stage 4 -- so stage 2 could not see them, and 1,042 clusters ended up wearing
+# the name and icon of the one thing in them nobody would travel for.
+# --------------------------------------------------------------------------- #
+
+# Classes with no visible surface expression worth travelling for. Derived from
+# per-class notability AND photograph lift, both near zero for these.
+CLASS_BLACKLIST = {
+    "Kolningsanläggning", "Härd", "Fångstgrop", "Fångstgropssystem",
+    # The rest of the hunting family, so the family goes rather than half of
+    # it. Two of its four classes were already excluded, which left the family
+    # at 2 clusters out of a 10,000 export: a filter row that can only ever
+    # offer you two pins, next to a glyph for a kind of site that is a shallow
+    # depression in a forest floor and invisible without a sign. A family with
+    # no members is not emitted at all, so the row goes with them.
+    #
+    # "Fangstanlaggning ovrig" (571) is the register's catch-all for trapping
+    # works, so it is unspecific by definition, and "Fangstgard" (17) is a
+    # timber funnel fence of which what survives is a line of postholes.
+    "Fångstanläggning övrig", "Fångstgård",
+    "Kokgrop", "Boplatsgrop", "Boplats", "Boplatslämning övrig",
+    "Boplatsvall", "Skärvstenshög", "Fossil åker",
+    "Område med fossil åkermark", "Kemisk industri", "Förvaringsanläggning",
+    "Område med skogsbrukslämningar",
+}
+# "Fossil åker" above used to read "Fossil åkermark", which is not a class the
+# register has: the two real names are "Fossil åker" (8,276 sites) and "Område
+# med fossil åkermark" (4,140), and the entry matched neither. So the larger of
+# the two was never excluded at all, and the list looked like it covered both.
+#
+# It cost almost nothing in the end -- the fitted model had already pushed
+# Fossil åker down to 4 clusters in a 10,000 export on its own, which is why
+# nobody noticed. The danger was the false confidence: a dead entry in a
+# hand-curated list reads as a decision that has been made.
+# Weak on its own (0.26x photograph lift) but 29.6% of the dataset and it does
+# contain good sites. Excluded by default, rescued by any positive evidence.
+CLASS_SOFT_BLACKLIST = {"Stensättning"}

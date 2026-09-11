@@ -236,12 +236,28 @@ src/data/ksamsok_raw.sqlite
 *.sqlite-shm
 src/data/osm/
 src/data/wikidata_cache/
+# Same bucket, same reasoning. Both are network caches with real cost behind
+# them: wikimedia is ~4,000 API calls (1,881 article extracts, 1,877 pageview
+# series, 2,000+ Commons files) and lansstyrelsen is a CSW sweep plus 26
+# geodata downloads, 267 web pages and two PDFs. Cheap to re-run, rude to
+# re-run casually.
+src/data/wikimedia.sqlite
+src/data/lansstyrelsen.sqlite
+*.sqlite-journal
+# The RAA archaeological-assignment extracts: 192 MB of GeoPackage, one
+# download from pub.raa.se, no account needed.
+src/data/raa/
 
 # 2. DERIVED. Pure functions of the tracked inputs plus the caches above.
 #    `./run_pipeline.sh` rebuilds all of it in ~4 minutes, so committing it
 #    would only mean a 700 MB LFS object going stale on every rerun.
 src/data/sites.sqlite
 src/data/tiles_input.geojsonl
+# One table of everything anyone has written about a place, assembled from
+# sites.sqlite + the two caches above by build_sources.py. 473 MB of text we
+# already have in three other files.
+src/data/sources.sqlite
+src/data/labels.sqlite
 
 # Review samples: output of sample_for_review.py. The verdicts they collect
 # live in hand_labels.csv, which IS tracked; the sample sheets themselves are

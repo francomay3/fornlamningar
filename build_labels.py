@@ -298,6 +298,54 @@ def main():
                     pairs)
         print(f"hand labels loaded: {n_hand} matched to crawled sites")
 
+    # County board recommendations, from crawl_lansstyrelsen.py.
+    #
+    # Nine or ten of the 21 county administrative boards publish the
+    # fornlamningar they maintain and signpost, and Halland states the
+    # selection criterion outright: accessible information by sign or online,
+    # and reasonably accessible to visit. That is this project's target
+    # variable, written by the authority.
+    #
+    # Weight follows how the match was made, because the routes are not
+    # equally certain:
+    #
+    #   lamningsnummer  1.00  our primary key, published in the folder
+    #   number          0.80  parsed RAA designation; over-generates across a
+    #                         number group (Arsunda 9 holds five records)
+    #   contains        0.66  inside a maintenance polygon under 1 km2
+    #   geometry        0.50  nearest site within 150 m of a centroid
+    #
+    # `in_landscape` is deliberately NOT loaded. It means the site sits in a
+    # designated cultural landscape, which can be 17,000 km2 wide -- a real
+    # signal, but not a recommendation, and pooling it here would drown the
+    # rest.
+    #
+    # Cross-checked against the hand labels before being trusted: of Franco's
+    # 29 hand-labelled positives, 6 are independently on a county list, and of
+    # his 11 negatives, ZERO are. Two independent judgements with no conflict.
+    COUNTY_WEIGHT = {"lamningsnummer": 1.0, "number": 0.8,
+                     "contains": 0.66, "geometry": 0.5}
+    lst_path = "src/data/lansstyrelsen.sqlite"
+    if os.path.exists(lst_path):
+        lst = sqlite3.connect(f"file:{lst_path}?mode=ro", uri=True)
+        best = {}
+        for uuid, how in lst.execute(
+                "SELECT uuid, how FROM matches WHERE how <> 'in_landscape'"):
+            w = COUNTY_WEIGHT.get(how, 0.5)
+            if w > best.get(uuid, 0):
+                best[uuid] = w
+        rows = [(u, "county", 1.0, w, "weak",
+                 "recommended by a county administrative board")
+                for u, w in best.items()]
+        if rows:
+            with conn:
+                conn.executemany(
+                    "INSERT OR REPLACE INTO labels "
+                    "(uuid,source,label,weight,confidence,note) "
+                    "VALUES (?,?,?,?,?,?)", rows)
+            print(f"county labels loaded: {len(rows):,} sites "
+                  f"recommended by a county board")
+
     conn.executescript(INDEXES)
     conn.commit()
 

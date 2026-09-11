@@ -41,3 +41,13 @@ L1965:9470,0,2,"review_2"
 L2002:1845,0,2,"review_2"
 L1991:8089,0,2,"review_2"
 L1997:956,0,3,"franco: no interesante"
+# --- Labyrint, revisado 2026-09-10. Franco: todos los que llegaron al export
+# --- son buenos para visitar. Es un juicio sobre la clase tanto como sobre el
+# --- sitio: con 250 laberintos en el registro y CERO labels, la tasa suavizada
+# --- de la clase era 0.19x la base, o sea que el modelo la trataba como cinco
+# --- veces peor que el promedio por no estar fotografiada en Wikipedia.
+L2002:15,1,3,"Labyrint, Västerås - verificado, lugar interesante para visitar"
+L1957:7228,1,3,"Trojeborgen, Misterhult - verificado, lugar interesante para visitar"
+L2016:6050,1,3,"Labyrint, Låssa - verificado, lugar interesante para visitar"
+L1935:3153,1,3,"Labyrint 13x10 m, Njurunda - verificado, lugar interesante para visitar"
+L2003:1026,1,3,"Drottning Kristinas ridbana, Kungs-Barkarö - verificado, lugar interesante para visitar"

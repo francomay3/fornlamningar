@@ -34,6 +34,8 @@ import sqlite3
 import sys
 import time
 
+from families import CLASS_BLACKLIST
+
 DB = "src/data/sites.sqlite"
 
 
@@ -242,7 +244,7 @@ def main():
                MAX(s.municipality_code) AS municipality_code,
                MAX(s.county) AS county, MAX(s.province) AS province,
                AVG(s.centroid_e) AS ce, AVG(s.centroid_n) AS cn,
-               AVG(s.lon) AS lon, AVG(s.lat) AS lat,
+               AVG(s.lon) AS avg_lon, AVG(s.lat) AS avg_lat,
                MIN(s.centroid_e) AS mine, MAX(s.centroid_e) AS maxe,
                MIN(s.centroid_n) AS minn, MAX(s.centroid_n) AS maxn,
                MAX(s.has_polygon) AS any_polygon,
@@ -268,18 +270,39 @@ def main():
     # The representative site: the one whose description, measurements and
     # class the pin will actually show.
     #
-    # Ordered exactly as build_tiles.py picks its representative uuid
-    # (description_len DESC, uuid), so the two cannot disagree. NULL lengths
-    # sort last under DESC, which is what we want: a site with text beats one
-    # without.
-    best, rep_class = {}, {}
-    for cid, cls, d in conn.execute("""
-        SELECT sc.cluster_id, s.class_sv, s.beskrivning FROM site_clusters sc
+    # Ordered exactly as build_tiles.py picks its representative uuid, so the
+    # two cannot disagree. NULL description lengths sort last under DESC, which
+    # is what we want: a site with text beats one without.
+    #
+    # An EXCLUDED class loses first, ahead of description length, and that is a
+    # bug fix. A gravfalt sharing an RAA number with a fangstgrop is a cluster
+    # worth visiting -- build_signals keeps it, because it only excludes a
+    # cluster when every one of its classes is excluded. But the representative
+    # was chosen on description length alone, so the hunting pit could win on
+    # having the wordier survey entry and the pin would then wear its name, its
+    # icon, its filter family and its typological period. 1,042 clusters were
+    # labelled that way.
+    #
+    # It is worth being clear that this is a regression I introduced: the
+    # representative used to be the modal class, and build_signals already
+    # preferred a non-excluded class for exactly this reason. Moving to the
+    # representative site fixed a different disagreement (862 clusters whose
+    # icon and description came from different members) and quietly dropped
+    # this protection on the way.
+    holes = ",".join("?" * len(CLASS_BLACKLIST))
+    best, rep_class, rep_pos = {}, {}, {}
+    for cid, cls, d, lon, lat in conn.execute(f"""
+        SELECT sc.cluster_id, s.class_sv, s.beskrivning, s.lon, s.lat
+        FROM site_clusters sc
         JOIN sites s ON s.uuid = sc.uuid
-        ORDER BY sc.cluster_id, s.description_len DESC, s.uuid
-    """):
+        ORDER BY sc.cluster_id,
+                 CASE WHEN s.class_sv IN ({holes}) THEN 1 ELSE 0 END,
+                 s.description_len DESC, s.uuid
+    """, tuple(CLASS_BLACKLIST)):
         if cid not in rep_class:
             rep_class[cid] = cls
+            if lon is not None and lat is not None:
+                rep_pos[cid] = (lon, lat)
             if d:
                 best[cid] = d
 
@@ -310,7 +333,26 @@ def main():
             r["name"], r["has_name"], r["raa_group"],
             r["parish"], r["parish_code"], r["municipality"],
             r["municipality_code"], r["county"], r["province"],
-            r["ce"], r["cn"], r["lon"], r["lat"], spread,
+            # centroid_e/n stay the MEAN of the members, because that is what
+            # the spatial signals were fitted against. lon/lat -- the pin --
+            # is the representative site's own position.
+            #
+            # The mean is not a place. For a cluster of six stensattningar
+            # spread over 380 m it is a point in the middle of the field where
+            # there may be nothing at all, and Franco found two where it sat
+            # 150 m off the grave it claimed to be. Measured over the exported
+            # 10,000: p50 and p75 are 0 m (most clusters are a single site),
+            # p99 is 152 m of internal spread and the worst is 562 m, with 218
+            # clusters holding members more than 100 m apart.
+            #
+            # Using the representative's coordinate makes the pin, the class,
+            # the icon, the description and the period all describe the SAME
+            # stone -- the same argument as dominant_class above. It does not
+            # fix a 400 m cluster being several places at once; it does
+            # guarantee the pin stands on one of them.
+            r["ce"], r["cn"],
+            rep_pos.get(cid, (r["avg_lon"], r["avg_lat"]))[0],
+            rep_pos.get(cid, (r["avg_lon"], r["avg_lat"]))[1], spread,
             (r["maxe"] - r["mine"]) if r["mine"] is not None else None,
             (r["maxn"] - r["minn"]) if r["minn"] is not None else None,
             r["any_polygon"], r["any_visible"],

@@ -36,7 +36,7 @@ import subprocess
 import sys
 import time
 
-from families import FAMILY, FAMILY_ICON, FAMILY_ORDER
+from families import CLASS_BLACKLIST, FAMILY, FAMILY_ICON, FAMILY_ORDER
 from periods import period_for
 
 DB = "src/data/sites.sqlite"
@@ -518,20 +518,27 @@ def main():
 
     conn = sqlite3.connect(f"file:{args.db}?mode=ro", uri=True)
     conn.row_factory = sqlite3.Row
+    holes = ",".join("?" * len(CLASS_BLACKLIST))
     rows = conn.execute(f"""
         SELECT c.cluster_id, c.name, c.dominant_class, c.n_sites,
                c.lon, c.lat, c.best_description,
                {score_col} AS score,
+               -- The representative site. This ordering must stay identical
+               -- to build_clusters.py's, or the pin's description comes from
+               -- one member and its class and icon from another. The excluded
+               -- classes lose first for the same reason they do there.
                (SELECT s.uuid FROM site_clusters x
                   JOIN sites s ON s.uuid = x.uuid
                  WHERE x.cluster_id = c.cluster_id
-                 ORDER BY s.description_len DESC, s.uuid LIMIT 1) AS uuid
+                 ORDER BY CASE WHEN s.class_sv IN ({holes})
+                               THEN 1 ELSE 0 END,
+                          s.description_len DESC, s.uuid LIMIT 1) AS uuid
         FROM clusters c
         JOIN scores sc ON sc.cluster_id = c.cluster_id
         WHERE {' AND '.join(where)}
         ORDER BY {score_col} DESC
         {f'LIMIT {args.top}' if args.top else ''}
-    """).fetchall()
+    """, tuple(CLASS_BLACKLIST)).fetchall()
     conn.close()
 
     if not rows:

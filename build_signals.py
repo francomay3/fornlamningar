@@ -41,6 +41,8 @@ import time
 
 import numpy as np
 
+from families import CLASS_BLACKLIST, CLASS_SOFT_BLACKLIST
+
 DB = "src/data/sites.sqlite"
 WAYS_GPKG = "src/data/osm/sweden_ways.gpkg"
 BOARDS_GPKG = "src/data/osm/boards.gpkg"
@@ -62,18 +64,6 @@ CELL = 500.0          # metres; grid cell for candidate lookup
 DENSIFY = 20.0        # metres; max spacing along a way, bounds nearest-point error
 MAX_SEARCH = 5000.0   # metres; give up beyond this and record NULL
 
-# Classes with no visible surface expression worth travelling for. Derived from
-# per-class notability AND photograph lift, both near zero for these.
-CLASS_BLACKLIST = {
-    "Kolningsanläggning", "Härd", "Fångstgrop", "Fångstgropssystem",
-    "Kokgrop", "Boplatsgrop", "Boplats", "Boplatslämning övrig",
-    "Boplatsvall", "Skärvstenshög", "Fossil åkermark",
-    "Område med fossil åkermark", "Kemisk industri", "Förvaringsanläggning",
-    "Område med skogsbrukslämningar",
-}
-# Weak on its own (0.26x photograph lift) but 29.6% of the dataset and it does
-# contain good sites. Excluded by default, rescued by any positive evidence.
-CLASS_SOFT_BLACKLIST = {"Stensättning"}
 
 
 def class_significance(conn):

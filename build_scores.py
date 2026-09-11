@@ -539,6 +539,15 @@ def main():
             label_sources TEXT
         )
     """)
+    # Clusters a county board recommends, which rescue an excluded class.
+    county_pos = {r[0] for r in conn.execute(
+        "SELECT sc.cluster_id FROM labels l "
+        "JOIN site_clusters sc ON sc.uuid = l.uuid "
+        "WHERE l.source = 'county' AND l.label > 0")}
+    if county_pos:
+        print(f"  {len(county_pos):,} clusters recommended by a county board "
+              f"(rescues an excluded class)")
+
     Xa, _ = build_matrix(rows, feats, cw, kw, desc)
     lr_all = LR.predict((Xa - mu) / sd, w_lr, b_lr)
 
@@ -554,13 +563,39 @@ def main():
         # downstream depends on the magnitude, only on the ordering.
         intrinsic = float(lr_all[i]) * 10.0
         full = intrinsic + score_of(r, LABEL_DERIVED, lw)
-        hard = int(bool(r["class_blacklisted"]))
-        # Soft exclusion, with the escape hatch: any independent positive
-        # evidence rescues a Stensattning cluster.
+        # ONE exclusion rule now, not two.
+        #
+        # The hard blacklist used to be an unconditional veto on 16 classes
+        # and the soft one an exclusion that any independent positive evidence
+        # could overturn. They are the same rule at different strengths, so
+        # they are now the same rule: excluded by class, rescued by evidence
+        # about THIS site.
+        #
+        # What changed my mind is that the veto was contradicted by an
+        # authority. Lansstyrelsen i Hallands lan publishes L1996:2248 and
+        # L1998:9620 ("Omrade med fossil akermark") and L1996:4046 ("Fossil
+        # aker") as places to go and see -- three classes the blacklist
+        # removed that morning. The class-level judgement is still right on
+        # average: a random fossil field is an invisible scatter of clearance
+        # cairns. But a class prior cannot outrank site-level evidence, and a
+        # veto by construction never learns that it was wrong, because the
+        # sites it hides never come back to argue.
+        #
+        # The prior is not lost. `class_w` -- the smoothed positive rate per
+        # class -- is the model's STRONGEST feature at +1.431, so these
+        # classes are still pushed down hard; they are pushed down by measured
+        # evidence rather than by a list, and a site with a county board
+        # behind it can climb back out.
+        #
+        # A county recommendation is a rescue condition for exactly that
+        # reason: it is the only one of these that is a human saying "go
+        # here", rather than a proxy for the place being well documented.
         rescued = (bool(r["has_name"]) or (r["sitelinks"] or 0) > 0
                    or bool(r["has_image"])
                    or (r["dist_to_board_m"] is not None
-                       and r["dist_to_board_m"] <= 500))
+                       and r["dist_to_board_m"] <= 500)
+                   or r["cluster_id"] in county_pos)
+        hard = int(bool(r["class_blacklisted"]) and not rescued)
         soft = int(bool(r["class_soft_blacklisted"]) and not rescued)
         out.append((r["cluster_id"], cw.get(r["dominant_class"] or "?", 0.0),
                     kb, acc, nob, intrinsic, full, hard, soft,
