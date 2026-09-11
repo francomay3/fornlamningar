@@ -59,6 +59,7 @@ Usage:
 
 import argparse
 import json
+import os
 import re
 import sqlite3
 import sys
@@ -67,8 +68,10 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
-SITES_DB = "src/data/sites.sqlite"
-OUT_DB = "src/data/lansstyrelsen.sqlite"
+import paths
+
+SITES_DB = paths.WORK
+OUT_DB = paths.LANSSTYRELSEN
 
 CSW = ("https://ext-geodatakatalog.lansstyrelsen.se/GeodataKatalogen/"
        "srv/swe/csw")
@@ -552,7 +555,7 @@ def fetch_pdfs(out):
             # up to the first full stop is treated as the name.
             name = name.split(". ")[0].strip(" .")
 
-            body, link = [], None
+            body, link, credits = [], None, []
             for ln in block[1:]:
                 s = ln.strip()
                 if not s or s.isdigit():          # blank, or a page number
@@ -566,6 +569,14 @@ def fetch_pdfs(out):
                     link = m.group(1)
                     continue
                 if s.lower().startswith(("foto ", "foto:", "karta")):
+                    # Not prose, but not nothing either: this is the photo
+                    # credit, and the first version dropped it on the floor
+                    # while keeping the paragraph it belonged to. Captured
+                    # here so fetch_pdf_images() and anyone rendering the
+                    # entry can attribute the picture.
+                    cm = FOTO_RE.search(s)
+                    if cm:
+                        credits.append(cm.group(1).strip(" .:"))
                     continue
                 body.append(s)
             blurb = " ".join(body)
@@ -577,7 +588,9 @@ def fetch_pdfs(out):
                        lon, lat, geom, props)
                     VALUES (?,?,?,?,?,NULL,NULL,NULL,?)
                 """, (ds_id, num, name, "pdf-tips", num,
-                      json.dumps({"blurb": blurb[:2000], "read_more": link},
+                      json.dumps({"blurb": blurb[:2000],
+                                  "read_more": link,
+                                  "photo_credit": "; ".join(credits) or None},
                                  ensure_ascii=False)))
                 n += 1
         out.execute("UPDATE datasets SET n_features=?, note='pdf', "
@@ -885,6 +898,172 @@ def fetch_licences(out):
                               "COUNT(*) FROM datasets GROUP BY 1 ORDER BY 2 "
                               "DESC"):
         print(f"    {n:3d}  {lic}")
+
+
+# ---------------------------------------------------------------------------
+# Photographs inside the county folders
+#
+# 117 embedded JPEGs across the two Halland PDFs, most around 1300x900 at
+# 220 ppi -- usable, not thumbnails. They are not URLs, so the only way to
+# have them is to hold the bytes.
+#
+# Attribution is the hard part and the first version of the text parser made
+# it worse: it had a line that skipped anything starting with "foto", so the
+# credit was thrown away while the prose it belonged to was kept. There is
+# not much of it -- 15 credits for 117 images, because the folders credit a
+# caption rather than a file -- but a credit we discard is one we can never
+# reconstruct, and these PDFs declare no licence at all, so every image
+# lands with usable = 0 until that is resolved.
+# ---------------------------------------------------------------------------
+
+IMAGE_DIR = os.path.join("src", "data", "images", "county_pdf")
+FOTO_RE = re.compile(r"\bfoto[:\s]+([^.\n]{2,70})", re.I)
+
+PDF_IMAGE_SCHEMA = """
+CREATE TABLE IF NOT EXISTS pdf_images (
+    dataset_id  TEXT NOT NULL,
+    page        INTEGER NOT NULL,
+    seq         INTEGER NOT NULL,
+    local_path  TEXT NOT NULL,
+    -- The entry this page belongs to. A folder puts one place per page, so
+    -- the page IS the join key; where a page names no lamningsnummer (the
+    -- nature-reserve entries do not) these stay NULL rather than being
+    -- attached to whichever number happened to be nearest.
+    lamning     TEXT,
+    heading     TEXT,
+    credit      TEXT,
+    width       INTEGER, height INTEGER, bytes INTEGER,
+    PRIMARY KEY (dataset_id, page, seq)
+);
+"""
+
+
+
+def plan_clusters(out, work_db):
+    """plan id -> {cluster_id}, by the two routes a plan can be joined.
+
+    Lives here, once, because it was written twice: build_sources.py and
+    build_places.py each grew their own copy and the second one only used
+    the uuid route, so it silently resolved 68 places where the first
+    resolved 156. A join this fiddly gets exactly one implementation.
+
+    Route 1, and the good one: the plan prints its own Fornsok links, so the
+    key is the register's own uuid.
+    Route 2, for the plans that print none: whichever clusters the county
+    object that links the pdf was itself matched to.
+    """
+    w = sqlite3.connect(f"file:{work_db}?mode=ro", uri=True)
+    cl = dict(w.execute("SELECT uuid, cluster_id FROM site_clusters"))
+
+    direct = {}
+    for obj, uuid in out.execute("SELECT obj, uuid FROM plan_sites "
+                                 "WHERE uuid IS NOT NULL"):
+        if uuid in cl:
+            direct.setdefault(obj, set()).add(cl[uuid])
+
+    url_of = dict(out.execute("SELECT url, obj FROM plans"))
+    obj_clusters = {}
+    for ds_id, obj_id, cid in out.execute(
+            "SELECT dataset_id, obj_id, cluster_id FROM matches "
+            "WHERE how <> 'in_landscape' AND cluster_id IS NOT NULL"):
+        obj_clusters.setdefault((ds_id, obj_id), set()).add(cid)
+
+    fallback = {}
+    for ds_id, obj_id, props in out.execute(
+            "SELECT dataset_id, obj_id, props FROM objects "
+            "WHERE props IS NOT NULL"):
+        try:
+            pr = json.loads(props)
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(pr, dict):
+            continue
+        for v in pr.values():
+            if not isinstance(v, str) or "Skotselplaner_Fornvard" not in v:
+                continue
+            plan = url_of.get(v.split("#")[0].strip())
+            if plan:
+                fallback.setdefault(plan, set()).update(
+                    obj_clusters.get((ds_id, obj_id), set()))
+
+    return {plan: (direct.get(plan) or fallback.get(plan) or set())
+            for plan in set(direct) | set(fallback)}
+
+
+def fetch_pdf_images(out):
+    import glob
+    import os as _os
+    import subprocess
+    import tempfile
+
+    out.executescript(PDF_IMAGE_SCHEMA)
+    out.commit()
+    _os.makedirs(IMAGE_DIR, exist_ok=True)
+
+    total = 0
+    for county, title, url in PDF_SOURCES:
+        ds_id = f"pdf:{county}:{title}"
+        print(f"  {title}")
+        blob = get(url, raw=True, timeout=300)
+        if not blob:
+            continue
+        with tempfile.TemporaryDirectory() as tmp:
+            pdf = _os.path.join(tmp, "f.pdf")
+            with open(pdf, "wb") as f:
+                f.write(blob)
+
+            # Page-by-page text, so an image can be tied to the entry it
+            # illustrates. pdftotext separates pages with a form feed.
+            r = subprocess.run(["pdftotext", "-layout", pdf, "-"],
+                               capture_output=True, text=True)
+            pages = r.stdout.split("\f")
+
+            stem = _os.path.join(tmp, "img")
+            subprocess.run(["pdfimages", "-j", "-p", pdf, stem],
+                           capture_output=True, text=True)
+            files = sorted(glob.glob(stem + "-*"))
+
+            n = 0
+            for path in files:
+                base = _os.path.basename(path)
+                m = re.match(r"img-(\d+)-(\d+)\.", base)
+                if not m:
+                    continue
+                page, seq = int(m.group(1)), int(m.group(2))
+                txt = pages[page - 1] if 0 < page <= len(pages) else ""
+                nums = LAMNING_RE.findall(txt)
+                head = None
+                for ln in txt.split("\n"):
+                    hm = re.match(r"^\s*\d+\.\s+(.+?)\s*$", ln)
+                    if hm:
+                        head = hm.group(1).split(". ")[0].strip(" .")
+                        break
+                cm = FOTO_RE.search(txt)
+                credit = cm.group(1).strip(" .:") if cm else None
+
+                dest = _os.path.join(IMAGE_DIR,
+                                     f"{county}-{page:03d}-{seq:03d}"
+                                     + _os.path.splitext(base)[1])
+                with open(path, "rb") as src, open(dest, "wb") as dst:
+                    data = src.read()
+                    dst.write(data)
+                out.execute("""
+                    INSERT OR REPLACE INTO pdf_images
+                      (dataset_id, page, seq, local_path, lamning, heading,
+                       credit, width, height, bytes)
+                    VALUES (?,?,?,?,?,?,?,NULL,NULL,?)
+                """, (ds_id, page, seq, dest, nums[0] if nums else None,
+                      head, credit, len(data)))
+                n += 1
+            out.commit()
+            total += n
+            print(f"    {n} images")
+
+    with_lam, with_credit, mb = out.execute("""
+        SELECT SUM(lamning IS NOT NULL), SUM(credit IS NOT NULL),
+               SUM(bytes) FROM pdf_images""").fetchone()
+    print(f"  {total} images; {with_lam or 0} tied to a lamningsnummer, "
+          f"{with_credit or 0} with a credit, {(mb or 0)/1e6:.1f} MB")
 
 PAGE_SCHEMA = """
 CREATE TABLE IF NOT EXISTS pages (
@@ -1243,6 +1422,7 @@ def main():
     p.add_argument("--pages", action="store_true")
     p.add_argument("--plans", action="store_true")
     p.add_argument("--licences", action="store_true")
+    p.add_argument("--images", action="store_true")
     p.add_argument("--status", action="store_true")
     args = p.parse_args()
 
@@ -1261,12 +1441,15 @@ def main():
         fetch_plans(out)
     if args.licences or args.all:
         fetch_licences(out)
+    if args.images or args.all:
+        fetch_pdf_images(out)
     if args.join or args.all:
         sites = sqlite3.connect(f"file:{args.sites_db}?mode=ro", uri=True)
         join(sites, out)
     if args.status or not (args.discover or args.fetch or args.join
                            or args.pages or args.plans
-                           or args.licences or args.all):
+                           or args.licences
+                           or args.images or args.all):
         status(out)
 
 

@@ -61,8 +61,10 @@ import urllib.parse
 import urllib.request
 from datetime import date, timedelta
 
-SITES_DB = "src/data/sites.sqlite"
-OUT_DB = "src/data/wikimedia.sqlite"
+import paths
+
+SITES_DB = paths.WORK
+OUT_DB = paths.WIKIMEDIA
 
 # Wikimedia asks for a descriptive User-Agent with contact details and blocks
 # generic ones outright. This is not politeness, it is a hard requirement.

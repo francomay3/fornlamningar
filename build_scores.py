@@ -42,7 +42,9 @@ import numpy as np
 
 import logistic as LR
 
-DB = "src/data/sites.sqlite"
+import paths
+
+DB = paths.WORK
 
 # Each entry: name -> predicate over the signals row.
 # Label-derived features are kept in a separate dict to prevent leakage.

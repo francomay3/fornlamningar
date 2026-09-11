@@ -37,7 +37,9 @@ import time
 import urllib.parse
 import urllib.request
 
-DB = "src/data/sites.sqlite"
+import paths
+
+DB = paths.WORK
 CACHE_DIR = "src/data/wikidata_cache"
 ENDPOINT = "https://query.wikidata.org/sparql"
 UA = "Fornlamningar-Pipeline/1.0 (https://github.com/francomay3/fornlamningar)"

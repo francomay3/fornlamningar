@@ -213,8 +213,12 @@ jspm_packages/
 # ---------------------------------------------------------------------------
 # Data policy
 #
-# Tracked (LFS):   only what no script can produce.
-#   src/data/fornlamningar_full.gpkg   the RAA export; seeds the crawl
+# Tracked (LFS):   only what no script can produce, plus one thing that
+#                  technically can be but costs thirteen hours.
+#   src/data/raa_export.gpkg           the RAA export; seeds the crawl
+#   src/data/generated.sqlite          our own descriptions: 13 hours of
+#                                      local model time, so it is a cache in
+#                                      every practical sense
 #   src/data/signs/                    Kungsbacka's sign layer (a dead end,
 #                                      kept as the evidence for that)
 #   hand_labels.csv                    the only ground truth not derived
@@ -225,12 +229,12 @@ jspm_packages/
 # ---------------------------------------------------------------------------
 
 # 1. CACHES. Regenerable, but only by hitting a network service again, so they
-#    are worth keeping on disk indefinitely. ksamsok_raw is 4 hours of
+#    are worth keeping on disk indefinitely. raa_api is 4 hours of
 #    rate-limited crawling (311,845 responses); re-fetching it to save 1.3 GB
 #    of local disk would be a bad trade.
-src/data/ksamsok_raw.sqlite
+src/data/raa_api.sqlite
 # By pattern, not per file. These were listed one database at a time, so
-# descriptions.sqlite-wal and -shm were not covered and turned up as
+# generated.sqlite-wal and -shm were not covered and turned up as
 # untracked noise the moment that database existed.
 *.sqlite-wal
 *.sqlite-shm
@@ -251,15 +255,23 @@ src/data/raa/
 # 2. DERIVED. Pure functions of the tracked inputs plus the caches above.
 #    `./run_pipeline.sh` rebuilds all of it in ~4 minutes, so committing it
 #    would only mean a 700 MB LFS object going stale on every rerun.
-src/data/sites.sqlite
+src/data/work.sqlite
 src/data/tiles_input.geojsonl
 # One table of everything anyone has written about a place, assembled from
 # sites.sqlite + the two caches above by build_sources.py. 473 MB of text we
 # already have in three other files.
 src/data/sources.sqlite
-src/data/labels.sqlite
+# The product. Derived from work.sqlite + sources.sqlite + the caches, so it
+# is rebuildable -- but it is also the thing we are building, so if it ever
+# stops being a pure function of those it must move up into LFS.
+src/data/places.sqlite
 
 # Review samples: output of sample_for_review.py. The verdicts they collect
 # live in hand_labels.csv, which IS tracked; the sample sheets themselves are
 # scratch.
 review_*.csv
+
+# Photographs lifted out of county PDFs: 47 MB of jpeg we can re-extract
+# from a cached pdf in seconds. Held locally because they are not URLs and
+# there is no other way to have them.
+src/data/images/

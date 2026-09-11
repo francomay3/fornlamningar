@@ -38,7 +38,9 @@ import time
 
 import describe_place as dp
 
-OUT_DB = "src/data/descriptions.sqlite"
+import paths
+
+OUT_DB = paths.GENERATED
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS ai_descriptions (

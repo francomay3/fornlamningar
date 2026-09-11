@@ -31,8 +31,10 @@ import zlib
 from dataclasses import dataclass
 from typing import Optional
 
-GPKG_PATH = "src/data/fornlamningar_full.gpkg"
-RAW_DB_PATH = "src/data/ksamsok_raw.sqlite"
+import paths
+
+GPKG_PATH = paths.RAA_EXPORT
+RAW_DB_PATH = paths.RAA_API
 API_BASE = "https://kulturarvsdata.se/raa/lamning"
 USER_AGENT = "Fornlamningar-Crawler/1.0 (+https://github.com/francomay3/fornlamningar)"
 

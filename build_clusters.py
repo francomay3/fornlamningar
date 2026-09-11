@@ -36,7 +36,9 @@ import time
 
 from families import CLASS_BLACKLIST
 
-DB = "src/data/sites.sqlite"
+import paths
+
+DB = paths.WORK
 
 
 class UnionFind:

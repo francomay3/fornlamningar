@@ -36,7 +36,9 @@ import time
 import urllib.error
 import urllib.request
 
-DB = "src/data/sites.sqlite"
+import paths
+
+DB = paths.WORK
 HOST = "http://localhost:11434"
 DEFAULT_MODEL = "gemma3:12b"
 # Translation is the easy pass, so it does not need the big model.

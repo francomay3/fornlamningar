@@ -33,10 +33,11 @@ import time
 
 import numpy as np
 
+import paths
 from build_signals import (PointGrid, densify, gpkg_wkb,
                            wkb_linestring_points)
 
-DB = "src/data/sites.sqlite"
+DB = paths.WORK
 WAYS = "src/data/osm/sweden_ways.gpkg"
 HAND = "hand_labels.csv"
 

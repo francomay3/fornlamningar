@@ -43,7 +43,9 @@ import numpy as np
 
 from families import CLASS_BLACKLIST, CLASS_SOFT_BLACKLIST
 
-DB = "src/data/sites.sqlite"
+import paths
+
+DB = paths.WORK
 WAYS_GPKG = "src/data/osm/sweden_ways.gpkg"
 BOARDS_GPKG = "src/data/osm/boards.gpkg"
 ARCH_GPKG = "src/data/osm/historic_pt.gpkg"

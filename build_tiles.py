@@ -39,12 +39,14 @@ import time
 from families import CLASS_BLACKLIST, FAMILY, FAMILY_ICON, FAMILY_ORDER
 from periods import period_for
 
-DB = "src/data/sites.sqlite"
+import paths
+
+DB = paths.WORK
 DEFAULT_OUT = os.path.expanduser("~/projects/franco-may/public/tiles")
 DEFAULT_DESC_OUT = os.path.expanduser("~/projects/franco-may/public/descriptions")
 DEFAULT_GROUPS_OUT = os.path.expanduser(
     "~/projects/franco-may/app/fornlamningar/filterFamilies.ts")
-AI_DB = "src/data/descriptions.sqlite"
+AI_DB = paths.GENERATED
 GEOJSON = "src/data/tiles_input.geojsonl"
 LAYER = "archaeological_sites"
 

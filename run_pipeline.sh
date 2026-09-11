@@ -61,9 +61,9 @@ require_input() {
 }
 
 if (( FROM <= 4 )); then
-  require_input src/data/fornlamningar_full.gpkg \
+  require_input src/data/raa_export.gpkg \
     "the RAA GeoPackage export. Tracked in git LFS: try \`git lfs pull\`"
-  require_input src/data/ksamsok_raw.sqlite \
+  require_input src/data/raa_api.sqlite \
     "the crawl cache (~4 h, 311,845 responses). Rebuild: python3 crawl_ksamsok.py"
 
   for f in sweden_ways buildings boards historic_pt historic_poly; do

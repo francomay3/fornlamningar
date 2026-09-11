@@ -32,9 +32,11 @@ import zlib
 
 from dims import parse_dims
 
-RAW_DB = "src/data/ksamsok_raw.sqlite"
-GPKG = "src/data/fornlamningar_full.gpkg"
-OUT_DB = "src/data/sites.sqlite"
+import paths
+
+RAW_DB = paths.RAA_API
+GPKG = paths.RAA_EXPORT
+OUT_DB = paths.WORK
 
 LAYERS = {
     "PS_NationalMonuments_point": "P",

@@ -45,8 +45,13 @@ adaptation and carries share-alike, and one drawing only on CC0 rows owes
 nothing. That obligation is a property of the row set, so it is computed the
 same way the credit line is.
 
-Reads:  src/data/sites.sqlite, wikimedia.sqlite, lansstyrelsen.sqlite
-Writes: src/data/sources.sqlite
+Reads:  work.sqlite, wikimedia.sqlite, lansstyrelsen.sqlite
+Writes: places.sqlite -- the `sources` and `generation_sources` tables, in
+        the same file as `features` and `images`. It had its own database
+        for a while and that was a mistake: one place's source rows are the
+        reason its description reads the way it does, and splitting them
+        across two files made "where did this sentence come from" a join
+        across a file boundary.
 
 Usage:
     python build_sources.py
@@ -58,10 +63,13 @@ import json
 import os
 import sqlite3
 
-SITES_DB = "src/data/sites.sqlite"
-WIKI_DB = "src/data/wikimedia.sqlite"
-LST_DB = "src/data/lansstyrelsen.sqlite"
-OUT_DB = "src/data/sources.sqlite"
+import paths
+from crawl_lansstyrelsen import plan_clusters
+
+SITES_DB = paths.WORK
+WIKI_DB = paths.WIKIMEDIA
+LST_DB = paths.LANSSTYRELSEN
+OUT_DB = paths.PLACES
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS sources (
@@ -311,49 +319,11 @@ def from_plans(out):
                          "care, sign, parking FROM plans").fetchall()
     except sqlite3.OperationalError:
         return 0            # --plans has not been run yet
-    # uuid -> cluster, via the plan's own Fornsok links first.
-    sites = sqlite3.connect(f"file:{SITES_DB}?mode=ro", uri=True)
-    cl = cluster_map(sites)
-    direct = {}
-    for obj, uuid in l.execute("SELECT obj, uuid FROM plan_sites "
-                               "WHERE uuid IS NOT NULL"):
-        if uuid in cl:
-            direct.setdefault(obj, set()).add((cl[uuid], uuid))
-    # Fallback for the plans that print no Fornsok link: the clusters the
-    # county OBJECT matched. The join runs through the pdf url in the
-    # object's own props -- the first version keyed this on objects.name,
-    # which is the monument's name and never equals a plan id, so the
-    # fallback matched nothing at all and quietly halved the yield.
-    by_url = {}
-    for ds_id, obj_id, props in l.execute(
-            "SELECT dataset_id, obj_id, props FROM objects "
-            "WHERE props IS NOT NULL"):
-        try:
-            pr = json.loads(props)
-        except json.JSONDecodeError:
-            continue
-        if not isinstance(pr, dict):
-            continue
-        for v in pr.values():
-            if isinstance(v, str) and "Skotselplaner_Fornvard" in v:
-                by_url.setdefault(v.split("#")[0].strip(),
-                                  set()).add((ds_id, obj_id))
-    obj_clusters = {}
-    for ds_id, obj_id, cid in l.execute(
-            "SELECT dataset_id, obj_id, cluster_id FROM matches "
-            "WHERE how <> 'in_landscape' AND cluster_id IS NOT NULL"):
-        obj_clusters.setdefault((ds_id, obj_id), set()).add(cid)
-    fallback = {}
-    for u, objs in by_url.items():
-        cids = set()
-        for key in objs:
-            cids |= obj_clusters.get(key, set())
-        if cids:
-            fallback[u] = {(c, None) for c in cids}
+    where = plan_clusters(l, SITES_DB)
 
     n = 0
     for obj, url, name, kommun, desc, goal, care, sign, park in rows:
-        targets = direct.get(obj) or fallback.get(url) or set()
+        targets = {(c, None) for c in where.get(obj, ())}
         # The sign and parking status ride along as a sentence, because the
         # thing generating a description cannot read a column. They are also
         # kept as columns in lansstyrelsen.sqlite for the scorer to use.
