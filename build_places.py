@@ -98,9 +98,18 @@ CREATE TABLE IF NOT EXISTS images (
     -- Same discipline as `sources`: an image whose terms nobody has stated
     -- is stored and not shown. Reversible in that direction only.
     usable       INTEGER DEFAULT 1,
-    fetched_at   TEXT,
-    UNIQUE (cluster_id, source, file, image_url)
+    fetched_at   TEXT
+    -- The uniqueness rule is the index below, NOT a UNIQUE constraint on
+    -- these columns. In SQL two NULLs are not equal, so a UNIQUE over
+    -- (cluster_id, source, file, image_url) never matches a row whose
+    -- image_url is NULL -- which is every image we hold as bytes rather
+    -- than as a link. The Commons rows deduplicated correctly and the
+    -- county-folder rows silently doubled on every rebuild: 56 became 112,
+    -- and nothing errored.
 );
+CREATE UNIQUE INDEX IF NOT EXISTS idx_i_identity ON images(
+    cluster_id, source, COALESCE(file, ''), COALESCE(image_url, ''),
+    COALESCE(local_path, ''));
 CREATE INDEX IF NOT EXISTS idx_i_cluster ON images(cluster_id);
 """
 
