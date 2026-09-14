@@ -137,6 +137,17 @@ Google, Apple, mail.
 **Decisión: Firebase Auth**, porque es el que conocés. Google + mail ahora,
 Apple cuando haya iOS.
 
+**Por ahora Android solo.** Hoy el login sale $0: Firebase Auth con Google y
+mail es gratis y sin tope de usuarios, y Google Play son $25 una única vez.
+Nada de esto es anual.
+
+iOS queda como algo para pedirle a Kungsbacka — la cuota de Apple son
+$99/año por cuenta (apps ilimitadas, no por app), y Apple la exime para
+entidades sin fines de lucro y públicas en Suecia, lo cual aplica a un
+municipio y no a una persona. Mismo razonamiento para el hosting y el
+mantenimiento del backend. No es un blocker de nada: es una conversación para
+cuando el demo web ya esté mostrado.
+
 Apple sí está soportado como provider de Firebase Auth, igual que Google, mail,
 Facebook y varios más. Dos cosas para cuando llegue el momento: necesita una
 cuenta de Apple Developer paga (~$99/año), y Apple **exige** su login en
