@@ -26,87 +26,58 @@ interesa, y aguanta que un artículo linkee a otro.
 primero cierra; la cruz arriba a la derecha cierra de una. Es la misma pila
 que el botón físico de Android, así que hay que engancharlo también.
 
-### Datos
+**Dónde vive:** en el repo de la app, `fornlamningar-app/wiki/sv/*.md`. El
+wiki no toca ninguna descripción generada, así que no es dato del pipeline.
+El matching pasa al renderizar y existe una sola vez, en TS.
 
-Tabla `glossary` en `places.sqlite`, exportada al bundle igual que
-`descriptions.db`:
+### Formato
 
-| columna | para qué |
-|---|---|
-| `term_id` | `dos`, `gangrift`, ... la clave estable |
-| `lang` | `sv` (canónico), `en` después |
-| `term` | la palabra como se muestra ("dös") |
-| `aliases` | las formas que matchean, una por línea |
-| `body_md` | el artículo, Markdown |
-| `image_file` | nombre del webp en el bundle |
-| `image_credit` | autor + licencia + url, obligatorio |
-| `updated_at` | igual que todo lo demás |
+```
+triggers: dös, dösen, dösar, dösarna
+deny_before: meter, m, cm
 
-Dos textkeys por artículo como dijiste: `term` y `body_md`. El `term` no va en
-`sv.json` porque no es copy del chrome — es contenido, y el chrome se mantiene
-a mano mientras esto lo genera el pipeline.
+# Dös
+En dös är den äldsta typen av [stenkammargrav](wiki:stenkammargrav) ...
 
-### El matching: lista de alias, palabra completa, offline
+![Havängsdösen](img:dos.webp)
+*Foto: Sven Rosborn, CC BY-SA 3.0*
+```
 
-No hace falta AI y tenías razón. Cada artículo lleva una lista de alias
-(`dös`, `dösen`, `dösar`, `dösarna`) y se matchea sólo palabra completa, con
-límite de palabra a los dos lados. Eso resuelve solo el caso `kista` dentro de
-`hällkista`.
+Sin distinción de tipos de artículo: una clase del registro, un subtipo, un
+período y un término técnico son todos lo mismo. Las imágenes van en el body,
+así que un artículo tiene cero, una o tres, y el crédito va al lado de la foto.
 
-Dos reglas que hacen falta igual:
+`deny_before` cancela el match si esa palabra viene justo antes. Existe porque
+`hög` es a la vez el túmulo y el adjetivo "alto": de 3.044 apariciones de
+`hög` pelado, unas 500 eran "2,5 meter hög".
 
-- **el alias más largo gana.** Si no, `hällkista` se parte en `kista` y queda
-  un link al artículo equivocado. Se ordena la lista por largo descendente y
-  se matchea sin solaparse.
-- **un solo link por artículo por descripción.** Si `dös` aparece cuatro
-  veces, subrayar las cuatro es ruido.
+### Hecho
 
-Lo que sí sigue siendo offline es *correr* el matcher: el pipeline anota la
-descripción cuando la genera y guarda `[dös](gloss:dos)`. No porque haga falta
-un modelo, sino porque así puedo contar cuántos linkeó y leer los raros antes
-de que los vea alguien. El teléfono sólo dibuja lo que ya viene marcado.
+- [x] `wiki.py` → descartado. El matcher en Python y en TS son dos copias de
+      la misma regla, que es el bug de las cinco copias otra vez
+- [x] `scripts/build-wiki.mjs` — enumera los md (Metro no puede listar un
+      directorio en runtime) y valida: link a artículo inexistente, dos
+      artículos peleando un trigger, `img:` sin archivo
+- [x] `src/wiki/match.ts` — triggers, alias más largo primero, límites de
+      palabra suecos sin lookbehind ni `\p{...}` (Hermes)
+- [x] `src/wiki/markdown.ts` — el renderer mínimo
+- [x] `src/ui/WikiText.tsx` — el componente, usado tanto para la descripción
+      del sitio como para los párrafos del artículo. Esa identidad es lo que
+      lo hace un wiki
+- [x] `src/ui/WikiModal.tsx` — una sola ventana, pila de artículos, atrás
+      camina lo que el lector leyó, atrás en el primero cierra
+- [x] 24 artículos, cruzados entre sí. **79,3% de las 8.821 descripciones
+      recibe al menos un link**
 
-Columna nueva: `glossary.aliases`, una por línea.
+### Falta
 
-### Imágenes: bundle, no hotlink
-
-Preguntaste si pueden venir directo de Wikipedia. Técnicamente sí, Commons no
-lo bloquea, pero:
-
-- una imagen que se baja por red no existe sin señal, y la app es para andar
-  en el campo sin datos;
-- hotlinkear a Commons está explícitamente desaconsejado por ellos.
-
-Son ~120 tipos, uno por tipo: a 1024px de ancho en webp son ~40 KB cada una,
-~5 MB en total sobre los 48 MB que ya pesa el APK. Van al bundle.
-
-Licencia: cada archivo de Commons tiene la suya (CC0, CC BY, CC BY-SA). Todas
-sirven para lo nuestro — es gratis y no comercial — pero **todas menos CC0
-exigen atribución**, así que `image_credit` no es opcional y se muestra en el
-artículo. `wikimedia.sqlite` ya guarda autor y licencia por archivo, es de
-ahí.
-
-### Renderer de Markdown
-
-Hace falta uno, y conviene escribirlo (~80 líneas) en vez de traer
-`react-native-markdown-display`: el único elemento que de verdad necesito es
-el link `gloss:` que empuja la pila, y eso en una librería se hace
-overrideando su renderer igual. Soporta: párrafos, `##`, `**`, `*`, y links.
-Nada más. Es la misma decisión que `src/i18n/index.ts` ya documenta sobre no
-traer i18next.
-
-### Tareas
-
-- [ ] `glossary.py` en el pipeline: los ~120 tipos con más sitios, artículo
-      generado desde Wikipedia sv + el registro, revisado a mano
-- [ ] bajar y convertir las imágenes a webp 1024px, con crédito
-- [ ] lista de alias por artículo (flexiones suecas), match de palabra
-      completa, alias más largo primero, un link por artículo por texto
-- [ ] anotar las descripciones con `[palabra](gloss:id)` al generarlas
-- [ ] exportar `glossary` al bundle + `assetVersion.ts`
-- [ ] renderer de md mínimo
-- [ ] `GlossaryModal` con pila, botón atrás de Android enganchado
-- [ ] estilo del link: color primary + subrayado (lo que pediste)
+- [ ] las imágenes: bajar de Commons a `wiki/img/`, webp 1024px, con crédito
+      en el body. Hoy no hay ninguna referenciada, a propósito
+- [ ] verlo en el teléfono. El device está `unauthorized` por USB
+- [ ] `fangstgrop` no recibe links de ningún otro artículo
+- [ ] más artículos: `stenmur`, `hägnad`, `kolningsanläggning`,
+      `blästbrukslämning`, `fossil åker`, `bytomt`, `mittgrop`, `övertorvad`
+- [ ] el wiki en inglés, cuando haya inglés
 
 ---
 
