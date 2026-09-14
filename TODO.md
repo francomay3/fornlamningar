@@ -36,6 +36,7 @@ Tabla `glossary` en `places.sqlite`, exportada al bundle igual que
 | `term_id` | `dos`, `gangrift`, ... la clave estable |
 | `lang` | `sv` (canónico), `en` después |
 | `term` | la palabra como se muestra ("dös") |
+| `aliases` | las formas que matchean, una por línea |
 | `body_md` | el artículo, Markdown |
 | `image_file` | nombre del webp en el bundle |
 | `image_credit` | autor + licencia + url, obligatorio |
@@ -45,17 +46,27 @@ Dos textkeys por artículo como dijiste: `term` y `body_md`. El `term` no va en
 `sv.json` porque no es copy del chrome — es contenido, y el chrome se mantiene
 a mano mientras esto lo genera el pipeline.
 
-### El matching es offline, no en runtime
+### El matching: lista de alias, palabra completa, offline
 
-Esta es la única parte donde te discuto el approach obvio. Buscar "dös" con un
-regex sobre la prosa en el teléfono se rompe con el sueco: `dös`, `dösen`,
-`dösar`, `dösarna`, y `hällkista` contiene `kista` que es otro artículo. Peor:
-un falso positivo lo ve el usuario y yo no me entero nunca.
+No hace falta AI y tenías razón. Cada artículo lleva una lista de alias
+(`dös`, `dösen`, `dösar`, `dösarna`) y se matchea sólo palabra completa, con
+límite de palabra a los dos lados. Eso resuelve solo el caso `kista` dentro de
+`hällkista`.
 
-Así que el pipeline anota la descripción **cuando la genera**, y guarda el
-texto con marcas explícitas (`[dös](gloss:dos)`). Se matchea una vez, offline,
-donde puedo contar cuántos linkeó y leer los raros. El renderer del teléfono
-sólo dibuja lo que ya está marcado.
+Dos reglas que hacen falta igual:
+
+- **el alias más largo gana.** Si no, `hällkista` se parte en `kista` y queda
+  un link al artículo equivocado. Se ordena la lista por largo descendente y
+  se matchea sin solaparse.
+- **un solo link por artículo por descripción.** Si `dös` aparece cuatro
+  veces, subrayar las cuatro es ruido.
+
+Lo que sí sigue siendo offline es *correr* el matcher: el pipeline anota la
+descripción cuando la genera y guarda `[dös](gloss:dos)`. No porque haga falta
+un modelo, sino porque así puedo contar cuántos linkeó y leer los raros antes
+de que los vea alguien. El teléfono sólo dibuja lo que ya viene marcado.
+
+Columna nueva: `glossary.aliases`, una por línea.
 
 ### Imágenes: bundle, no hotlink
 
@@ -89,6 +100,8 @@ traer i18next.
 - [ ] `glossary.py` en el pipeline: los ~120 tipos con más sitios, artículo
       generado desde Wikipedia sv + el registro, revisado a mano
 - [ ] bajar y convertir las imágenes a webp 1024px, con crédito
+- [ ] lista de alias por artículo (flexiones suecas), match de palabra
+      completa, alias más largo primero, un link por artículo por texto
 - [ ] anotar las descripciones con `[palabra](gloss:id)` al generarlas
 - [ ] exportar `glossary` al bundle + `assetVersion.ts`
 - [ ] renderer de md mínimo
@@ -104,11 +117,25 @@ primera vez que abre la app; puntajes, comentarios y fotos se guardan con ese
 uuid sin pedir nada. El login sólo sirve para que el uuid sobreviva a un
 cambio de teléfono: al registrarse, la cuenta **hereda** el uuid.
 
-**Mi recomendación sobre el método:** Google (y Apple si algún día hay iOS, es
-obligatorio ahí). **Usuario/password no.** Traer passwords significa hashing,
-reset por mail, y ser responsable de un leak — todo eso para un login que
-existe nada más que para no perder tus estrellitas. Si querés una opción sin
-Google, magic link por mail antes que password.
+**Mi recomendación sobre el método:** Google, Apple (obligatorio si algún día
+hay iOS) y mail. Sobre el mail hay una confusión que conviene aclarar:
+
+- **Google Sign-In no da usuario/password.** Da cuentas de Google y nada más.
+  Lo que estás pensando es *Firebase Auth* o *Supabase Auth*, que son otra
+  cosa: ahí sí tenés email+password y el hashing y el reset lo hacen ellos.
+- Con eso aclarado, **agregalo**: si ya vas a usar Supabase Auth para el
+  Google, el email es un toggle y no escribo una línea de cripto. Mi objeción
+  era a hacerlo a mano, no a tenerlo.
+- Entre email+password y magic link, prefiero magic link — no hay password que
+  perder ni pantalla de reset que mantener — pero es preferencia, no argumento.
+
+**En Suecia:** lo omnipresente es BankID, y no nos sirve. Es identidad legal,
+requiere contrato con un banco y una empresa detrás, y para una app gratis de
+tumbas es pedirle el documento a alguien para que puntúe un gravfält. Para
+apps de consumo lo normal ahí es exactamente lo mismo que en el resto:
+Google, Apple, mail.
+
+**Decisión:** Supabase Auth con Google + mail, Apple cuando haya iOS.
 
 ### Sync: tu diseño está bien, con una corrección
 
@@ -120,7 +147,13 @@ POST /api/events   { uuid, kind, raa_id, payload, client_ts }
 GET  /api/events?since=<seq>&exclude=<uuid>
 ```
 
-**La corrección:** no pagines por timestamp. El reloj del teléfono es del
+**Las fotos no entran en el sync.** El log de eventos mueve puntajes y
+comentarios, que son bytes. Las fotos viven siempre en la nube y se piden por
+sitio cuando abrís el sheet — si cada teléfono se bajara las fotos de todos,
+la DB local crece sin techo y la app se vuelve impresentable. Lo que sí puede
+viajar en el log es que *existe* una foto (url + crédito); el archivo, nunca.
+
+**La otra corrección:** no pagines por timestamp. El reloj del teléfono es del
 usuario — mal seteado, zona horaria rara, o directamente adelantado — y con
 `since=<tiempo>` te comés eventos o los repetís para siempre. El servidor le
 pone un `seq` monotónico a cada evento y el cliente guarda el último `seq` que
@@ -137,12 +170,13 @@ de eventos es una tabla sola.
 
 - [ ] uuid local + `AsyncStorage`, antes que cualquier otra cosa de esta
       sección — todo lo demás cuelga de que exista
-- [ ] tablas locales `ratings`, `comments`, `photos` con `uuid` y `ts`
+- [ ] tablas locales `ratings`, `comments` con `uuid` y `ts` (fotos no:
+      sólo su metadata, el archivo se pide a la nube)
 - [ ] cola de salida que sobreviva a que la app se cierre sin señal
 - [ ] `POST /api/events` + Postgres en `franco-may`
 - [ ] `GET /api/events?since=&exclude=` con `seq` del servidor
 - [ ] sync en background, una vez por día
-- [ ] Google sign-in, herencia del uuid
+- [ ] Supabase Auth: Google + mail, herencia del uuid
 - [ ] qué pasa si dos teléfonos heredan a la misma cuenta (decidir: merge)
 
 ---
@@ -161,10 +195,17 @@ infinito (de la última a la primera) lo soporta.
 **El frame de "sacá una foto"** va siempre al final del carousel, y es lo
 único que se ve cuando no hay fotos — como pediste.
 
-**Compresión: 1080p webp. Ojo con un detalle** —
-`expo-image-manipulator` exporta webp **sólo en Android**. Como Android es
-primero, arrancamos con webp; el día que haya iOS, ahí se cae a JPEG q80 o se
-convierte en el servidor.
+**Compresión: partida, y tenías razón en mover el webp al backend.**
+`expo-image-manipulator` exporta webp sólo en Android, así que si el webp lo
+hace el server hay un solo código para las dos plataformas y una sola calidad
+de salida. Pero el resize **sí** va en el teléfono: una foto de cámara son
+~4000px y 4 MB, y subir eso con una barra de señal en el medio del campo es
+donde la subida falla. Entonces:
+
+- teléfono: resize a 1080p (lado largo) + JPEG q85 → ~250 KB. El resize
+  funciona en las dos plataformas.
+- server: JPEG → webp al guardarlo en R2, y ahí también el thumbnail del
+  carousel.
 
 **Storage:** te recomiendo Cloudflare R2 antes que Firebase Storage. Misma
 API (S3), y no cobra egress — que es justamente lo que te cobraría Firebase
@@ -185,10 +226,11 @@ reportar. Hay que elegir antes de abrirlo, no después.
 - [ ] carousel de scroll libre en `PlaceSheet`
 - [ ] frame de prompt al final, y solo cuando no hay fotos
 - [ ] `react-native-awesome-gallery` para el visor
-- [ ] cámara + galería, resize a 1080p, webp
+- [ ] cámara + galería, resize a 1080p + JPEG q85 en el teléfono
+- [ ] conversión a webp + thumbnail en el backend
 - [ ] R2 + endpoint de URL firmada
 - [ ] decidir moderación
-- [ ] fotos de usuario dentro del sync de la sección 2
+- [ ] metadata de fotos en el log de eventos; los archivos nunca
 
 ---
 
