@@ -182,17 +182,47 @@ de eventos es una tabla sola.
 
 ### Tareas
 
-- [ ] uuid local + `AsyncStorage`, antes que cualquier otra cosa de esta
-      sección — todo lo demás cuelga de que exista
-- [ ] tablas locales `ratings`, `comments` con `uuid` y `ts` (fotos no:
-      sólo su metadata, el archivo se pide a la nube)
-- [ ] cola de salida que sobreviva a que la app se cierre sin señal
-- [ ] `POST /api/events` + Postgres en `franco-may`
-- [ ] `GET /api/events?since=&exclude=` con `seq` del servidor
-- [ ] sync en background, una vez por día
+- [x] uuid local con `expo-crypto` (no `Math.random()`: es el token que
+      identifica a un autor en un endpoint que acepta escrituras anónimas).
+      Vive en `user.db`, no en `AsyncStorage`, porque el id y las filas que
+      lo referencian tienen que borrarse o sobrevivir juntos
+- [x] **`user.db`, una base separada de `descriptions.db`** — esa se borra y
+      se reemplaza cada vez que cambia `ASSET_VERSION`, así que un puntaje
+      guardado ahí desaparecería en el próximo export sin un solo error
+- [x] tablas `ratings`, `comments`, `photos` (sólo metadata) como log de
+      eventos, no como filas mutables
+- [x] `outbox` con `attempts`, para que un payload venenoso no bloquee para
+      siempre lo que tiene detrás
+- [x] `POST`/`GET /api/fornlamningar/events` en `franco-may` + Neon
+- [x] el número de secuencia sale de una **fila contador dentro de la misma
+      transacción**, no de `bigserial`. Probado contra Postgres real con dos
+      transacciones concurrentes: con `bigserial` se pierde un evento para
+      siempre, con el contador cero
+- [x] el uuid viaja en el header `X-Author-Id`, nunca en la URL — un secreto
+      en un query string queda en los logs del servidor y de cada proxy
+- [x] rate limiting **en Postgres**, no en memoria: en serverless cada
+      instancia tiene su propio Map
+- [x] el salt para hashear IPs se genera solo en la base; no hay variable de
+      entorno que administrar ni que olvidarse de copiar
+- [x] escalonamiento: anónimo puede puntuar, marcar favoritos y visitados;
+      comentarios y fotos devuelven 403 hasta que haya cuentas
+- [x] sync al abrir la app y al volver al frente. Sin background task: la app
+      se abre cuando alguien está por visitar un lugar, que es justo cuando
+      los datos frescos importan
+- [x] probado de punta a punta contra producción: 401 sin header, 200 vacío,
+      POST, visible para otro autor, excluido para el propio, 403 en
+      comentario, 400 en 6 estrellas, idempotente al reenviar
 - [ ] Firebase Auth: Google + mail, herencia del uuid
 - [ ] verificación del token con `firebase-admin` en el route handler
 - [ ] qué pasa si dos teléfonos heredan a la misma cuenta (decidir: merge)
+- [ ] UI: no hay todavía ninguna forma de puntuar un sitio en la app. El
+      camino de datos está entero y no hay botón
+
+**Nota para debuggear desde esta máquina:** el puerto 5432 está bloqueado
+(acepta el TCP y lo resetea al mandar el saludo de Postgres, lo que se lee
+como ECONNRESET y parece una base caída). No es la VPN, probado con ella
+apagada. Para migraciones usar `node scripts/apply-fl-schema.cjs`, que va por
+el endpoint HTTP de Neon en el 443.
 
 ---
 
