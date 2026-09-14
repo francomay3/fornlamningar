@@ -184,9 +184,9 @@ de eventos es una tabla sola.
 
 - [x] uuid local con `expo-crypto` (no `Math.random()`: es el token que
       identifica a un autor en un endpoint que acepta escrituras anónimas).
-      Vive en `user.db`, no en `AsyncStorage`, porque el id y las filas que
+      Vive en `contributions.db`, no en `AsyncStorage`, porque el id y las filas que
       lo referencian tienen que borrarse o sobrevivir juntos
-- [x] **`user.db`, una base separada de `descriptions.db`** — esa se borra y
+- [x] **`contributions.db`, una base separada de `descriptions.db`** — esa se borra y
       se reemplaza cada vez que cambia `ASSET_VERSION`, así que un puntaje
       guardado ahí desaparecería en el próximo export sin un solo error
 - [x] tablas `ratings`, `comments`, `photos` (sólo metadata) como log de
@@ -215,8 +215,49 @@ de eventos es una tabla sola.
 - [ ] Firebase Auth: Google + mail, herencia del uuid
 - [ ] verificación del token con `firebase-admin` en el route handler
 - [ ] qué pasa si dos teléfonos heredan a la misma cuenta (decidir: merge)
-- [ ] UI: no hay todavía ninguna forma de puntuar un sitio en la app. El
-      camino de datos está entero y no hay botón
+- [x] UI: sección `Betygsätt platsen` con cinco estrellas que responden a
+      tap y a drag, más el promedio de la comunidad en el header del sheet
+- [x] **la escala tiene nombre en cada paso** — `Inget att se`, `Knappt
+      synligt`, `Värt ett stopp`, `Värt en omväg`, `Värt en resa`. Los tres
+      de arriba son la escalera de Michelin (parada / desvío / viaje), que es
+      el vocabulario que se inventó para esta pregunta exacta. La etiqueta
+      sigue al dedo mientras arrastrás
+- [x] existe / visible / visitable / interesante son **un solo eje**: si
+      alguna es negativa no vale la pena ir, así que es una sola pregunta con
+      un solo control, y nombrar el fondo de la escala (`Inget att se`) es lo
+      que reemplaza a un botón aparte de "acá no hay nada"
+- [x] el promedio de visitantes **reemplaza** al score del modelo en cuanto
+      hay un puntaje, no se promedia con él. Mezclarlos da un número que no
+      se puede explicar: el modelo mide cuánta documentación tiene el lugar,
+      la estrella mide si valió la pena ir, y los primeros cuatro puntajes
+      reales ya no coinciden (5★ en una Stenkammargrav que el modelo puntúa
+      1,95). Cualquier media de los dos escondía justo ese desacuerdo
+- [x] se muestra la media cruda **más la cantidad** (`1,0 · 1 betyg`), no una
+      media achicada hacia un prior. El puntaje más valioso de esta app es el
+      de la persona que manejó hasta ahí y encontró un campo arado; subirle
+      ese 1 a 3,25 entierra la única advertencia que tiene el lugar. El
+      achicamiento va en el **ranking**, donde los puntajes compiten entre
+      sí, no en el display
+- [ ] usar la media achicada para ordenar el mapa (prior = media global de
+      usuarios, m ≈ 3), para que un 5 solo no le gane a un 4,6 muy visitado
+- [ ] prompt de contribución cuando un lugar no tiene ningún aporte y la
+      única fuente es Raä, **con gating por GPS** (~200 m): así cada respuesta
+      viene de alguien parado ahí y no de alguien adivinando desde el sillón,
+      que además es el vector de vandalismo obvio mientras no haya cuentas.
+      Va *después* de la descripción, no tapándola
+- [ ] antes de diseñar ese prompt: revisar si el export trae `antikvarisk
+      bedömning`. `Uppgift om` ya significa "reportado pero no confirmado en
+      el terreno" y `Borttagen` significa "ya no está" — no tiene sentido
+      preguntarle a la gente lo que el registro ya dice
+- [ ] agregados derivados en `places` (`n_betyg`, media, "no hay nada")
+      recalculados desde el log, nunca escritos a mano: misma relación que
+      las descripciones con el pipeline
+- [ ] moderación antes de que "acá no hay nada" sea visible: mínimo 2–3
+      observaciones coincidentes y una forma de apagar a un autor
+- [ ] ojo con el sesgo de selección al entrenar con esto: sólo vamos a tener
+      etiquetas de lugares donde alguien fue, y la gente va a donde la app
+      los manda. El modelo se confirma a sí mismo si no mostramos a propósito
+      algunos lugares de score bajo
 
 **Nota para debuggear desde esta máquina:** el puerto 5432 está bloqueado
 (acepta el TCP y lo resetea al mandar el saludo de Postgres, lo que se lee
