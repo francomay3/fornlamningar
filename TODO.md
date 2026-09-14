@@ -121,11 +121,10 @@ cambio de teléfono: al registrarse, la cuenta **hereda** el uuid.
 hay iOS) y mail. Sobre el mail hay una confusión que conviene aclarar:
 
 - **Google Sign-In no da usuario/password.** Da cuentas de Google y nada más.
-  Lo que estás pensando es *Firebase Auth* o *Supabase Auth*, que son otra
-  cosa: ahí sí tenés email+password y el hashing y el reset lo hacen ellos.
-- Con eso aclarado, **agregalo**: si ya vas a usar Supabase Auth para el
-  Google, el email es un toggle y no escribo una línea de cripto. Mi objeción
-  era a hacerlo a mano, no a tenerlo.
+  Lo que estás pensando es *Firebase Auth*, que es otra cosa: ahí sí tenés
+  email+password, y el hashing y el reset los hace Google.
+- Con eso aclarado, **agregalo**: el email es un toggle en la consola y no
+  escribo una línea de cripto. Mi objeción era a hacerlo a mano, no a tenerlo.
 - Entre email+password y magic link, prefiero magic link — no hay password que
   perder ni pantalla de reset que mantener — pero es preferencia, no argumento.
 
@@ -135,7 +134,20 @@ tumbas es pedirle el documento a alguien para que puntúe un gravfält. Para
 apps de consumo lo normal ahí es exactamente lo mismo que en el resto:
 Google, Apple, mail.
 
-**Decisión:** Supabase Auth con Google + mail, Apple cuando haya iOS.
+**Decisión: Firebase Auth**, porque es el que conocés. Google + mail ahora,
+Apple cuando haya iOS.
+
+Apple sí está soportado como provider de Firebase Auth, igual que Google, mail,
+Facebook y varios más. Dos cosas para cuando llegue el momento: necesita una
+cuenta de Apple Developer paga (~$99/año), y Apple **exige** su login en
+cualquier app de iOS que ofrezca login de terceros. O sea que el día que haya
+iOS no es opcional, pero hasta entonces no cuesta nada no tenerlo.
+
+**Firebase Auth con Postgres en `franco-may` conviven sin drama:** Firebase
+sólo emite el token. El route handler lo verifica con `firebase-admin` y usa
+el uid de Firebase como clave del usuario en nuestra tabla; los eventos siguen
+guardándose contra nuestro uuid, que es el que hereda la cuenta. No hace falta
+Firestore ni nada más del stack de Firebase.
 
 ### Sync: tu diseño está bien, con una corrección
 
@@ -176,7 +188,8 @@ de eventos es una tabla sola.
 - [ ] `POST /api/events` + Postgres en `franco-may`
 - [ ] `GET /api/events?since=&exclude=` con `seq` del servidor
 - [ ] sync en background, una vez por día
-- [ ] Supabase Auth: Google + mail, herencia del uuid
+- [ ] Firebase Auth: Google + mail, herencia del uuid
+- [ ] verificación del token con `firebase-admin` en el route handler
 - [ ] qué pasa si dos teléfonos heredan a la misma cuenta (decidir: merge)
 
 ---
