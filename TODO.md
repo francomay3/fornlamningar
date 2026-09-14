@@ -69,11 +69,18 @@ así que un artículo tiene cero, una o tres, y el crédito va al lado de la fot
 - [x] 24 artículos, cruzados entre sí. **79,3% de las 8.821 descripciones
       recibe al menos un link**
 
+- [x] **21 imágenes** de Commons en `wiki/img/`, webp 1024px, 3,1 MB. Bajadas
+      con su atribución sacada de la API de Commons, no escrita a mano
+- [x] `WikiImage` con `caption` + `credit`. El crédito es prop **requerida**:
+      un campo opcional es un campo vacío en el artículo veinte a las once de
+      la noche. Lo valida el build, no un abogado
+- [x] los 24 artículos verificados contra Wikipedia sv y reescritos con
+      estructura de turismo (`## Att se på plats`, `## Kända exempel`,
+      `## Visste du?`). Correcciones de datación en dos tercios de ellos
+- [x] verlo en el teléfono, instalado y andando
+
 ### Falta
 
-- [ ] las imágenes: bajar de Commons a `wiki/img/`, webp 1024px, con crédito
-      en el body. Hoy no hay ninguna referenciada, a propósito
-- [ ] verlo en el teléfono. El device está `unauthorized` por USB
 - [ ] `fangstgrop` no recibe links de ningún otro artículo
 - [ ] más artículos: `stenmur`, `hägnad`, `kolningsanläggning`,
       `blästbrukslämning`, `fossil åker`, `bytomt`, `mittgrop`, `övertorvad`
