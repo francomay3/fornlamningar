@@ -79,9 +79,22 @@ así que un artículo tiene cero, una o tres, y el crédito va al lado de la fot
       `## Visste du?`). Correcciones de datación en dos tercios de ellos
 - [x] verlo en el teléfono, instalado y andando
 
+- [x] siete artículos que no son tipos de lämning: `att_lasa_registret`,
+      `landhojningen`, `allemansratten`, `fornlamning`, `brandgrav`,
+      `runformel`, `stenmaterial`. **31 artículos, 83,6% de las
+      descripciones con al menos un link** (era 79,3%)
+
 ### Falta
 
 - [ ] `fangstgrop` no recibe links de ningún otro artículo
+- [ ] artículos de clases, medidos por alcance sobre los 129.075 lugares:
+      `vägmärke` (7,4% — el hueco más grande), `hägnad` (4,4%),
+      `bytomt` (4,1%), `lägenhetsbebyggelse` (4,0%), `blästbruk` (4,0%),
+      `färdväg`/hålväg (3,1%), `husgrund` (2,5%), `fäbod`+`kåta`+`viste`
+      (1,8%, presencia sami), `tomtning` (0,8%). Un solo artículo para el
+      grupo industrial (`hyttområde`, `gruvområde`, `kalkugn`, `kvarn`,
+      `dammvall`, ~3%) y uno para `källa`/`naturföremål med tradition` (1%,
+      folclore)
 - [ ] más artículos: `stenmur`, `hägnad`, `kolningsanläggning`,
       `blästbrukslämning`, `fossil åker`, `bytomt`, `mittgrop`, `övertorvad`
 - [ ] el wiki en inglés, cuando haya inglés
