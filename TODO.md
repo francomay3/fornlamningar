@@ -320,6 +320,49 @@ reportar. Hay que elegir antes de abrirlo, no después.
 
 ---
 
+## 5. Los campos de estado del registro (hallazgo, 2026-09-15)
+
+**Corrección de lo que dije el 14:** `antikvarisk bedömning` **no** sirve para
+saber si un lugar existe. Es 99,5% `Fornlämning` (310.440 de 311.844) y el
+valor `Borttagen` no aparece ni una vez en nuestros datos — es prácticamente
+una constante. Tampoco `aktualitetsstatus`, que es `Bekräftad i fält` en
+311.457 de 311.844.
+
+O sea: **el registro no responde "hay algo que ver"**, y eso refuerza el
+prompt de contribución en vez de reemplazarlo. "Bekräftad i fält" quiere
+decir que un inventariador lo verificó, a veces hace cuarenta años; no dice
+nada de lo que encuentra un visitante hoy. Y `skadestatus` es `Okänd` en el
+72% de los sitios, que es una declaración sobre cuánto no sabe el registro.
+
+Pero mirando los campos vecinos aparecieron dos cosas que sí sirven. Los
+cuatro campos se ingieren en `build_sites.py:199` y **nunca se vuelven a
+leer**: no filtran, no son señal, no son label.
+
+### Tareas
+
+- [ ] **274 lugares que el propio registro dio de baja están en la app.**
+      `Utgår på grund av felregistrering` (116, o sea "se elimina por error de
+      registro") y `Överförd till annan lämning` (158, fusionados en otro
+      registro, o sea duplicados). Los 274 están exportados. Eso va a
+      `excluded_hard` en `build_scores.py`, junto con los criterios que ya
+      hay: no son lugares, son erratas
+- [ ] **160 etiquetas negativas gratis.** `Förstörd` (70) o
+      `Uppgift om lämning, ej bekräftad i fält` (113), sin el solapamiento.
+      Hoy `labels` tiene **9.162 positivos y 11 negativos** — un ratio de
+      1:832, y *esa* es la razón por la que el modelo predice "está
+      documentado en Wikidata" y no "vale la pena ir". Con estos pasa a 1:53.
+      No es mucho, pero es 15 veces lo que hay
+- [ ] `Grov skada` (987) es la señal más débil de las tres: dañado de
+      gravedad todavía puede ser perfectamente visitable — un röse excavado
+      se sigue viendo. Candidato a label negativa con peso bajo, no a
+      exclusión, y hay que decidirlo aparte
+- [ ] los negativos del registro y los de los usuarios (sección 2) apuntan al
+      mismo target — "valió la pena ir" — así que conviene que entren por el
+      mismo camino y con un `source` distinto en `labels`, que la tabla ya
+      tiene justo para esto
+
+---
+
 ## 4. La brújula en el marcador de posición
 
 El punto azul debería mostrar **hacia dónde apunta el teléfono**, para poder
