@@ -245,6 +245,20 @@ de eventos es una tabla sola.
       viene de alguien parado ahí y no de alguien adivinando desde el sillón,
       que además es el vector de vandalismo obvio mientras no haya cuentas.
       Va *después* de la descripción, no tapándola
+- [ ] la pregunta es **`Hittade du lämningen?`**, no "¿existe?". La distinción
+      no es cosmética: "existe" es una pregunta sobre el registro, y un sueco
+      contesta "obvio, está en Fornsök". Lo que no sabemos es si una persona
+      normal puede llegar y encontrarlo — a veces son piedras indistinguibles
+      de cualquier otra piedra y además semienterradas, y para un turista eso
+      es igual a que no exista. El registro dice `Bekräftad i fält` porque un
+      inventariador con coordenadas la encontró en 1987; no es la misma
+      pregunta. Ver la sección 5
+- [ ] **el negativo necesita su propia forma de mostrarse, no sólo su valor.**
+      Un `1,0 · 3 betyg` al lado del nombre se lee como "lugar malo"; lo que
+      le ahorra el viaje al próximo visitante es
+      `Flera besökare hittade inget här`. Va arriba, en lugar del promedio,
+      cuando la mayoría de los puntajes son de 1★. Es el caso donde la app
+      tiene que estar dispuesta a decirte que no vayas
 - [x] revisado: **el registro no sabe si hay algo que ver**, así que el
       prompt no se puede reemplazar con datos. `antikvarisk bedömning` es
       99,5% `Fornlämning` y `Borttagen` no existe en nuestros datos. Ver la
