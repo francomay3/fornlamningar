@@ -495,6 +495,49 @@ es el magnetómetro.
 
 ---
 
+## 6. El menú de la app (arriba a la izquierda)
+
+**La regla de los rincones, que ya está implementada:** *abajo* es actuar
+sobre el mapa (dónde estoy, dónde está el norte, qué se muestra) y *arriba* es
+actuar sobre la app. Los rincones de abajo son los únicos que el pulgar
+alcanza caminando con el teléfono en una mano, así que son para lo que se toca
+todo el tiempo.
+
+El menú existe porque hay **cinco cosas inconexas de nivel-app**. Con dos
+sería el cajón de sastre contra el que advierte el comentario de `Fab.tsx`.
+Los cuatro que faltan ya están en el menú **deshabilitados con `Kommer
+snart`**, que es un compromiso imposible de olvidar y además le dice al
+usuario que la app tiene una forma.
+
+### Tareas
+
+- [x] `Konto` — login con Google y mail, logout, crear cuenta
+- [ ] **`Mina besökta platser`** — sale casi gratis de la tabla `visits`.
+      Lista de los lugares donde estuviste, con fecha. Es también *tu* ground
+      truth, que era el objetivo original del proyecto
+- [ ] **`Påminnelser`** on/off — la notificación local de las 19:00 existe y
+      no hay forma de apagarla. La gente la va a querer apagar, y una app que
+      notifica sin interruptor se desinstala
+- [ ] **`Språk`** sv/en — hay que mover las dos mitades a la vez: `src/i18n`
+      para el chrome y el SQLite empaquetado para títulos y descripciones.
+      `build_tiles.py --lang` ya existe y el default es `sv`
+- [ ] **`Om appen`** — licencias y atribuciones. **Esto no es adorno:** la app
+      empaqueta 23 imágenes de Wikimedia con CC BY-SA y hoy las atribuciones
+      sólo existen como caption dentro de cada artículo del wiki. Faltan
+      también MapLibre, los datos de Raä y el basemap. Una pantalla de
+      licencias es lo que hace que el cumplimiento esté en un solo lugar
+      auditable
+- [ ] **`Glöm mig`** — `_reset()` ya existe en `contributions.ts` y no tiene
+      botón. Va separado por una línea y en color de acento: borrar todo lo
+      que contribuiste no puede estar en la misma lista visual que cambiar el
+      idioma. Ojo: borrar el uuid de autor hace que los eventos ya publicados
+      queden huérfanos para siempre, así que hay que decidir si también se
+      pide al servidor que los borre
+- [ ] el glifo del botón ya refleja si estás logueado (relleno vs contorno).
+      Cuando haya avatar de Google, decidir si se usa en vez del glifo
+
+---
+
 ## Pendientes viejos, de antes de hoy
 
 - [ ] colapsar `name` y `title` en una columna (`titles.py` ya está; falta el
