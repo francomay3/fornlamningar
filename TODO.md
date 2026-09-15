@@ -308,6 +308,52 @@ el endpoint HTTP de Neon en el 443.
 
 ## 3. Fotos
 
+### El prompt de contribución (decidido 2026-09-15)
+
+- [ ] `visit` **automático a 50 m**, aunque el usuario sólo haya pasado
+      caminando. Es por cluster y no por sitio, así que un gravfält de 160
+      tumbas cuenta una vez
+- [ ] **no hornear los 50 m en los datos.** Guardar `distance_m` *y*
+      `accuracy_m` en el evento y que el umbral sea una constante del código:
+      bajo copa de bosque la precisión en Android anda entre 10 y 30 m, a
+      veces peor, así que 50 va a dar falsos positivos y negativos y el
+      número se va a querer ajustar. Con las dos columnas se ajusta sin
+      perder las visitas ya guardadas
+- [ ] el prompt automático en el lugar **sólo si el sitio no tiene ni fotos
+      ni puntuaciones**. Si ya tiene, no molestar ahí
+- [ ] si ya tenía, el pedido se guarda para más tarde en una **notificación
+      local** — `expo-notifications`, programada en el teléfono. **No push:**
+      sin FCM, sin tokens, sin backend y sin costo. Una por día como máximo, y
+      sólo si hay algo que preguntar
+- [ ] si visitó varios lugares en un día, preguntar **sólo por el que menos
+      fotos y puntuaciones tenga**. El cliente puede ordenarlos porque la
+      metadata de fotos y los ratings se sincronizan (los archivos no)
+- [ ] `Mina besökta platser` como pantalla, que sale gratis de tener `visit`
+
+### Los carteles
+
+El registro sabe el estado del cartel en **105 lugares de 251.014** — el
+0,04% — y la antikvarie de Kungsbacka ya confirmó que el dato no existe en
+ninguna fuente. Así que esto es, por lejos, el dato más original que puede
+producir la app, y no es cosmético: responde "¿voy a entender qué estoy
+mirando cuando llegue?".
+
+- [ ] **el cartel no es un prompt aparte, es una etiqueta en la foto.** Un
+      chip `Skylt` por foto dentro del flujo que el usuario ya está usando:
+      un toque, ninguna pantalla nueva, y queda el dato estructurado en vez
+      de tener que adivinar cuál de las fotos es el cartel. Eso es lo "no
+      intrusivo"
+- [ ] **"ya tiene fotos" no debe tapar el pedido del cartel.** Son
+      necesidades distintas: cinco fotos del paisaje y ninguna del cartel es
+      el caso normal. Si comparten la condición, el dato que más nos
+      interesa es el único que no vamos a juntar
+- [ ] **`Fanns det någon skylt?` Ja/Nej** en el mismo prompt. La ausencia de
+      una foto etiquetada no es lo mismo que "no hay cartel", y con el
+      registro sabiendo el 0,04% el negativo vale tanto como el positivo
+- [ ] eso alimenta `sign_status` / `has_or_doesnt_need_sign`, que ya existen
+      en `places.features` y están en `None` para 250.911 de 251.014
+
+
 **Carousel:** fotos una al lado de la otra, scroll libre sin snap. Eso es un
 `ScrollView` horizontal y sale bien solo.
 
