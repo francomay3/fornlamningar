@@ -66,7 +66,13 @@ PROMPT_VERSION = 8
 #      6,668 descriptions written before it were generated from one field,
 #      with every scraped source sitting unread beside them. They are not
 #      stale hashes, they are worse descriptions.
-PAYLOAD_VERSION = 2
+#   3  breaks ties in the source order by content. The order of `sources` is
+#      part of what the model is shown, so it is part of the hash, and
+#      trust+length left 25,723 tied groups whose order SQLite could return
+#      however it liked. Only ~670 of those groups hold rows that actually
+#      differ, so this moves few payloads -- but it is what stops a rebuild of
+#      the corpus reporting changes it did not make.
+PAYLOAD_VERSION = 3
 
 SCHEMA = {
     "type": "object",
@@ -261,7 +267,21 @@ def load_sources(cluster_id, places_db=None):
         rows = db.execute("""
             SELECT kind, publisher, title, text FROM sources
              WHERE cluster_id = ? AND usable = 1 AND text <> ''
-             ORDER BY trust DESC, LENGTH(text) DESC""",
+             -- The tail of this ORDER BY is a TIEBREAKER, and it is load
+             -- bearing. trust and length alone leave 25,723 groups of tied
+             -- rows across the corpus, and SQLite is free to return a tie in
+             -- any order -- in practice insertion order, which changes when
+             -- build_sources.py rebuilds the table. The list order is part of
+             -- the payload the model sees and therefore part of source_hash,
+             -- so an unordered tie means a place reports "my sources changed"
+             -- after a rebuild that changed nothing about it.
+             --
+             -- Broken by CONTENT, not by source_id: that column is an
+             -- autoincrementing integer, so it is insertion order too and
+             -- would fix the comparison within one file while still flipping
+             -- across a rebuild -- the only case that matters.
+             ORDER BY trust DESC, LENGTH(text) DESC, kind,
+                      COALESCE(publisher, ''), COALESCE(title, ''), text""",
                           (cluster_id,)).fetchall()
     except sqlite3.OperationalError:
         return []
