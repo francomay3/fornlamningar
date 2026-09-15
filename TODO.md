@@ -425,23 +425,26 @@ leer**: no filtran, no son señal, no son label.
 
 ### Tareas
 
-- [ ] **274 lugares que el propio registro dio de baja están en la app.**
-      `Utgår på grund av felregistrering` (116, o sea "se elimina por error de
-      registro") y `Överförd till annan lämning` (158, fusionados en otro
-      registro, o sea duplicados). Los 274 están exportados. Eso va a
-      `excluded_hard` en `build_scores.py`, junto con los criterios que ya
-      hay: no son lugares, son erratas
-- [ ] **160 etiquetas negativas gratis.** `Förstörd` (70) o
-      `Uppgift om lämning, ej bekräftad i fält` (113), sin el solapamiento.
-      Hoy `labels` tiene **9.162 positivos y 11 negativos** — un ratio de
-      1:832, y *esa* es la razón por la que el modelo predice "está
-      documentado en Wikidata" y no "vale la pena ir". Con estos pasa a 1:53.
-      No es mucho, pero es 15 veces lo que hay
+- [x] **274 lugares que el propio registro dio de baja están en la app.**
+      `Utgår på grund av felregistrering` (116) y `Överförd till annan
+      lämning` (158) van a `excluded_hard`: no son lugares, son erratas, y por
+      eso acá el veto sí se justifica — el registro no está diciendo que el
+      lugar sea aburrido, está diciendo que la ficha no es un lugar. Sólo
+      donde **todos** los sitios del cluster están dados de baja: 205 de los
+      230 clusters, y 25 quedan porque también tienen sitios vivos. 74 de esos
+      205 estaban llegando a la app
+- [x] **138 etiquetas negativas.** `Förstörd` (peso 0,9) y `Uppgift om
+      lämning, ej bekräftad i fält` (peso 0,6), con `source='register'`, misma
+      regla de todo-o-nada por cluster y nunca contra un positivo existente.
+      El ratio pasa de **1:832 a 1:61**. El AUC se mueve 0,8113 → 0,8119, y
+      eso es el resultado honesto: el set positivo está definido por
+      documentación, así que la métrica es ciega justo a lo que estos
+      negativos arreglan
 - [ ] `Grov skada` (987) es la señal más débil de las tres: dañado de
       gravedad todavía puede ser perfectamente visitable — un röse excavado
       se sigue viendo. Candidato a label negativa con peso bajo, no a
       exclusión, y hay que decidirlo aparte
-- [ ] los negativos del registro y los de los usuarios (sección 2) apuntan al
+- [x] los negativos del registro y los de los usuarios (sección 2) apuntan al
       mismo target — "valió la pena ir" — así que conviene que entren por el
       mismo camino y con un `source` distinto en `labels`, que la tabla ya
       tiene justo para esto
