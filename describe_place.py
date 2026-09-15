@@ -49,6 +49,25 @@ TRANSLATE_MODEL = "gemma3:12b"
 # Bump when the prompt changes in a way that should invalidate stored output.
 PROMPT_VERSION = 8
 
+# Bump when `payload()` changes WHAT IT PUTS IN FRONT OF THE MODEL: a field
+# added, removed or renamed, or a value computed differently.
+#
+# It exists because the stored `source_hash` is a hash of the payload, so it
+# only means "the sources changed" when the two hashes were built by the same
+# payload shape. Without a version to compare, a shape change makes every
+# stored hash differ and the skip logic reads that as "every place in the
+# country has new sources".
+#
+#   1  class, name, location, source, group, size, surroundings, max_words.
+#      The register's survey text and nothing else.
+#   2  adds `sources`: the corpus rows -- Wikipedia, county pages, folklore --
+#      and resolves `name` through titles.resolve_title. Wired in by 3b99dfb
+#      on 2026-09-11, which SHOULD have bumped PROMPT_VERSION and did not:
+#      6,668 descriptions written before it were generated from one field,
+#      with every scraped source sitting unread beside them. They are not
+#      stale hashes, they are worse descriptions.
+PAYLOAD_VERSION = 2
+
 SCHEMA = {
     "type": "object",
     "properties": {

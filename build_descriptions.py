@@ -62,6 +62,10 @@ CREATE TABLE IF NOT EXISTS ai_descriptions (
     -- RAA description changes this, which marks the row stale without having
     -- to diff the text.
     source_hash    TEXT,
+    -- Which payload shape produced source_hash. NULL means a row written
+    -- before this column existed, whose hash cannot be compared with one
+    -- built today; see describe_place.PAYLOAD_VERSION.
+    payload_version INTEGER,
     flags          TEXT,
     elapsed_ms     INTEGER,
     created_at     TEXT DEFAULT CURRENT_TIMESTAMP
@@ -90,6 +94,12 @@ def open_out(path):
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA synchronous=NORMAL")
     conn.executescript(SCHEMA)
+    # Added after the table existed. Here rather than in a migration script
+    # because this file is the only thing that writes this database, so the
+    # place that opens it is the place that can guarantee its shape.
+    cols = {r[1] for r in conn.execute("PRAGMA table_info(ai_descriptions)")}
+    if "payload_version" not in cols:
+        conn.execute("ALTER TABLE ai_descriptions ADD COLUMN payload_version INTEGER")
     conn.commit()
     return conn
 
@@ -157,9 +167,10 @@ def eligible(sites, limit, include_empty, near=None, top=None):
 
 
 def done_map(out, prompt_version):
-    return {r[0]: r[1] for r in out.execute(
-        "SELECT cluster_id, source_hash FROM ai_descriptions WHERE prompt_version = ?",
-        (prompt_version,))}
+    """cluster_id -> (source_hash, payload_version) for rows at this prompt."""
+    return {r[0]: (r[1], r[2]) for r in out.execute(
+        "SELECT cluster_id, source_hash, payload_version FROM ai_descriptions "
+        "WHERE prompt_version = ?", (prompt_version,))}
 
 
 def run_translate(sites, out, a):
@@ -375,16 +386,63 @@ def main():
             "SELECT cluster_id FROM ai_descriptions WHERE flags <> ''")}
         ids = [c for c in ids if c in flagged]
     elif not a.force:
-        # Done means: a row exists at the current prompt version. Staleness
-        # from a re-crawl is NOT detected here on purpose -- checking it would
-        # mean building every payload just to hash it, which is most of the
-        # cost of the run. `source_hash` is stored so a stale row can be found
-        # later; use --force to redo everything.
-        done = set(done_map(out, dp.PROMPT_VERSION))
+        # DONE MEANS: a row at the current prompt version whose SOURCES HAVE
+        # NOT CHANGED SINCE. Both halves matter. A new prompt invalidates
+        # every row, which prompt_version already handled; a re-crawl that
+        # added a county page or a Wikipedia lead to one place invalidates
+        # that place, and nothing was noticing.
+        #
+        # This used to check only that a row existed, and the comment here
+        # said hashing every payload would be "most of the cost of the run".
+        # That was wrong by four orders of magnitude: 300 payloads build and
+        # hash in 0.17s, so all 9,531 cost six seconds against fourteen hours
+        # of model time. The trade-off it described did not exist, and the
+        # price of believing it was that the only way to pick up changed
+        # sources was --force, i.e. redoing everything.
+        #
+        # A HASH IS ONLY COMPARABLE WITHIN ONE PAYLOAD SHAPE, which is why
+        # payload_version is stored beside it. The shape changed on
+        # 2026-09-11 without PROMPT_VERSION being bumped, so 6,668 rows hold
+        # hashes of a payload that no longer exists -- and comparing them with
+        # a hash built today says "the sources changed" for almost every place
+        # in the country, which is the opposite of useful.
+        #
+        # Those rows are therefore left ALONE rather than queued. Not because
+        # they are fine -- they were generated without the corpus and are
+        # genuinely worse -- but because "I cannot tell" must not be reported
+        # as "this changed", and redoing them is a fourteen-hour decision
+        # somebody should make on purpose. `--force` is how.
+        done = done_map(out, dp.PROMPT_VERSION)
         blocked = {r[0] for r in out.execute(
             "SELECT cluster_id FROM failures WHERE attempts >= ?",
             (a.max_attempts,))}
-        ids = [c for c in ids if c not in done and c not in blocked]
+        keep, changed, unknown = [], 0, 0
+        for c in ids:
+            if c in blocked:
+                continue
+            if c not in done:
+                keep.append(c)
+                continue
+            stored, shape = done[c]
+            if shape != dp.PAYLOAD_VERSION:
+                unknown += 1
+                continue
+            pl = dp.payload(sites, c)
+            if pl is None:
+                # No longer describable. Leave the row alone rather than
+                # queueing a place the worker cannot build a payload for.
+                continue
+            if not stored or source_hash(pl["model_input"]) != stored:
+                changed += 1
+                keep.append(c)
+        ids = keep
+        if changed:
+            print(f"  {changed:,} because their sources changed since they "
+                  f"were written")
+        if unknown:
+            print(f"  {unknown:,} skipped: written by payload v"
+                  f"!={dp.PAYLOAD_VERSION}, so their hash cannot be compared "
+                  f"-- use --force to redo them")
 
     if not ids:
         print("nothing to do - everything eligible is already described")
@@ -463,27 +521,30 @@ def main():
         # would buy nothing measurable and would turn Ctrl-C into lost work.
         out.execute("""
             INSERT INTO ai_descriptions(cluster_id, uuid, lamning, title,
-                content, model, prompt_version, source_hash, flags, elapsed_ms)
-            VALUES (?,?,?,?,?,?,?,?,?,?)
+                content, model, prompt_version, source_hash, payload_version,
+                flags, elapsed_ms)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?)
             ON CONFLICT(cluster_id) DO UPDATE SET
                 uuid=excluded.uuid, lamning=excluded.lamning,
                 title=excluded.title, content=excluded.content,
                 model=excluded.model, prompt_version=excluded.prompt_version,
-                source_hash=excluded.source_hash, flags=excluded.flags,
-                elapsed_ms=excluded.elapsed_ms,
+                source_hash=excluded.source_hash,
+                payload_version=excluded.payload_version,
+                flags=excluded.flags, elapsed_ms=excluded.elapsed_ms,
                 created_at=CURRENT_TIMESTAMP,
                 -- Regenerating replaces the Swedish text, so any English
                 -- sitting beside it is a translation of a sentence that no
-                -- longer exists. Cleared, which also puts the row back into
-                -- run_translate's queue: it selects on content_en IS NULL.
-                -- Without this, a regenerated place kept its old English
-                -- for ever and nothing would have reported a problem.
+                -- longer exists. Cleared so it is never SERVED; what puts the
+                -- row back in the translate queue is translated_at being
+                -- older than created_at, which does not depend on this
+                -- happening. Both, because they are two different failures:
+                -- one shows a wrong translation, the other never fixes it.
                 title_en=NULL, content_en=NULL,
                 translated_by=NULL, translated_at=NULL""",
             (pl["cluster_id"], pl["uuid"], pl["lamning"], res["title"],
              res["content"], a.model, dp.PROMPT_VERSION,
-             source_hash(pl["model_input"]), ",".join(flags),
-             int(elapsed * 1000)))
+             source_hash(pl["model_input"]), dp.PAYLOAD_VERSION,
+             ",".join(flags), int(elapsed * 1000)))
         out.commit()
         out.execute("DELETE FROM failures WHERE cluster_id = ?", (cid,))
         out.commit()
