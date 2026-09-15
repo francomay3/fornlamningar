@@ -263,6 +263,74 @@ def run_translate(sites, out, a):
     print(f"\n{n:,} translated in {(time.time()-t0)/60:.1f} min")
 
 
+def run_resolve_titles(sites, out, a):
+    """Replace a title that is a class description with the place's NAME.
+
+    Costs no model time at all, which is the point. `payload()` already
+    resolves a name -- Wikipedia's title where the place has an article, the
+    register's own `name` otherwise -- and for rows generated before that
+    resolver was wired in, the stored title is whatever the model made up from
+    the survey text. That is how Alvastra kloster came to be called
+    "Klosterruiner med hägnadsmur och tre dammar" on the map: the title is
+    what sync-assets.sh uses as the marker label, so a class description in
+    this column is a pin with no name on it.
+
+    ONLY WHERE THE STORED TITLE IS DEMONSTRABLY A CLASS DESCRIPTION -- it
+    equals the cluster's dominant class or starts with it -- AND the resolved
+    name is not. Anything else is left alone: a model title that is not a
+    class description may well be better than the register's name, and this
+    pass has no way to judge that and no business trying.
+
+    Which makes it small. Of 3,495 class-like titles in the export, 3,224 are
+    already identical to the resolved name, because the register's `name`
+    field IS the class description for those places -- nothing anywhere knows
+    a better name for them. 268 are fixable, and they are worth it: Alvastra
+    kloster, Sandby borg, Lagaholm, Högoms gravfält.
+
+    The English title gets the same string. It is a proper noun, so it is the
+    same in both languages, and where it is not -- Alvastra kloster rather
+    than Alvastra Abbey -- a name in the wrong language still beats a
+    description of the category in the right one, which is what is there now
+    ("Monastery ruins with enclosure wall and three ponds").
+    """
+    ids = eligible(sites, None, a.include_empty, None, a.top or None)
+    pool = set(ids)
+    klass = {
+        r[0]: (r[1] or "").strip().lower()
+        for r in sites.execute("SELECT cluster_id, dominant_class FROM clusters")
+    }
+
+    def class_like(title, cls):
+        t = (title or "").strip().lower()
+        return bool(cls) and (t == cls or t.startswith(cls))
+
+    changed = 0
+    for cid, title in out.execute(
+            "SELECT cluster_id, title FROM ai_descriptions").fetchall():
+        if cid not in pool:
+            continue
+        cls = klass.get(cid, "")
+        if not class_like(title, cls):
+            continue
+        pl = dp.payload(sites, cid)
+        if pl is None:
+            continue
+        name = (pl["title"] or "").strip()
+        if not name or name == (title or "").strip() or class_like(name, cls):
+            continue
+        if a.dry_run:
+            print(f"  {title}\n    -> {name}")
+        else:
+            out.execute(
+                "UPDATE ai_descriptions SET title = ?, title_en = ? "
+                "WHERE cluster_id = ?", (name, name, cid))
+        changed += 1
+    if not a.dry_run:
+        out.commit()
+    print(f"{changed:,} titles "
+          f"{'would be' if a.dry_run else 'were'} replaced with a resolved name")
+
+
 def run_retitle(sites, out, a):
     """Rewrite the titles of rows that already have approved body text.
 
@@ -341,6 +409,11 @@ def main():
                    help="rewrite only the titles of rows that already have "
                         "body text, and retranslate those titles. For a "
                         "prompt change that does not touch the body")
+    p.add_argument("--resolve-titles", action="store_true",
+                   help="replace titles that are class descriptions with the "
+                        "resolved place name. No model calls")
+    p.add_argument("--dry-run", action="store_true",
+                   help="with --resolve-titles: print, change nothing")
     p.add_argument("--status", action="store_true")
     a = p.parse_args()
 
@@ -376,6 +449,9 @@ def main():
 
     if a.retitle:
         return run_retitle(sites, out, a)
+
+    if a.resolve_titles:
+        return run_resolve_titles(sites, out, a)
 
     if a.translate:
         return run_translate(sites, out, a)

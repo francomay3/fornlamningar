@@ -47,6 +47,15 @@ DEFAULT_MODEL = "gemma3:12b"
 TRANSLATE_MODEL = "gemma3:12b"
 
 # Bump when the prompt changes in a way that should invalidate stored output.
+#
+# NOT bumped for the rule forbidding "enligt Wikipedia" in the prose, and the
+# reason is worth stating so the next person does not think it was forgotten:
+# a bump marks every stored row not-done, so it commits somebody to fourteen
+# hours of regeneration. That rule changes roughly one description in 150, and
+# none of the affected ones are WRONG -- they are badly phrased. Paying a full
+# regeneration for 0.7% of rows would be the tail wagging the dog, and the
+# 6,949 pre-corpus rows are due a regeneration on their own merits anyway, at
+# which point they get this rule for free.
 PROMPT_VERSION = 8
 
 # Bump when `payload()` changes WHAT IT PUTS IN FRONT OF THE MODEL: a field
@@ -145,6 +154,11 @@ people said it; it is not an archaeological finding. Write it as what it is \
 -- "enligt traditionen", "det sägs att" -- and never as fact.
 - Where sources disagree with the survey text on a name or a count, say \
 nothing rather than pick a winner.
+- NEVER NAME THE SOURCE IN THE PROSE. Not "enligt Wikipedia", not "enligt \
+Länsstyrelsen", not "enligt registret". A reader standing at a mound wants \
+the fact, and where it came from is recorded beside the text rather than \
+inside it. "Enligt traditionen" is the one exception, and it is not naming a \
+source: it is marking a claim as folklore, which the reader does need.
 - Plain Swedish. No exclamation marks. Do not open with "Detta är" or \
 "Lämningen utgörs av".
 - If the input has no real content beyond a generic disclaimer, return an \
