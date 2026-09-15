@@ -784,6 +784,59 @@ fijo no puede expresar eso.
 
 ---
 
+## 8. Logs de warnings y errores, en un solo lugar (pedido 2026-09-15)
+
+**Qué es:** que la app y el backend manden sus warnings y errores al mismo
+endpoint, y que ahí se guarden en una tabla de Postgres. Hoy un error en el
+teléfono no existe para nadie: no hay Crashlytics, no hay Sentry, y el único
+síntoma de un bug es que Franco lo vea.
+
+El ejemplo que lo motivó: **cada vez que `t()` cae al sueco porque falta una
+traducción**, eso debería quedar registrado. `check-i18n.mjs` ya rechaza el
+build si faltan claves, así que ese caso concreto no debería llegar a
+producción — pero el fallback existe justamente para lo que el build no
+previó, y un fallback silencioso es un hueco que nadie encuentra.
+
+### Qué más vale la pena, de lo que ya sabemos que pasa
+
+- el fallback por artículo del wiki: leer un artículo en sueco con la app en
+  inglés es lo mismo, y hoy tampoco avisa
+- un `kind` que el servidor no acepta: el 4xx marca el lote entero y a los 10
+  intentos las filas salen de la cola **para siempre**. Eso pasó hoy y sólo
+  se vio porque lo fui a buscar
+- un evento remoto descartado en `applyRemote` por no pasar la validación: es
+  una contribución de alguien que se pierde en silencio
+- `refreshReminder` cancelando por excepción, que hoy se come con un `catch`
+- en el pipeline: los `flags` de las descripciones ya son esto, pero viven en
+  la base y nadie los mira
+
+### Decisiones que hay que tomar antes de escribir una línea
+
+- [ ] **es un endpoint de escritura anónimo**, igual que los eventos, y por lo
+      tanto tiene los mismos problemas: alguien puede llenar la tabla. Hace
+      falta el rate limiting que ya existe para eventos, un tope de tamaño por
+      mensaje, y probablemente **muestreo** — el mismo warning 10.000 veces es
+      una fila con un contador, no 10.000 filas
+- [ ] **no puede llevar datos personales.** Un stack trace es texto nuestro,
+      pero un mensaje de error con el texto que el usuario escribió, o con su
+      uuid de autor, convierte la tabla de logs en un lugar donde hay que
+      pensar en GDPR. El uuid es además una credencial de escritura, así que
+      no puede viajar ni en el payload ni en un header a un endpoint que
+      guarda todo lo que recibe
+- [ ] **la app es offline-first**, así que los logs necesitan cola propia como
+      el `outbox`, con su propio límite: un teléfono sin señal en el campo no
+      puede acumular logs sin techo, y un log perdido es aceptable de una
+      manera en que un puntaje perdido no
+- [ ] **qué se hace con lo que llega.** Una tabla que nadie lee es peor que no
+      tenerla, porque da la sensación de que está cubierto. Mínimo: una vista
+      agrupada por mensaje con conteo y última vez visto
+- [ ] nivel mínimo: `warn` y `error`. Nada de `info` ni `debug` — eso es lo
+      que convierte un log útil en un vertedero
+- [ ] el backend ya tiene Postgres y `tx()`; la tabla puede vivir al lado de
+      `fl_events` con el mismo `apply-fl-schema.cjs`
+
+---
+
 ## Pendientes viejos, de antes de hoy
 
 - [ ] colapsar `name` y `title` en una columna (`titles.py` ya está; falta el
