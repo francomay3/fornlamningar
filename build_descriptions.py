@@ -162,13 +162,69 @@ def done_map(out, prompt_version):
         (prompt_version,))}
 
 
-def run_translate(out, a):
-    """Fill the English columns. Independent of generation, and restartable."""
-    rows = out.execute(
-        "SELECT cluster_id, title, content FROM ai_descriptions "
-        "WHERE content <> '' AND (content_en IS NULL OR content_en = '') "
-        "ORDER BY rowid" + (f" LIMIT {int(a.limit)}" if a.limit else "")
-    ).fetchall()
+def run_translate(sites, out, a):
+    """Fill the English columns. Independent of generation, and restartable.
+
+    WHAT NEEDS TRANSLATING IS DECIDED BY THE TIMESTAMPS, not by whether the
+    English column is empty. Both columns are stamped with CURRENT_TIMESTAMP,
+    so `translated_at < created_at` means the English is a translation of a
+    Swedish text that has since been rewritten -- a translation of sentences
+    that no longer exist. Asking only "is it empty" cannot see that, and 35
+    rows in the database were in exactly that state: regenerated after being
+    translated, never retranslated, and invisible to the queue for ever.
+
+    The upsert in describe() clears the English columns when it rewrites the
+    Swedish, and that is kept rather than replaced by this. The two do
+    different jobs: clearing stops a stale translation being SERVED in the
+    meantime, and this decides what gets FIXED. Relying on the clearing alone
+    made the queue depend on a side effect at the far end of another code
+    path, which is how those 35 got through.
+
+    The comparison is a string comparison, which is correct here and not a
+    shortcut: SQLite's CURRENT_TIMESTAMP is 'YYYY-MM-DD HH:MM:SS' in UTC, so
+    lexicographic order is chronological order and neither column can carry a
+    local time that would sort wrongly against the other.
+
+    `translated_at IS NULL` with a non-empty English column does not happen
+    today, and is in the predicate anyway: a translation with no record of
+    when it was made cannot be shown to be current.
+
+    `--near` orders the queue by distance, the same way generation does, and
+    for the same reason: a review pass is only a review if you can go and
+    stand in front of what you are checking. Without it the order is rowid,
+    which is generation order -- fine for working through the backlog, useless
+    for reading fifty of them against the Swedish with the place in front of
+    you.
+
+    It matters here more than it does for generation, because regenerating a
+    Swedish description clears its English (see the upsert below). So the
+    places somebody just regenerated to look at are exactly the ones back in
+    this queue -- and by rowid they would come last, behind every place in the
+    country that never had an English column at all.
+    """
+    pending = {
+        cid: (title, content)
+        for cid, title, content in out.execute("""
+            SELECT cluster_id, title, content FROM ai_descriptions
+             WHERE content <> ''
+               AND (content_en IS NULL OR content_en = ''
+                    OR translated_at IS NULL
+                    OR translated_at < created_at)
+             ORDER BY rowid""")
+    }
+    if a.near:
+        lat, lon = (float(x) for x in a.near.split(","))
+        order = [
+            cid
+            for cid in eligible(sites, None, a.include_empty, (lat, lon),
+                                a.top or None)
+            if cid in pending
+        ]
+    else:
+        order = list(pending)
+    if a.limit:
+        order = order[: int(a.limit)]
+    rows = [(cid, *pending[cid]) for cid in order]
     if not rows:
         print("nothing to translate")
         return
@@ -311,7 +367,7 @@ def main():
         return run_retitle(sites, out, a)
 
     if a.translate:
-        return run_translate(out, a)
+        return run_translate(sites, out, a)
 
     ids = eligible(sites, a.limit, a.include_empty, near, a.top or None)
     if a.only_flagged:
