@@ -240,11 +240,36 @@ de eventos es una tabla sola.
       sí, no en el display
 - [ ] usar la media achicada para ordenar el mapa (prior = media global de
       usuarios, m ≈ 3), para que un 5 solo no le gane a un 4,6 muy visitado
-- [ ] prompt de contribución cuando un lugar no tiene ningún aporte y la
-      única fuente es Raä, **con gating por GPS** (~200 m): así cada respuesta
-      viene de alguien parado ahí y no de alguien adivinando desde el sillón,
-      que además es el vector de vandalismo obvio mientras no haya cuentas.
-      Va *después* de la descripción, no tapándola
+- [ ] **separar tres cosas que yo había mezclado en una.** El "gating por
+      GPS" que propuse sonaba a que había que estar parado en el lugar para
+      poder puntuar, y eso rompe el caso normal: uno vuelve a casa a la noche
+      y ahí puntúa y sube las fotos.
+      1. **permiso** para puntuar, comentar y subir fotos: *nunca* se gatea.
+         Desde donde sea, cuando sea.
+      2. **el prompt** que aparece solo: sí por GPS (~200 m), pero eso es
+         sobre *cuándo preguntar*, no sobre quién puede contestar. No tiene
+         sentido interrumpirte con "¿la encontraste?" en el subte.
+      3. **el peso del negativo** para la advertencia: ahí sí hace falta saber
+         si la persona estuvo, y es el único lugar donde importa
+- [ ] para (3) **no hace falta guardar un rastro de posiciones.** Hace falta
+      un `visit` por lugar — una fila con `uuid` y fecha, no una posición por
+      segundo. Se escribe sólo con la app abierta y la posición ya en
+      pantalla, o sea con la ubicación que el mapa ya tiene: sin background
+      task, que ya estaba descartado por batería. La superficie de privacidad
+      es "los lugares que visitaste" y no "todos los lugares donde estuviste"
+- [ ] el `visit` ya existe como stub en los dos lados (`EventKind` en
+      `contributions.ts`, `ANONYMOUS_KINDS` en el route handler) y nadie lo
+      escribe ni tiene tabla. Implementarlo cierra esto y además habilita
+      `Mina besökta platser`, que es una feature por sí sola y es el ground
+      truth que queremos
+- [ ] límite honesto del `visit`: si pasaste con el teléfono en el bolsillo y
+      la app cerrada, no hay visita. Por eso el permiso no puede depender de
+      él — sin `visit` puntuás igual, lo único que no hacés es sumar a la
+      advertencia de "acá no hay nada"
+- [ ] la advertencia se decide por **moda, no por promedio**. Tres 1★ y un 5★
+      dan promedio 2,0, que no es ni advertencia ni recomendación: es un
+      número tibio que no le sirve a nadie. La regla va sobre el conteo de
+      1★ verificados
 - [ ] la pregunta es **`Hittade du lämningen?`**, no "¿existe?". La distinción
       no es cosmética: "existe" es una pregunta sobre el registro, y un sueco
       contesta "obvio, está en Fornsök". Lo que no sabemos es si una persona
