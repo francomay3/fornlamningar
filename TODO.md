@@ -662,9 +662,17 @@ fijo no puede expresar eso.
       una fecha falsa en la única tabla que existe para tener fechas reales.
       `Mina besökta platser` en cambio descarta los lugares cuya última
       respuesta es `Nej`
-- [ ] **el que confirmó sin visita del GPS no aparece en `Mina besökta
-      platser`**, porque no hay fecha que mostrar. Decidir si aparece sin
-      fecha o si se queda afuera
+- [x] **el que confirmó sin visita del GPS aparece con `Tidigare`** en vez de
+      una fecha. El único timestamp que tenemos es cuándo nos lo dijo, que no
+      es cuándo fue, y ponerlo sería una fecha inventada en la única lista
+      donde la fecha es el contenido. Las con fecha primero y las sin fecha al
+      final, porque la lista se lee como una cronología
+- [x] **una pregunta que puede esconder a las otras tiene que dejar una
+      puerta.** `Hoppa över` en el gate reemplazaba la sección entera por
+      `Tack!` sin forma de volver, o sea que un toque borraba las estrellas de
+      ese lugar para siempre. Y las respuestas que ya existen se muestran
+      diga lo que diga el gate: esconder el propio puntaje de alguien detrás
+      de una pregunta que todavía no contestó no es nuestra decisión
 - [x] el costo, dicho en voz alta: esto ata el crecimiento de los datos a la
       velocidad a la que la gente camina. Se paga igual — 50 puntajes de gente
       que fue valen más que 500 de gente que leyó la descripción
