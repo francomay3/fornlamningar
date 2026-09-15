@@ -212,9 +212,15 @@ de eventos es una tabla sola.
 - [x] probado de punta a punta contra producción: 401 sin header, 200 vacío,
       POST, visible para otro autor, excluido para el propio, 403 en
       comentario, 400 en 6 estrellas, idempotente al reenviar
-- [ ] Firebase Auth: Google + mail, herencia del uuid
-- [ ] verificación del token con `firebase-admin` en el route handler
-- [ ] qué pasa si dos teléfonos heredan a la misma cuenta (decidir: merge)
+- [x] Firebase Auth: Google + mail, herencia del uuid. Google probado en el
+      teléfono y anda
+- [x] verificación del token **sin `firebase-admin`**: `jose` contra el JWKS
+      de Google, con `iss` **y** `aud` clavados al proyecto — todos los
+      proyectos de Firebase los firma la misma clave, así que verificar la
+      firma sola acepta el token de cualquier otro proyecto
+- [x] dos teléfonos en la misma cuenta: `fl_account_devices`, el autor sigue
+      siendo el dispositivo y la agrupación pasa al leer. Probado: los dos
+      dispositivos salen con un solo pseudónimo
 - [x] UI: sección `Betygsätt platsen` con cinco estrellas que responden a
       tap y a drag, más el promedio de la comunidad en el header del sheet
 - [x] **la escala tiene nombre en cada paso** — `Inget att se`, `Knappt
@@ -518,9 +524,11 @@ usuario que la app tiene una forma.
 - [ ] **`Mina besökta platser`** — sale casi gratis de la tabla `visits`.
       Lista de los lugares donde estuviste, con fecha. Es también *tu* ground
       truth, que era el objetivo original del proyecto
-- [ ] **`Påminnelser`** on/off — la notificación local de las 19:00 existe y
-      no hay forma de apagarla. La gente la va a querer apagar, y una app que
-      notifica sin interruptor se desinstala
+- [x] **`Påminnelser`** on/off — apagarlo **desprograma** la notificación de
+      esta noche, no sólo deja de programar las próximas; prenderlo pide el
+      permiso ahí mismo y el switch guarda el estado que *logró*, no el que
+      se pidió, porque el sistema puede negarse. `settings` key-value en
+      `contributions.db`, schema 3
 - [ ] **`Språk`** sv/en — hay que mover las dos mitades a la vez: `src/i18n`
       para el chrome y el SQLite empaquetado para títulos y descripciones.
       `build_tiles.py --lang` ya existe y el default es `sv`
