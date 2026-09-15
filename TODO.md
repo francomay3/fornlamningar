@@ -550,6 +550,18 @@ usuario que la app tiene una forma.
       el campo `license` de cada uno. Una pantalla de licencias es la única
       que nadie mira hasta que importa, así que una copia a mano se desfasa
       justo para el lado que duele y nada lo avisa
+- [ ] **el párrafo de fuentes está escrito a mano y va a desfasarse.** Los
+      créditos de las 23 fotos y los 21 paquetes se generan, pero la lista de
+      fuentes de las descripciones es prosa en `sv.json`. El pipeline **sí**
+      tiene el dato: `sources.publisher` por fila y el `LICENCE_MAP` de
+      `crawl_lansstyrelsen.py`. Derivarlo necesita que el export lleve el
+      conjunto de `kind`/publisher/licencia presentes
+- [ ] **las licencias de los paquetes están como nombre + id SPDX**, que es
+      práctica común pero no es lo que MIT y Apache-2.0 piden: piden que el
+      **texto** del aviso viaje con el binario. La versión rigurosa empaqueta
+      los `LICENSE` de `node_modules` y los muestra. Hoy la nota al pie dice
+      que viajan en los paquetes, que es cierto del `.apk` pero no es lo mismo
+      que mostrarlos
 - [ ] **atribución por lugar en las descripciones.** La app dice en `Om
       appen` de qué fuentes salen las descripciones en general, que es la
       declaración agregada honesta, pero no dice **cuál** alimentó a cuál. De
@@ -565,18 +577,18 @@ usuario que la app tiene una forma.
       hoy el mapa no muestra ninguna atribución de OSM. Con `Om appen` está a
       dos toques, que es discutible; ponerlo en el mapa es una decisión
       visual, no técnica
-- [ ] **`Glöm mig`** — `_reset()` ya existe en `contributions.ts` y no tiene
+- [x] **`Glöm mig`** — `_reset()` ya existe en `contributions.ts` y no tiene
       botón. Va separado por una línea y en color de acento: borrar todo lo
       que contribuiste no puede estar en la misma lista visual que cambiar el
       idioma
-- [ ] **`Glöm mig` tiene que abrir una ventana de advertencia antes de
+- [x] **`Glöm mig` tiene que abrir una ventana de advertencia antes de
       ejecutar.** Es la única acción de toda la app que no se puede deshacer
       ni reintentar: no hay copia de la que volver, y los puntajes, visitas y
       respuestas sobre carteles se van todos juntos. La advertencia tiene que
       decir *qué* se pierde, no preguntar "¿estás seguro?" — que es la
       pregunta que la gente aprende a contestar sí sin leer
-- [ ] **`Glöm mig` son tres cosas, no una.** Hoy `_reset()` hace la primera y
-      media. Las tres, en este orden, porque el orden es parte del diseño:
+- [x] **`Glöm mig` son tres cosas, no una.** Las tres, en este orden, porque
+      el orden es parte del diseño:
       1. pedirle al servidor que borre por autor — **antes** de tirar el
          uuid, porque el uuid es lo único con que se puede pedir. Después de
          tirarlo los eventos publicados quedan huérfanos para siempre: nadie
@@ -587,7 +599,8 @@ usuario que la app tiene una forma.
          estado incoherente
       3. borrar local. El uuid nuevo ya sale gratis de borrar la fila
          `device` — `getDeviceId()` lo genera en la siguiente llamada
-- [ ] **el link es el agujero, y es el argumento de verdad para (1) y (2).**
+- [x] **el link es el agujero, y es el argumento de verdad para (1) y (2).**
+      Resuelto: la fila del link se borra con los eventos
       Si no se cierra la sesión y el uuid nuevo se vuelve a linkear a la
       misma cuenta, la cuenta sigue apuntando al dispositivo viejo, cuyos
       eventos siguen publicados. Borrar local dejando el link en el servidor
@@ -609,6 +622,13 @@ usuario que la app tiene una forma.
       su uuid, y un endpoint que te deje reclamar eventos de un uuid ajeno es
       un endpoint para robar contribuciones. La consecuencia práctica es
       chica: loguearse una vez en cada teléfono antes de jubilarlo
+- [ ] **borra sólo este dispositivo**, incluso para alguien logueado con dos
+      teléfonos. Se podría seguir el link y borrar el otro, y para una lectura
+      estricta del derecho de borrado probablemente haya que hacerlo; no está
+      hecho porque el secreto de un dispositivo destruiría datos escritos en
+      otro, y un diálogo parado en un teléfono sólo puede prometer
+      honestamente lo que ese teléfono hizo. El otro teléfono tiene el mismo
+      botón
 - [ ] el glifo del botón ya refleja si estás logueado (relleno vs contorno).
       Cuando haya avatar de Google, decidir si se usa en vez del glifo
 
