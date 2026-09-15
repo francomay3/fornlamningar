@@ -543,12 +543,28 @@ usuario que la app tiene una forma.
 - [ ] **`Språk`** sv/en — hay que mover las dos mitades a la vez: `src/i18n`
       para el chrome y el SQLite empaquetado para títulos y descripciones.
       `build_tiles.py --lang` ya existe y el default es `sv`
-- [ ] **`Om appen`** — licencias y atribuciones. **Esto no es adorno:** la app
-      empaqueta 23 imágenes de Wikimedia con CC BY-SA y hoy las atribuciones
-      sólo existen como caption dentro de cada artículo del wiki. Faltan
-      también MapLibre, los datos de Raä y el basemap. Una pantalla de
-      licencias es lo que hace que el cumplimiento esté en un solo lugar
-      auditable
+- [x] **`Om appen`** — las dos listas se **generan** de los archivos que
+      describen: los 23 créditos los emite `build-wiki.mjs` de las propias
+      líneas de crédito de los artículos (que ya valida que no falten), y los
+      21 paquetes los emite `build-licences.mjs` del árbol instalado, leyendo
+      el campo `license` de cada uno. Una pantalla de licencias es la única
+      que nadie mira hasta que importa, así que una copia a mano se desfasa
+      justo para el lado que duele y nada lo avisa
+- [ ] **atribución por lugar en las descripciones.** La app dice en `Om
+      appen` de qué fuentes salen las descripciones en general, que es la
+      declaración agregada honesta, pero no dice **cuál** alimentó a cuál. De
+      los 9.558 exportados, **1.061 tienen fuente de Wikipedia** (CC BY-SA
+      4.0, o sea que la descripción es una adaptación y arrastra
+      share-alike), 200 `county_attr`, 111 `county_plan`, 81 `county_page`,
+      59 `county_programme` y 44 `county_pdf` (CC BY 4.0 / CC BY-SA 4.0)
+- [ ] `generation_sources` **existe y está vacía** (0 filas), y era
+      exactamente el mecanismo para que la atribución fuera calculada y no
+      declarada. Llenarla es lo que hace posible la línea de crédito por
+      lugar; después hay que exportarla y mostrarla en el sheet
+- [ ] `ATTRIBUTION` en `src/map/constants.ts` **no lo usa nadie**, así que
+      hoy el mapa no muestra ninguna atribución de OSM. Con `Om appen` está a
+      dos toques, que es discutible; ponerlo en el mapa es una decisión
+      visual, no técnica
 - [ ] **`Glöm mig`** — `_reset()` ya existe en `contributions.ts` y no tiene
       botón. Va separado por una línea y en color de acento: borrar todo lo
       que contribuiste no puede estar en la misma lista visual que cambiar el
