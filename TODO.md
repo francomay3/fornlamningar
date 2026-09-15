@@ -294,6 +294,13 @@ de eventos es una tabla sola.
       prompt no se puede reemplazar con datos. `antikvarisk bedömning` es
       99,5% `Fornlämning` y `Borttagen` no existe en nuestros datos. Ver la
       sección 5, que salió de esta revisión
+- [x] **el `me` del GET normaliza los eventos propios.** El servidor excluye
+      los del dispositivo que llama pero no los de los otros dispositivos de
+      la misma cuenta, así que un puntaje hecho en el segundo teléfono llegaba
+      con el pseudónimo de la persona mientras el del primero seguía local con
+      su id de dispositivo: dos autores, una persona, contada dos veces en
+      cada promedio. Se reescribe el autor al aplicar, que es el lugar más
+      chico posible — todo lo de abajo ya agrupa por autor
 - [ ] agregados derivados en `places` (`n_betyg`, media, "no hay nada")
       recalculados desde el log, nunca escritos a mano: misma relación que
       las descripciones con el pipeline
