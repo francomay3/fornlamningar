@@ -1076,6 +1076,68 @@ Las tres cosas que se rompen, y que son el trabajo real:
 
 ---
 
+## 12. Actualizar el conjunto de lugares (investigado 2026-09-15)
+
+Hoy se mandan los 10.000 mejores por score. Con el tiempo va a haber lugares
+que salgan (ruido que se filtró) y lugares que entren (falsos negativos), así
+que el conjunto tiene que poder actualizarse en un teléfono ya instalado.
+
+### Acá el delta es la forma equivocada, al revés que en la sección 11
+
+`points.geojson`: 10.000 lugares, 2,48 MB en crudo, **480 KB comprimido**
+(248 B por lugar). Un delta de 2.000 lugares son 100 KB — o sea que el
+archivo completo ya es más chico que el delta más grande de descripciones.
+
+Pero el motivo de fondo no es el tamaño. Una descripción es **local a su
+fila**: función de las fuentes de ese lugar y de nada más. Un lugar no. Cada
+feature lleva `score`, `stars` y `minzoom`, y los tres se calculan **sobre el
+conjunto entero**:
+
+- `score` es un percentil, así que depende de cuántos y cuáles hay
+- `stars` es un bucket de ese percentil
+- `minzoom` sale de la caminata greedy best-first sobre los 10.000
+
+Agregar o quitar un lugar cambia los valores **de los otros**. Un delta
+tendría que traer las filas recalculadas, que potencialmente son todas.
+
+- [ ] **snapshot versionado, el archivo completo, 480 KB.** No deltas. Es la
+      conclusión opuesta a la de las descripciones y por un motivo con
+      nombre: aquello es row-local, esto se calcula en conjunto
+- [ ] **se versionan juntos con las descripciones.** Los dos salen del mismo
+      export; si uno se actualiza y el otro no, hay un marcador sin
+      descripción o una descripción sin marcador. **Un solo número de
+      generación para los dos**, no dos versiones independientes
+- [ ] **un lugar que se va no se lleva los datos de la gente.** Misma regla
+      que las bajas de la sección 11: la valoración, la visita y la
+      respuesta son de la persona, no del export. `visitedPlaces()` cruza
+      contribuciones con descripciones, así que hay que verificar que siga
+      mostrando un lugar que dejó de estar en el mapa
+
+### Decidido: no se muestran todos, a ningún zoom
+
+Sobreviven 128.951 clusters, y mandarlos todos son 36,6 MB en crudo pero
+**5,5 MB comprimido** — el mismo orden que una base de descripciones. Eso
+haría que un falso negativo ya estuviera en el mapa y no hiciera falta
+actualizar nada.
+
+- [x] **descartado, y no por el tamaño**: la mayoría de esos puntos son
+      ruido, y el ruido no se muestra **por más que se haga mucho zoom**.
+      Decisión de Franco, 2026-09-15. El corte se queda
+- [ ] tenerlos en el build sin mostrarlos **no simplifica lo suficiente**.
+      Mediría: ahorraría mandar la geometría de un lugar que asciende, pero
+      `score`/`stars`/`minzoom` se siguen recalculando en conjunto, así que
+      la actualización existe igual — y el snapshot completo son 480 KB de
+      todas formas. A cambio habría que parsear 128.951 features en el
+      teléfono para descartar la mayoría. Mala relación: se paga RAM para
+      abaratar una actualización que ya es barata
+- [ ] lo que **sí** queda de esto: el corte en 10.000 es un número puesto a
+      mano. Si un falso negativo aparece seguido, el problema no es el
+      mecanismo de actualización sino el score, y ahí la respuesta es
+      `build_scores.py`, no la red
+
+
+---
+
 ## Pendientes viejos, de antes de hoy
 
 - [ ] `check-i18n.mjs` no detecta **claves duplicadas** en un mismo archivo.
