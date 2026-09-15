@@ -548,12 +548,40 @@ usuario que la app tiene una forma.
       respuestas sobre carteles se van todos juntos. La advertencia tiene que
       decir *qué* se pierde, no preguntar "¿estás seguro?" — que es la
       pregunta que la gente aprende a contestar sí sin leer
-- [ ] y hay que decidir qué hace con el servidor: borrar el uuid de autor
-      local deja los eventos ya publicados huérfanos para siempre — nadie
-      puede volver a asociarlos con esa persona, ni para borrarlos. O sea que
-      "olvidame" localmente no es lo mismo que "borrame", y con GDPR de por
-      medio probablemente haga falta la segunda: un endpoint que borre por
-      autor, llamado *antes* de tirar el uuid
+- [ ] **`Glöm mig` son tres cosas, no una.** Hoy `_reset()` hace la primera y
+      media. Las tres, en este orden, porque el orden es parte del diseño:
+      1. pedirle al servidor que borre por autor — **antes** de tirar el
+         uuid, porque el uuid es lo único con que se puede pedir. Después de
+         tirarlo los eventos publicados quedan huérfanos para siempre: nadie
+         los puede volver a asociar con esa persona, ni para borrarlos
+      2. **cerrar la sesión de Firebase.** `_reset()` borra la fila `device`,
+         así que el `account_id` local se va, pero la sesión de Firebase
+         sigue abierta y te quedás con el avatar puesto y un uuid nuevo: un
+         estado incoherente
+      3. borrar local. El uuid nuevo ya sale gratis de borrar la fila
+         `device` — `getDeviceId()` lo genera en la siguiente llamada
+- [ ] **el link es el agujero, y es el argumento de verdad para (1) y (2).**
+      Si no se cierra la sesión y el uuid nuevo se vuelve a linkear a la
+      misma cuenta, la cuenta sigue apuntando al dispositivo viejo, cuyos
+      eventos siguen publicados. Borrar local dejando el link en el servidor
+      es la peor de las tres opciones: parece que borró y no borró. O borra
+      por autor, o como mínimo desvincula
+- [x] **decidido: cerrar sesión NO rota el uuid.** Es tentador — te daría la
+      semántica que uno espera, "ahora soy anónimo" — y es la trampa contra
+      la que ya nos estrellamos una vez: partir a una persona en dos autores
+      a propósito. Además rompe "¿esto lo puntué yo?", que se resuelve por
+      autor, así que haría falta una tabla de uuids históricos para
+      reconocernos a nosotros mismos. `Logga ut` significa "dejá de mostrar
+      quién soy"; el que cambia de identidad es `Glöm mig`. Dos acciones con
+      un significado nítido cada una, en vez de un logout que hace medio
+      borrado
+- [x] **el link sólo cubre dispositivos que alguna vez iniciaron sesión**, y
+      eso es irreparable por diseño. Si puntuás en el teléfono A sin cuenta y
+      después te logueás sólo en el B, lo del A queda como autor anónimo
+      aparte. Lo único que puede probar que el A era tuyo es el A presentando
+      su uuid, y un endpoint que te deje reclamar eventos de un uuid ajeno es
+      un endpoint para robar contribuciones. La consecuencia práctica es
+      chica: loguearse una vez en cada teléfono antes de jubilarlo
 - [ ] el glifo del botón ya refleja si estás logueado (relleno vs contorno).
       Cuando haya avatar de Google, decidir si se usa en vez del glifo
 
