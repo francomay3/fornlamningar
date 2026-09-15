@@ -525,11 +525,16 @@ usuario que la app tiene una forma.
       la fecha y un contador de días. Y es también una lista de pendientes:
       cada fila dice si la puntuaste, y tocarla abre el sheet con las
       estrellas. Sin eso es un diario, y un diario no le pide nada a nadie
-- [ ] `visit_day` se escribe con `date('now')`, que en SQLite es **UTC**. En
-      verano sueco (+2) una visita entre las 22:00 y la medianoche queda
-      fechada al día siguiente, y se ve en esta lista. Cambiarlo a
-      `'localtime'` es una línea pero mueve la semántica del índice único de
-      dedup, así que conviene hacerlo a propósito y no de paso
+- [x] `visit_day` ahora es el día **local**, y las filas viejas se repararon
+      desde `created_at` (que sí es un timestamp UTC completo). Migración por
+      rebuild de la tabla, porque un UPDATE puede violar el índice único:
+      01:00 y 14:00 del mismo día sueco son dos días UTC distintos y uno
+      local. Probado contra sqlite3 real con `TZ=Europe/Stockholm`
+- [ ] lo que **no** se reparó es el servidor: el duplicado local que la
+      migración descartó ya estaba posteado, así que el log tiene dos visitas
+      de un autor para un lugar en un día. Hoy no le molesta a nadie, pero es
+      la razón por la que contar visitas, cuando llegue, tiene que deduplicar
+      al leer y no confiar en la regla del cliente
 - [x] **`Påminnelser`** on/off — apagarlo **desprograma** la notificación de
       esta noche, no sólo deja de programar las próximas; prenderlo pide el
       permiso ahí mismo y el switch guarda el estado que *logró*, no el que
