@@ -547,9 +547,37 @@ usuario que la app tiene una forma.
       permiso ahí mismo y el switch guarda el estado que *logró*, no el que
       se pidió, porque el sistema puede negarse. `settings` key-value en
       `contributions.db`, schema 3
-- [ ] **`Språk`** sv/en — hay que mover las dos mitades a la vez: `src/i18n`
-      para el chrome y el SQLite empaquetado para títulos y descripciones.
-      `build_tiles.py --lang` ya existe y el default es `sv`
+- [x] **`Språk`** sv/en — **la mitad de la interfaz**: `src/i18n` con 130
+      claves, los 31 artículos del wiki traducidos con sus propios `triggers:`
+      en inglés, y `check-i18n.mjs` validando claves y placeholders
+- [ ] **`Språk`, la otra mitad: las descripciones siguen en sueco** (hallazgo
+      de campo 2026-09-15: "lo puse en inglés pero las descripciones siguen
+      viéndose en sueco"). Es el comportamiento actual por diseño, no un bug:
+      `DESCRIPTION_LANG = "sv"` en `src/data/descriptions.ts` es una constante
+      porque es una propiedad **del archivo** — sólo se empaqueta el export
+      sueco. Para moverla hacen falta tres cosas:
+  - [ ] `content_en` para todo el país, no sólo los 150 de KB (es la tirada
+        larga; hoy hay 148 traducidos)
+  - [ ] `build_tiles.py --lang en` emitiendo un segundo `descriptions.db`, y
+        el APK llevando los dos (+10 MB) o bajando el segundo a demanda —
+        **decisión de tamaño, es de Franco**
+  - [x] **hecho**: una base por idioma, `descriptions.<lang>.db`, y cada
+        **fila** lleva el idioma en que realmente está — el export cae al
+        sueco por fila, así que hoy 5.540 de 9.547 lugares están de verdad en
+        inglés y el resto son suecos adentro del archivo inglés. El matcher
+        del wiki toma el idioma de la fila, así que un lugar sin traducir
+        sigue subrayando sus palabras suecas. +6 MB de APK (56,3 MB)
+  - [ ] **los labels del mapa siguen en sueco**: salen de `points.geojson`,
+        que es un solo archivo para los dos idiomas y lleva el título sueco.
+        Duplicarlo son +2,5 MB, o el label se resuelve en la app desde la
+        base del idioma (ya tiene el `title` por fila) — esto último es mejor
+        y no cuesta bytes
+  - [ ] faltan los ~4.000 sin traducir, y de los traducidos hay que ver
+        cuántos son viejos: la cola por timestamp ya los detecta
+  - [ ] `DESCRIPTION_LANG` pasa a ser función del idioma elegido y de qué
+        bases hay empaquetadas. Todo lo que lo necesita ya pregunta ahí,
+        incluido el matcher del wiki: los triggers se eligen por el idioma de
+        la **prosa**, así que eso sale gratis
 - [x] **`Om appen`** — las dos listas se **generan** de los archivos que
       describen: los 23 créditos los emite `build-wiki.mjs` de las propias
       líneas de crédito de los artículos (que ya valida que no falten), y los
@@ -837,8 +865,74 @@ previó, y un fallback silencioso es un hueco que nadie encuentra.
 
 ---
 
+## 9. Contribuir y reportar sitios (pedido 2026-09-15)
+
+Hoy el mapa es de sólo lectura sobre el registro: lo único que un visitante
+puede dejar es una opinión sobre algo que ya está. Faltan las dos direcciones
+contrarias — agregar lo que falta y desmentir lo que sobra.
+
+- [ ] **agregar un sitio que no está en el mapa.** Mínimo: posición (la del
+      GPS, corregible arrastrando el pin), tipo elegido de las mismas
+      familias que ya usa el filtro, y una descripción libre corta. Es el
+      primer caso donde el usuario **crea** una entidad y no un evento sobre
+      una entidad existente, así que necesita uuid propio del cliente y una
+      tabla aparte: no puede entrar en `fl_events`, que asume un `uuid` del
+      registro
+- [ ] **reportar un sitio, con categorías.** Las tres que pidió, y son
+      suficientes para empezar: **no está aquí** / **es inaccesible** / **la
+      posición no es correcta**. Una por reporte, más un campo libre opcional
+- [ ] la tercera categoría y "agregar un sitio" son la misma cosa vista de dos
+      lados. Si alguien dice "la posición no es correcta", lo útil es que
+      pueda **marcar dónde sí está**: el reporte lleva una coordenada
+      opcional, y el flujo es el mismo pin arrastrable
+- [ ] `no está aquí` ya tiene un primo: el flag `not_found` de la valoración.
+      **No son lo mismo** y hay que no confundirlos: `not_found` es "no lo
+      encontré" (puede ser mío, puede estar tapado de maleza), el reporte es
+      "no está". Lo primero es una duda, lo segundo una afirmación. Vale usar
+      el conteo de `not_found` para **sugerir** el reporte al que ya lo marcó
+- [ ] **nada de esto puede aparecer en el mapa sin moderación**, y la
+      moderación es el mismo problema que ya bloquea las fotos: un punto
+      inventado o un reporte falso sobre un sitio real son vandalismo con la
+      misma cara que una contribución. Mientras no haya moderación, esto se
+      guarda y se muestra **solo a quien lo escribió**
+- [ ] un reporte y un sitio nuevo son afirmaciones **sobre el mundo, firmadas**
+      — a diferencia de una valoración. Es el segundo candidato después de las
+      fotos a exigir cuenta y no uuid anónimo. Decisión de Franco
+
+## 10. El filtro de estrellas no son las estrellas del usuario (hallazgo 2026-09-15)
+
+Reportado como bug: "filtrar por estrellas no toma en consideración el nuevo
+puntaje de un fornlämning luego de que lo puntúes". El filtro hace lo que
+dice hoy — sólo que lo que dice no es lo que se lee.
+
+- [ ] **son dos escalas distintas con el mismo icono.** Las del filtro son
+      buckets del percentil de `score` que calcula el pipeline (`stars` viene
+      en el tile, ver `src/map/thinning.ts`); las de la ficha son el promedio
+      de las valoraciones de la gente. El filtro no puede mirar las segundas
+      hoy: son filas de `contributions.db`, y el filtro es una expresión de
+      MapLibre sobre el tile — a propósito, porque así no hay que parsear
+      2,3 MB en JS
+- [ ] el `Beräknat automatiskt` debajo del control **existe** y claramente no
+      alcanza. Lo mínimo es que el texto diga de qué son esas estrellas
+- [ ] la decisión de verdad es si el filtro debería honrar las valoraciones
+      reales cuando las hay. Las valoraciones son **escasísimas** (una por
+      lugar, y sólo de quien pasó por ahí), así que un filtro que las mezcle
+      hace desaparecer lugares buenos sin visitar. Alternativas: dejarlo como
+      está con mejor rótulo; o un filtro aparte "mis lugares valorados" que no
+      toque el score. **Decisión de Franco**
+
+---
+
 ## Pendientes viejos, de antes de hoy
 
+- [ ] `check-i18n.mjs` no detecta **claves duplicadas** en un mismo archivo.
+      `sv.json` tenía `common.cancel` dos veces (mismo valor, así que no hizo
+      daño); si los valores hubieran diferido, el que gana es el último y
+      nada lo avisa
+- [ ] el build de Android deja recursos generados viejos: al renombrar
+      `descriptions.db` a `descriptions.sv.db`, el APK salió con las dos y
+      6 MB de peso muerto. `assembleRelease` no limpia
+      `android/app/build/generated/res/react/release/raw`
 - [ ] colapsar `name` y `title` en una columna (`titles.py` ya está; falta el
       rename de schema en `build_places.py` y `build_tiles.py`)
 - [ ] `build_tiles.py` leyendo de `places.sqlite`, no de `work.sqlite` +

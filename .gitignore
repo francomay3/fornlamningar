@@ -275,3 +275,10 @@ review_*.csv
 # from a cached pdf in seconds. Held locally because they are not URLs and
 # there is no other way to have them.
 src/data/images/
+
+# Description shards for a language other than Swedish, written by
+# build_tiles.py --lang. 61 MB of JSON that exists only to be folded into the
+# app's descriptions.<lang>.db, and is reproducible from generated.sqlite in
+# one pass. NOT under franco-may/public: the web build reads the Swedish
+# shards over HTTP, and putting these there would deploy 61 MB nobody fetches.
+src/data/shards/
