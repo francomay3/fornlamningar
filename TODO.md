@@ -627,6 +627,11 @@ fijo no puede expresar eso.
 
 ### El orden
 
+0. **`Har du varit här?`** — el gate. Se pregunta **incluso cuando el GPS ya
+   registró la visita**: 50 metros con la app abierta no es lo mismo que haber
+   estado, porque podés pasar al lado de un röse por un sendero y no verlo, que
+   es justo lo que esta app existe para avisar. La visita es un **candidato** y
+   esto es la **confirmación**
 1. **el puntaje** — la escala con nombres que ya existe. Va primero porque es
    el target del modelo y es lo único que no se puede conseguir de otra forma
 2. **`Fanns det någon skylt?`** — `Ja` / `Nej` / `Osäker`
@@ -636,6 +641,33 @@ fijo no puede expresar eso.
    raro, porque el `Ja` tiene que abrir la cámara igual
 
 ### Las decisiones
+
+- [x] **el gate es haber estado, no estar ahí.** Lo que se rechazó en la
+      sección 2 fue gatear por GPS *en el momento* — uno vuelve a casa y ahí
+      puntúa — y eso sigue funcionando porque la visita quedó registrada. Lo
+      único que cambia es el caso "nunca estuve acá"
+- [x] **por qué el puntaje necesita el gate, y no es prolijidad.** La escala
+      pregunta si valió la pena el viaje, y quien no fue sólo puede contestar
+      con lo que la app le mostró: descripción, fotos, score. O sea que su
+      estrella es **una función de los features que el modelo ya ve** — que es
+      exactamente cómo las labels de Wikidata le enseñaron "está documentado"
+      en vez de "vale la pena ir". Dejar puntuar a no-visitantes reintroduce
+      ese defecto por el target
+- [x] **`Nej` con visita del GPS no es una contradicción.** Es evidencia de
+      que el sitio no se ve estando al lado, que es casi el negativo más
+      fuerte que la app puede juntar. Por eso se guarda el par (`had_visit`) y
+      no sólo la respuesta: el desacuerdo es el caso valioso
+- [x] **confirmar no escribe una visita.** El que confirma un lugar que vio en
+      1998 no lo visitó hoy, y fabricar una fila con la fecha de hoy pondría
+      una fecha falsa en la única tabla que existe para tener fechas reales.
+      `Mina besökta platser` en cambio descarta los lugares cuya última
+      respuesta es `Nej`
+- [ ] **el que confirmó sin visita del GPS no aparece en `Mina besökta
+      platser`**, porque no hay fecha que mostrar. Decidir si aparece sin
+      fecha o si se queda afuera
+- [x] el costo, dicho en voz alta: esto ata el crecimiento de los datos a la
+      velocidad a la que la gente camina. Se paga igual — 50 puntajes de gente
+      que fue valen más que 500 de gente que leyó la descripción
 
 - [x] **el checkbox `Jag kunde inte hitta lämningen` debajo del input de
       puntaje.** La idea de Franco, y reemplaza a la pregunta condicional que
