@@ -718,14 +718,25 @@ fijo no puede expresar eso.
       una con `Svara`. Sacar las estrellas al responder habría sacado el único
       lugar donde alguien puede ver o corregir su propio puntaje, y saltear
       una vez no es una decisión para siempre
-- [ ] el **contador del cartel** (`3 ja · 1 nej`) se quedó sin lugar: estaba
-      al lado de los botones y la cola no lo muestra. Su lugar es con los
-      hechos del sitio, no con las preguntas — o sea el chip `Skylt` en el
-      header, que ya estaba planeado en la sección 3
-- [ ] **la advertencia por moda** sigue pendiente. Hoy el header muestra la
-      frase en vez del número sólo cuando **nadie** puntuó y alguien no lo
-      encontró. El caso mezclado — tres 1★ y un 5★ — todavía muestra un
-      promedio tibio
+- [x] el **cartel es un hecho del sitio**, así que va al lado del período y
+      el tamaño y no al lado de los botones que lo preguntan. Mayoría de la
+      última respuesta por autor, con `unsure` como su propio bucket — se
+      inclina al `no`, pero leerlo como `no` sería contestar por la persona, y
+      todo el valor de este campo es que la respuesta viene de gente. El
+      empate también es `oklart`. Siempre con el conteo, porque con el
+      registro en 105 de 251.014 el reporte de un visitante es lo mejor que
+      esto va a tener y el lector tiene que saber qué tan flaco es
+- [x] **la advertencia por moda**, que estaba escrita y no construida. Cuenta
+      un "no lo encontré" o **un 1★ de alguien a quien el GPS puso en el
+      sitio**: una estrella es una opinión, y la opinión de alguien que no fue
+      es justo lo que esto no puede usar, mientras que el "no lo encontré" ya
+      viene gateado. Mínimo dos, porque uno no es un patrón — un solo reporte
+      decidiendo lo que ven todos los demás es una mala tarde, o una persona
+      con bronca. Y eso significa que un "no lo encontré" solo vuelve a
+      mostrar las estrellas del modelo, que es el canje correcto
+- [ ] el 1★ verificado usa `visited` (GPS). Un visitante **declarado** que
+      puntúa 1★ no cuenta para la advertencia. Decidir si la presencia
+      declarada alcanza, ahora que el gate la pide
 - [ ] los skips **se miden**: una pregunta que todos saltean es una pregunta
       mal escrita, y eso sólo se ve si el skip se cuenta. Empieza como tabla
       local; sincronizarlo necesita un `kind` nuevo en el servidor
