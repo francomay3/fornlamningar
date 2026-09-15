@@ -320,6 +320,53 @@ reportar. Hay que elegir antes de abrirlo, no después.
 
 ---
 
+## 4. La brújula en el marcador de posición
+
+El punto azul debería mostrar **hacia dónde apunta el teléfono**, para poder
+pararse en el campo y barrer con el teléfono hasta encontrar en qué dirección
+caminar.
+
+**El hallazgo que importa: el `heading` que ya trae la librería es el
+equivocado.** `<UserLocation heading />` es una sola palabra y funciona, pero
+`@maplibre/maplibre-react-native` lo alimenta con `coords.heading`, que su
+propio tipo documenta como *"direction in which the device is traveling"* —
+el rumbo del GPS sobre el suelo, no la brújula. Parado y quieto eso es `null`
+o el último valor pegado, así que la flecha no se mueve o miente; y caminando
+te dice para dónde **vas**, que es justo lo que ya sabés. Lo que se necesita
+es el magnetómetro.
+
+`expo-location` ya está instalado y expone `watchHeadingAsync`, con
+`trueHeading` y `magHeading`. Así que no hay dependencia nueva.
+
+### Tareas
+
+- [ ] hook `useCompassHeading()` sobre `watchHeadingAsync`
+- [ ] usar `trueHeading`, no `magHeading`: la declinación magnética en Suecia
+      es de unos 5–8° al este, y a 100 m de distancia 6° son ~10 m de error
+      lateral — suficiente para pasar de largo un röse en el bosque.
+      `trueHeading` necesita permiso de ubicación, que ya lo tenemos
+- [ ] **suavizado obligatorio.** El magnetómetro crudo tiembla varios grados
+      por segundo; un cono que salta se ve roto. Filtro pasabajos sobre el
+      seno y el coseno del ángulo, **nunca sobre los grados** — promediar 359°
+      y 1° da 180°, o sea exactamente al revés
+- [ ] el cono como capa propia al lado de `<UserLocation />`, no como
+      `children`: los children reemplazan el puck entero y habría que
+      redibujarlo. Mismo patrón que `ProvisionalLocation.tsx`, que ya dibuja
+      su punto con `GeoJSONSource` + `Layer`
+- [ ] posición viva para esa capa: `UserLocation` la tiene adentro y no la
+      expone, así que hace falta un `watchPositionAsync` propio
+- [ ] `icon-rotation-alignment: "map"` para que el cono gire con el mapa
+      cuando la brújula del mapa no está al norte
+- [ ] icono propio (una cuña con degradado, como el de iOS). No importar el
+      `heading.png` de `node_modules`
+- [ ] qué hacer cuando el sensor no está calibrado: `accuracy` bajo en
+      Android es común y el rumbo puede estar 30° equivocado. Mejor ocultar
+      el cono que mostrar uno que miente en el bosque
+- [ ] apagar la suscripción cuando la app no está al frente; el magnetómetro
+      a 60 Hz come batería, y esto es una app que se usa lejos de un enchufe
+
+---
+
 ## Pendientes viejos, de antes de hoy
 
 - [ ] colapsar `name` y `title` en una columna (`titles.py` ya está; falta el
