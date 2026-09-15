@@ -923,6 +923,98 @@ dice hoy — sólo que lo que dice no es lo que se lee.
 
 ---
 
+## 11. Un archivo por idioma, descargado on demand (investigado 2026-09-15)
+
+La idea: un SQLite por idioma con **todo** lo que es texto de ese idioma
+—strings de la interfaz, los 31 artículos del wiki con sus triggers, y las
+descripciones de los lugares— y que la app baje el idioma cuando se elige en
+vez de empaquetar todos.
+
+Factible, unos **dos días de trabajo**. Medido antes de opinar, y la medición
+cambia el argumento: **el ahorro de tamaño es 2 MB sobre 56**.
+
+### Los números del APK (56,3 MB, build de 2026-09-15)
+
+| parte | comprimido |
+|---|---|
+| `lib/arm64-v8a` (MapLibre, Hermes, RN) | **31,6 MB** |
+| dex (4 archivos) | 10,2 MB |
+| `res` (las dos bases + imágenes del wiki + iconos) | 9,1 MB |
+| `assets` (bundle JS 3,3 MB) | 3,3 MB |
+
+Las bases **se comprimen dentro del APK**: `descriptions.sv.db` 6,21 MB →
+**2,05 MB**, `descriptions.en.db` 6,00 MB → **2,06 MB**. Los otros textos son
+ruido al lado: 6,8 KB de strings por idioma y 124 KB de artículos. Las 3,1 MB
+de imágenes del wiki son las mismas para todos los idiomas y no se mueven.
+
+Total del idioma como concepto: **4,1 MB de 56,3 — el 7%**.
+
+### Por qué el ahorro real es la mitad de eso
+
+- [ ] **el sueco tiene que venir empaquetado.** Si no, lo primero que hace
+      una app recién instalada es pedir 2 MB por red, y el caso de uso es
+      alguien en el campo sin señal. Así que el esquema realista no es "la
+      app no tiene ningún idioma" sino "el sueco viene, los demás se bajan",
+      y el ahorro hoy es exactamente el inglés: **~2 MB**
+
+### Por qué igual vale la pena, cuando toque
+
+- [ ] **corregir una traducción no necesita un release.** Hoy una frase mal
+      traducida se arregla publicando un APK. Con el idioma como archivo
+      versionado se arregla y el próximo arranque lo trae. Aplica sobre todo
+      a los artículos y a las descripciones, que son lo que más va a cambiar
+- [ ] **cada idioma nuevo cuesta cero en el APK.** El tercero y el cuarto son
+      gratis en vez de +2 MB cada uno
+- [ ] el formato de descripción más rico que está diferido (resumen + cuerpo
+      Markdown) multiplica el tamaño de las descripciones. Si eso llega, esto
+      pasa de lindo a necesario
+
+### El trabajo, en orden de dificultad
+
+- [ ] **~1 día, lo difícil: los artículos dejan de ser código.**
+      `src/wiki/articles.ts` son 943 líneas generadas que van en el bundle, y
+      `linkify()` se llama **durante el render** con las tablas de triggers en
+      memoria. Pasarlo a SQLite convierte algo sincrónico en asíncrono. Se
+      resuelve cargando strings + triggers al arrancar (~130 KB, un
+      parpadeo) y dejando sólo los cuerpos en consulta por id. `useLanguage`
+      ya tiene el tercer estado `ready` para esperar eso
+  - [ ] lo que **no** puede moverse: el mapa de `require()` de las 23
+        imágenes y sus créditos. Metro no resuelve un `require` desde una
+        variable, así que `articles.ts` se parte en dos — imágenes y créditos
+        generados y empaquetados, texto en la base
+- [ ] **~½ día, la descarga hecha en serio.** Un manifiesto
+      (`{idioma: {url, bytes, sha256, version}}`), `createDownloadResumable`
+      de expo-file-system, verificar el hash antes de aceptar el archivo,
+      rename atómico, y no borrar el viejo hasta que el nuevo verifique. Más
+      la UI: progreso en el diálogo de idioma, cancelar, reintentar, y qué
+      pasa si se elige inglés sin señal (no se puede elegir, con un mensaje
+      que lo diga). `ASSET_VERSION` cubre lo empaquetado; hay que extenderlo
+      a lo descargado
+- [ ] **~3 h, lo fácil: un solo generador.** Hoy hay tres productores de
+      texto por idioma (`check-i18n.mjs` sobre los JSON, `build-wiki.mjs`
+      sobre los `.md`, y `build_tiles.py` + `sync-assets.sh` para las
+      descripciones). Se unifican en un script que emite `lang.<code>.db` con
+      tres tablas, conservando la validación de claves y placeholders
+- [ ] **dónde se sirven, que cuesta plata y es decisión de Franco.** Vercel
+      cobra egress: 2 MB por descarga contra los 100 GB del plan son unas
+      50.000 descargas por mes — cómodo hoy, pero escala con el éxito. R2 no
+      cobra egress y ya estaba en el plan para las fotos
+
+### La alternativa que ahorra casi todo el trabajo
+
+- [ ] **decidir si hay Play Store antes de construir esto.** Play Asset
+      Delivery hace exactamente esto sin manifiesto, sin servidor, sin
+      verificación de hash y sin costo de egress: un AAB con un paquete por
+      idioma y Google entrega el que corresponda on demand. Hoy no aplica
+      porque se firma con el keystore de debug y el APK se distribuye a
+      mano — pero si Play está en el horizonte, el mecanismo propio es
+      trabajo que después se tira
+- [ ] **recomendación: no hacerlo todavía por el tamaño.** 2 MB no lo
+      justifican. Hacerlo cuando pese una de las otras dos razones: querer
+      corregir textos sin publicar, o agregar un tercer idioma
+
+---
+
 ## Pendientes viejos, de antes de hoy
 
 - [ ] `check-i18n.mjs` no detecta **claves duplicadas** en un mismo archivo.
