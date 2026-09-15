@@ -614,6 +614,80 @@ usuario que la app tiene una forma.
 
 ---
 
+## 7. La cola de preguntas (decidido 2026-09-15)
+
+Hoy el sheet tiene dos bloques fijos: las estrellas y la pregunta del cartel.
+La idea de Franco es mejor: **una pregunta a la vez**. Al contestar se va y
+aparece la siguiente, y el usuario contesta cuantas quiera y para cuando
+quiera.
+
+Lo que lo hace valer no es el orden, es que **habilita condicionales**. La
+foto del cartel sólo tiene sentido si contestó que hay cartel, y un bloque
+fijo no puede expresar eso.
+
+### El orden
+
+1. **el puntaje** — la escala con nombres que ya existe. Va primero porque es
+   el target del modelo y es lo único que no se puede conseguir de otra forma
+2. **`Fanns det någon skylt?`** — `Ja` / `Nej` / `Osäker`
+3. **la foto del cartel** — sólo si contestó `Ja`. Diseñada ahora, apagada
+   hasta que exista el backend de fotos (sección 3), y no es una pregunta:
+   es un botón que abre la cámara. "¿Podrías sacar una foto?" con Ja/Nej es
+   raro, porque el `Ja` tiene que abrir la cámara igual
+
+### Las decisiones
+
+- [ ] **el checkbox `Jag kunde inte hitta lämningen` debajo del input de
+      puntaje.** La idea de Franco, y reemplaza a la pregunta condicional que
+      yo había propuesto. El diagnóstico es lo que acierta: poner una estrella
+      es *publicar una opinión negativa*, y alguien que no pudo verificar nada
+      no quiere opinar — quiere reportar. Son dos actos distintos. Y un escape
+      a la vista, antes, saca la barrera en el momento en que existe, donde una
+      aclaración condicional llega después de que la persona ya hizo lo que no
+      quería hacer
+- [ ] **no se guarda como 1★.** Una estrella es "para nada recomendable" y
+      nada más; el flag es "no pude verificar". Si el checkbox escribiera
+      `stars: 1`, al volver a abrir el lugar la persona vería *una estrella
+      puesta por ella* — justo la opinión que se negó a dar. Se guarda como
+      respuesta propia y **cuenta como el puntaje más bajo sólo donde hace
+      falta un número**: ranking, score, labels
+- [ ] **exclusión mutua en las dos direcciones.** Marcar el checkbox borra el
+      puntaje además de deshabilitarlo, y tocar una estrella desmarca el
+      checkbox. Si sólo se deshabilita queda un estado intermedio — tres
+      estrellas apagadas y el checkbox marcado — donde nadie sabe qué se
+      guardó. Es una pregunta con dos formas de contestarse, así que no puede
+      tener dos respuestas a la vez
+- [ ] **`Inget att se` se queda.** No lo reemplaza: son los dos consejos
+      distintos que queríamos separar. `Inget att se` es "la encontré y no hay
+      nada que valga la pena"; el checkbox es "no pude verificar". Para el
+      próximo visitante son mensajes diferentes, y son justo los dos que el
+      registro no distingue
+- [ ] **`Osäker` es una respuesta; `Hoppa över` es la ausencia de una.** No
+      pueden compartir un botón. `Osäker` es dato — la persona estuvo y no
+      pudo determinarlo, y para el cartel eso vale casi tanto como un `Nej`.
+      `Hoppa över` no se guarda como dato nunca: lo único que registra es "no
+      me preguntes esto ahora". Si comparten un botón, el día que contemos
+      respuestas vamos a estar contando silencios
+- [ ] los skips **se miden**: una pregunta que todos saltean es una pregunta
+      mal escrita, y eso sólo se ve si el skip se cuenta. Empieza como tabla
+      local; sincronizarlo necesita un `kind` nuevo en el servidor
+- [ ] **la cola vive en un solo lugar.** Se usa desde el sheet y desde el
+      flujo de la notificación de la noche. Dos implementaciones se
+      desincronizan — es lo que ya pasó con los dos sheets abiertos a la vez y
+      con el padding de la cámara
+- [ ] **la cola necesita un final visible.** Cuando no queda nada que
+      preguntar tiene que decir algo, no desaparecer. Un bloque que se esfuma
+      solo se lee como un bug, no como una tarea terminada
+- [ ] `SegmentedControl` (el de una fila de celdas, el del umbral de estrellas
+      en los filtros) para las de sí/no, en vez de dos botones sueltos: dos
+      celdas pegadas se leen como **una** pregunta con dos estados
+- [x] el recordatorio de la noche considera "contestado" **sólo el puntaje**.
+      Antes bastaba contestar el cartel para silenciarlo, o sea que la
+      pregunta barata tapaba a la valiosa: una visita real sin puntaje, que es
+      lo único que ese recordatorio existe para juntar
+
+---
+
 ## Pendientes viejos, de antes de hoy
 
 - [ ] colapsar `name` y `title` en una columna (`titles.py` ya está; falta el
