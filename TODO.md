@@ -521,9 +521,15 @@ usuario que la app tiene una forma.
 ### Tareas
 
 - [x] `Konto` — login con Google y mail, logout, crear cuenta
-- [ ] **`Mina besökta platser`** — sale casi gratis de la tabla `visits`.
-      Lista de los lugares donde estuviste, con fecha. Es también *tu* ground
-      truth, que era el objetivo original del proyecto
+- [x] **`Mina besökta platser`** — una fila por **lugar**, no por visita, con
+      la fecha y un contador de días. Y es también una lista de pendientes:
+      cada fila dice si la puntuaste, y tocarla abre el sheet con las
+      estrellas. Sin eso es un diario, y un diario no le pide nada a nadie
+- [ ] `visit_day` se escribe con `date('now')`, que en SQLite es **UTC**. En
+      verano sueco (+2) una visita entre las 22:00 y la medianoche queda
+      fechada al día siguiente, y se ve en esta lista. Cambiarlo a
+      `'localtime'` es una línea pero mueve la semántica del índice único de
+      dedup, así que conviene hacerlo a propósito y no de paso
 - [x] **`Påminnelser`** on/off — apagarlo **desprograma** la notificación de
       esta noche, no sólo deja de programar las próximas; prenderlo pide el
       permiso ahí mismo y el switch guarda el estado que *logró*, no el que
