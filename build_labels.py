@@ -17,7 +17,15 @@ Caveat baked into the docs, not the data: 83% of the labelled set is
 `Runristning`, because Swedish Wikipedia catalogues runestones systematically.
 Fit with runestones excluded or you will build a runestone detector.
 
-Reads:  Wikidata Query Service
+Everything above is a POSITIVE, and so is the county layer added later in this
+file: all of it derives from someone having written about a place. That left
+9,162 positives against 11 hand-placed negatives -- 1:832 -- and that ratio is
+the model's central flaw rather than a detail, because with nothing to contrast
+against, "worth visiting" can only be learned as "documented". The register's
+own condition assessments are the one source of real negatives available
+without asking a human, and they are loaded at the end of `main`.
+
+Reads:  Wikidata Query Service, plus `sites` for the register's assessments
 Writes: src/data/sites.sqlite  (tables `wikidata`, `labels`)
 Cache:  src/data/wikidata_cache/*.json  (delete to force a refetch)
 
@@ -347,6 +355,82 @@ def main():
                     "VALUES (?,?,?,?,?,?)", rows)
             print(f"county labels loaded: {len(rows):,} sites "
                   f"recommended by a county board")
+
+    # NEGATIVE labels from the register's own condition assessments.
+    #
+    # WHY THIS MATTERS MORE THAN ITS SIZE SUGGESTS. Every label above is a
+    # positive, because they all derive from something having been written
+    # about a place: Wikidata sitelinks, a county board's list. The set was
+    # 9,162 positives against 11 negatives, all 11 hand-placed -- a ratio of
+    # 1:832. That imbalance IS the model's central flaw: with almost nothing
+    # to contrast against, "interesting" can only be learned as "documented",
+    # which is why it scores a Wikidata-less Stenkammargrav at 1.95 and a
+    # visitor gives it five stars. A hundred-odd real negatives will not fix
+    # that, but 1:53 is a different problem from 1:832.
+    #
+    # THESE ARE CONDITION ASSESSMENTS, NOT WITHDRAWALS, and the distinction is
+    # what decides label versus exclusion:
+    #
+    #   Forstord ....................... confirmed present, and destroyed
+    #   Uppgift om lamning, ej bekraftad reported, never verified in the field
+    #
+    # Both are places that exist as records of something real; they are simply
+    # poor bets for a visitor. So they are LABELS, which the model may learn to
+    # discount and which site-level evidence can outweigh. Contrast
+    # build_scores.py, which excludes `Utgar pa grund av felregistrering` and
+    # `Overford till annan lamning` outright -- those are the register saying
+    # the record is not a place at all.
+    #
+    # ONLY WHERE THE WHOLE CLUSTER IS NEGATIVE. build_scores builds its
+    # negative set as any cluster containing a label of 0, so one destroyed
+    # grave in a gravfalt of a hundred would teach the model that the gravfalt
+    # is worthless. Of the 152 clusters holding one of these sites, 132 are
+    # negative throughout; the other 20 contain living sites and are left
+    # alone.
+    #
+    # AND NEVER AGAINST AN EXISTING POSITIVE. One cluster is both
+    # Wikidata-documented and marked destroyed. A monument with its own
+    # article is far more likely to be a nuance of record-keeping than a
+    # genuinely worthless place, so the positive wins and the negative is
+    # dropped rather than contradicting it.
+    reg = conn.execute("""
+        SELECT s.uuid, s.skadestatus, s.aktualitetsstatus
+        FROM sites s
+        JOIN site_clusters sc ON sc.uuid = s.uuid
+        WHERE (s.skadestatus = 'Förstörd'
+               OR s.aktualitetsstatus = 'Uppgift om lämning, ej bekräftad i fält')
+          AND sc.cluster_id IN (
+            SELECT sc2.cluster_id FROM site_clusters sc2
+            JOIN sites s2 ON s2.uuid = sc2.uuid
+            GROUP BY sc2.cluster_id
+            HAVING sum(CASE WHEN s2.skadestatus = 'Förstörd'
+                             OR s2.aktualitetsstatus =
+                                'Uppgift om lämning, ej bekräftad i fält'
+                        THEN 1 ELSE 0 END) = count(*))
+          AND sc.cluster_id NOT IN (
+            SELECT sc3.cluster_id FROM site_clusters sc3
+            JOIN labels l2 ON l2.uuid = sc3.uuid AND l2.label > 0)
+    """).fetchall()
+    if reg:
+        rows = []
+        for uuid, skada, akt in reg:
+            if skada == "Förstörd":
+                # The register confirmed the thing was there and is gone. As
+                # strong a negative as this source can give.
+                rows.append((uuid, "register", 0.0, 0.9, "weak",
+                             "skadestatus: Förstörd"))
+            else:
+                # Reported but never verified. Weaker on purpose: it may well
+                # be there, nobody went to check.
+                rows.append((uuid, "register", 0.0, 0.6, "weak",
+                             "aktualitetsstatus: uppgift, ej bekräftad i fält"))
+        with conn:
+            conn.executemany(
+                "INSERT OR REPLACE INTO labels "
+                "(uuid,source,label,weight,confidence,note) "
+                "VALUES (?,?,?,?,?,?)", rows)
+        print(f"register negatives loaded: {len(rows):,} sites "
+              f"destroyed or never confirmed in the field")
 
     conn.executescript(INDEXES)
     conn.commit()

@@ -682,6 +682,44 @@ def main():
         print(f"  {len(county_pos):,} clusters recommended by a county board "
               f"(rescues an excluded class)")
 
+    # Clusters the REGISTER has struck out, which are excluded outright.
+    #
+    # This is a veto, and the long comment below argues against vetoes. It is
+    # not a contradiction, because it is not the same kind of judgement. That
+    # argument is about TASTE: a class prior saying "a fossil field is dull on
+    # average" must not outrank a county board saying "go and see this one",
+    # and a veto by construction never learns it was wrong because the sites
+    # it hides never come back to argue. Here the register is not saying a
+    # place is dull. It is saying the RECORD IS NOT A PLACE.
+    #
+    #   Utgar pa grund av felregistrering -- struck out as a mis-registration
+    #   Overford till annan lamning       -- merged into another record
+    #
+    # The first never existed; the second still exists, at another id, and
+    # keeping this one puts two pins on one monument. No amount of site-level
+    # evidence makes either into somewhere to visit, so none of the rescue
+    # conditions apply: a mis-registration with a Wikidata sitelink is still a
+    # mis-registration.
+    #
+    # ONLY WHEN EVERY MEMBER SITE IS STRUCK OUT. The 274 struck sites fall in
+    # 230 clusters, but 25 of those also contain live sites -- a gravfalt where
+    # one of a hundred graves was a duplicate entry is still a gravfalt, and
+    # excluding it over one bad row would be a far worse error than the one
+    # being fixed. That leaves 205, of which 76 currently survive the other
+    # filters and reach the app.
+    struck = {r[0] for r in conn.execute("""
+        SELECT sc.cluster_id FROM site_clusters sc
+        JOIN sites s ON s.uuid = sc.uuid
+        GROUP BY sc.cluster_id
+        HAVING sum(CASE WHEN s.aktualitetsstatus IN
+                        ('Utgår på grund av felregistrering',
+                         'Överförd till annan lämning')
+                   THEN 1 ELSE 0 END) = count(*)
+    """)}
+    if struck:
+        print(f"  {len(struck):,} clusters struck out by the register "
+              f"(mis-registered or merged; excluded outright)")
+
     Xa, _ = build_matrix(rows, feats, cw, kw, desc, cont)
     lr_all = LR.predict((Xa - mu) / sd, w_lr, b_lr)
 
@@ -729,7 +767,11 @@ def main():
                    or (r["dist_to_board_m"] is not None
                        and r["dist_to_board_m"] <= 500)
                    or r["cluster_id"] in county_pos)
-        hard = int(bool(r["class_blacklisted"]) and not rescued)
+        # `or in struck` and not `and not rescued`: see the note where
+        # `struck` is built. A record the register has withdrawn is not a
+        # place with a bad prior, it is not a place.
+        hard = int((bool(r["class_blacklisted"]) and not rescued)
+                   or r["cluster_id"] in struck)
         soft = int(bool(r["class_soft_blacklisted"]) and not rescued)
         out.append((r["cluster_id"], cw.get(r["dominant_class"] or "?", 0.0),
                     kb, acc, nob, intrinsic, full, hard, soft,
