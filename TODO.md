@@ -637,7 +637,7 @@ fijo no puede expresar eso.
 
 ### Las decisiones
 
-- [ ] **el checkbox `Jag kunde inte hitta lämningen` debajo del input de
+- [x] **el checkbox `Jag kunde inte hitta lämningen` debajo del input de
       puntaje.** La idea de Franco, y reemplaza a la pregunta condicional que
       yo había propuesto. El diagnóstico es lo que acierta: poner una estrella
       es *publicar una opinión negativa*, y alguien que no pudo verificar nada
@@ -645,40 +645,58 @@ fijo no puede expresar eso.
       a la vista, antes, saca la barrera en el momento en que existe, donde una
       aclaración condicional llega después de que la persona ya hizo lo que no
       quería hacer
-- [ ] **no se guarda como 1★.** Una estrella es "para nada recomendable" y
+- [x] **no se guarda como 1★.** Una estrella es "para nada recomendable" y
       nada más; el flag es "no pude verificar". Si el checkbox escribiera
       `stars: 1`, al volver a abrir el lugar la persona vería *una estrella
       puesta por ella* — justo la opinión que se negó a dar. Se guarda como
       respuesta propia y **cuenta como el puntaje más bajo sólo donde hace
       falta un número**: ranking, score, labels
-- [ ] **exclusión mutua en las dos direcciones.** Marcar el checkbox borra el
+- [x] **exclusión mutua en las dos direcciones.** Enforced en SQLite, no sólo
+      en la UI: `stars` es nullable y un CHECK deja pasar exactamente una de
+      las dos. Probado contra sqlite3 real: las dos puestas falla, ninguna
+      puesta falla. Marcar el checkbox borra el
       puntaje además de deshabilitarlo, y tocar una estrella desmarca el
       checkbox. Si sólo se deshabilita queda un estado intermedio — tres
       estrellas apagadas y el checkbox marcado — donde nadie sabe qué se
       guardó. Es una pregunta con dos formas de contestarse, así que no puede
       tener dos respuestas a la vez
-- [ ] **`Inget att se` se queda.** No lo reemplaza: son los dos consejos
+- [x] **`Inget att se` se queda.** No lo reemplaza: son los dos consejos
       distintos que queríamos separar. `Inget att se` es "la encontré y no hay
       nada que valga la pena"; el checkbox es "no pude verificar". Para el
       próximo visitante son mensajes diferentes, y son justo los dos que el
       registro no distingue
-- [ ] **`Osäker` es una respuesta; `Hoppa över` es la ausencia de una.** No
+- [x] **`Osäker` es una respuesta; `Hoppa över` es la ausencia de una.** La
+      respuesta del cartel es de tres valores y se guarda como texto, no como
+      un tercer entero: `has_sign IN (0,1,2)` es un booleano con una mentira
+      adentro. No
       pueden compartir un botón. `Osäker` es dato — la persona estuvo y no
       pudo determinarlo, y para el cartel eso vale casi tanto como un `Nej`.
       `Hoppa över` no se guarda como dato nunca: lo único que registra es "no
       me preguntes esto ahora". Si comparten un botón, el día que contemos
       respuestas vamos a estar contando silencios
+- [x] **las respondidas colapsan** a una línea con `Ändra`, y las salteadas a
+      una con `Svara`. Sacar las estrellas al responder habría sacado el único
+      lugar donde alguien puede ver o corregir su propio puntaje, y saltear
+      una vez no es una decisión para siempre
+- [ ] el **contador del cartel** (`3 ja · 1 nej`) se quedó sin lugar: estaba
+      al lado de los botones y la cola no lo muestra. Su lugar es con los
+      hechos del sitio, no con las preguntas — o sea el chip `Skylt` en el
+      header, que ya estaba planeado en la sección 3
+- [ ] **la advertencia por moda** sigue pendiente. Hoy el header muestra la
+      frase en vez del número sólo cuando **nadie** puntuó y alguien no lo
+      encontró. El caso mezclado — tres 1★ y un 5★ — todavía muestra un
+      promedio tibio
 - [ ] los skips **se miden**: una pregunta que todos saltean es una pregunta
       mal escrita, y eso sólo se ve si el skip se cuenta. Empieza como tabla
       local; sincronizarlo necesita un `kind` nuevo en el servidor
-- [ ] **la cola vive en un solo lugar.** Se usa desde el sheet y desde el
+- [x] **la cola vive en un solo lugar.** Se usa desde el sheet y desde el
       flujo de la notificación de la noche. Dos implementaciones se
       desincronizan — es lo que ya pasó con los dos sheets abiertos a la vez y
       con el padding de la cámara
-- [ ] **la cola necesita un final visible.** Cuando no queda nada que
+- [x] **la cola necesita un final visible.** Cuando no queda nada que
       preguntar tiene que decir algo, no desaparecer. Un bloque que se esfuma
       solo se lee como un bug, no como una tarea terminada
-- [ ] `SegmentedControl` (el de una fila de celdas, el del umbral de estrellas
+- [x] `SegmentedControl` (el de una fila de celdas, el del umbral de estrellas
       en los filtros) para las de sí/no, en vez de dos botones sueltos: dos
       celdas pegadas se leen como **una** pregunta con dos estados
 - [x] el recordatorio de la noche considera "contestado" **sólo el puntaje**.
