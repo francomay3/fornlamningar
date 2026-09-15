@@ -448,7 +448,7 @@ leer**: no filtran, no son señal, no son label.
 
 ---
 
-## 4. La brújula en el marcador de posición
+## 4. La brújula en el marcador de posición (hecho 2026-09-15)
 
 El punto azul debería mostrar **hacia dónde apunta el teléfono**, para poder
 pararse en el campo y barrer con el teléfono hasta encontrar en qué dirección
@@ -468,29 +468,29 @@ es el magnetómetro.
 
 ### Tareas
 
-- [ ] hook `useCompassHeading()` sobre `watchHeadingAsync`
-- [ ] usar `trueHeading`, no `magHeading`: la declinación magnética en Suecia
+- [x] hook `useCompassHeading()` sobre `watchHeadingAsync`
+- [x] usar `trueHeading`, no `magHeading`: la declinación magnética en Suecia
       es de unos 5–8° al este, y a 100 m de distancia 6° son ~10 m de error
       lateral — suficiente para pasar de largo un röse en el bosque.
       `trueHeading` necesita permiso de ubicación, que ya lo tenemos
-- [ ] **suavizado obligatorio.** El magnetómetro crudo tiembla varios grados
+- [x] **suavizado obligatorio.** El magnetómetro crudo tiembla varios grados
       por segundo; un cono que salta se ve roto. Filtro pasabajos sobre el
       seno y el coseno del ángulo, **nunca sobre los grados** — promediar 359°
       y 1° da 180°, o sea exactamente al revés
-- [ ] el cono como capa propia al lado de `<UserLocation />`, no como
+- [x] el cono como capa propia al lado de `<UserLocation />`, no como
       `children`: los children reemplazan el puck entero y habría que
       redibujarlo. Mismo patrón que `ProvisionalLocation.tsx`, que ya dibuja
       su punto con `GeoJSONSource` + `Layer`
-- [ ] posición viva para esa capa: `UserLocation` la tiene adentro y no la
+- [x] posición viva para esa capa: `UserLocation` la tiene adentro y no la
       expone, así que hace falta un `watchPositionAsync` propio
-- [ ] `icon-rotation-alignment: "map"` para que el cono gire con el mapa
+- [x] `icon-rotation-alignment: "map"` para que el cono gire con el mapa
       cuando la brújula del mapa no está al norte
-- [ ] icono propio (una cuña con degradado, como el de iOS). No importar el
+- [x] icono propio (una cuña con degradado, como el de iOS). No importar el
       `heading.png` de `node_modules`
-- [ ] qué hacer cuando el sensor no está calibrado: `accuracy` bajo en
+- [x] qué hacer cuando el sensor no está calibrado: `accuracy` bajo en
       Android es común y el rumbo puede estar 30° equivocado. Mejor ocultar
       el cono que mostrar uno que miente en el bosque
-- [ ] apagar la suscripción cuando la app no está al frente; el magnetómetro
+- [x] apagar la suscripción cuando la app no está al frente; el magnetómetro
       a 60 Hz come batería, y esto es una app que se usa lejos de un enchufe
 
 ---
