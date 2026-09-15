@@ -245,10 +245,10 @@ de eventos es una tabla sola.
       viene de alguien parado ahí y no de alguien adivinando desde el sillón,
       que además es el vector de vandalismo obvio mientras no haya cuentas.
       Va *después* de la descripción, no tapándola
-- [ ] antes de diseñar ese prompt: revisar si el export trae `antikvarisk
-      bedömning`. `Uppgift om` ya significa "reportado pero no confirmado en
-      el terreno" y `Borttagen` significa "ya no está" — no tiene sentido
-      preguntarle a la gente lo que el registro ya dice
+- [x] revisado: **el registro no sabe si hay algo que ver**, así que el
+      prompt no se puede reemplazar con datos. `antikvarisk bedömning` es
+      99,5% `Fornlämning` y `Borttagen` no existe en nuestros datos. Ver la
+      sección 5, que salió de esta revisión
 - [ ] agregados derivados en `places` (`n_betyg`, media, "no hay nada")
       recalculados desde el log, nunca escritos a mano: misma relación que
       las descripciones con el pipeline
