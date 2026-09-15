@@ -1000,6 +1000,67 @@ Total del idioma como concepto: **4,1 MB de 56,3 — el 7%**.
       50.000 descargas por mes — cómodo hoy, pero escala con el éxito. R2 no
       cobra egress y ya estaba en el plan para las fotos
 
+### Cómo le llegan las actualizaciones a quien ya tiene la app
+
+Si una descripción se corrige, tiene que llegar a un teléfono que ya tiene su
+copia local. Medido sobre `descriptions.sv.db` (9.558 filas): el texto útil
+son **3,52 MB** (368 B de descripción en promedio, 131 KB de títulos), el
+archivo pesa 6,21 MB y **2,05 MB** comprimido. El resto es índice y las
+columnas `size`/`period`; la columna `raw` va vacía en lo que se envía.
+
+Un delta de filas sueltas, comprimido:
+
+| qué cambió | delta | vs bajar todo |
+|---|---|---|
+| 268 títulos (la corrección de 2026-09-15) | **50 KB** | 40× más barato |
+| 1.000 descripciones | 180 KB | 11× |
+| 6.500 (una regeneración grande) | **1,13 MB** | todavía menos que 2,05 MB |
+
+- [ ] **las filas viajan, el archivo no — nunca.** Incluso si cambia la tabla
+      entera, mandar las filas comprimidas (1,13 MB) es más barato que mandar
+      el archivo (2,05 MB): el índice y el overhead de SQLite pesan más que
+      el texto. Así que el `.db` prearmado del APK existe sólo para que la
+      instalación sea instantánea y offline, y todo lo demás son filas
+- [ ] **la forma es la que ya tiene el sync de contribuciones**: un log
+      append-only y un cursor.
+      `GET /api/fornlamningar/descriptions?lang=sv&since=<version>` →
+      `{ version, rows, deleted }`, aplicado con `UPSERT` en **una
+      transacción**, y la versión local avanza **después** del commit
+- [ ] **la misma disciplina, por la misma razón**: una fila que el schema
+      rechaza no puede abortar el lote, porque el cursor no avanza, el
+      siguiente pull trae la misma ventana y falla igual — sync trabado para
+      siempre. Ya nos pasó en producción con `signs.has_sign`
+- [ ] **el dato de qué cambió ya existe**: `generated.sqlite` tiene
+      `created_at`, `translated_at` y el `source_hash` con `payload_version`.
+      No hay que inventar el versionado, hay que exponerlo
+
+Las tres cosas que se rompen, y que son el trabajo real:
+
+- [ ] **la base deja de ser un asset reemplazable y pasa a ser estado
+      mutable.** Hoy se borra y se re-copia cuando cambia `ASSET_VERSION`, y
+      eso es lo que la hace segura. Con deltas hay dos caminos de
+      actualización que pueden pelearse, así que hace falta una regla
+      explícita: **lo empaquetado es un piso** — si la base del APK es más
+      nueva que la versión local, se re-copia y la cadena de deltas arranca
+      de cero
+- [ ] **las bajas.** Cuando se mueve el clustering hay lugares que
+      desaparecen del export — ya pasó, 11 entre el export sueco y el
+      inglés. El delta tiene que poder decir "este uuid ya no existe", y hay
+      que decidir qué pasa con la valoración que alguien dejó ahí. Mi
+      opinión: la valoración se queda, el evento es de la persona y no del
+      export
+- [ ] **quién sirve el endpoint.** Un archivo estático por versión no escala:
+      con clientes en versiones arbitrarias son N² archivos de delta. Es un
+      endpoint dinámico, y el backend ya tiene Postgres y `tx()`. Los 50 KB
+      de un delta chico son irrelevantes para el egress; si algún día hay
+      muchos usuarios, el escape es un snapshot completo por generación en R2
+
+- [ ] **cuándo**: no todavía. Mientras Franco sea el único usuario, actualizar
+      descripciones es publicar un APK. Esto se vuelve necesario el día que
+      haya gente a la que no se le puede pedir que reinstale — y es el mismo
+      día en que se vuelve necesaria la sección 8, porque van a ser
+      transacciones aplicándose en teléfonos que nadie puede ver
+
 ### La alternativa que ahorra casi todo el trabajo
 
 - [ ] **decidir si hay Play Store antes de construir esto.** Play Asset
