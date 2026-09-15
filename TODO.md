@@ -530,9 +530,19 @@ usuario que la app tiene una forma.
 - [ ] **`Glöm mig`** — `_reset()` ya existe en `contributions.ts` y no tiene
       botón. Va separado por una línea y en color de acento: borrar todo lo
       que contribuiste no puede estar en la misma lista visual que cambiar el
-      idioma. Ojo: borrar el uuid de autor hace que los eventos ya publicados
-      queden huérfanos para siempre, así que hay que decidir si también se
-      pide al servidor que los borre
+      idioma
+- [ ] **`Glöm mig` tiene que abrir una ventana de advertencia antes de
+      ejecutar.** Es la única acción de toda la app que no se puede deshacer
+      ni reintentar: no hay copia de la que volver, y los puntajes, visitas y
+      respuestas sobre carteles se van todos juntos. La advertencia tiene que
+      decir *qué* se pierde, no preguntar "¿estás seguro?" — que es la
+      pregunta que la gente aprende a contestar sí sin leer
+- [ ] y hay que decidir qué hace con el servidor: borrar el uuid de autor
+      local deja los eventos ya publicados huérfanos para siempre — nadie
+      puede volver a asociarlos con esa persona, ni para borrarlos. O sea que
+      "olvidame" localmente no es lo mismo que "borrame", y con GDPR de por
+      medio probablemente haga falta la segunda: un endpoint que borre por
+      autor, llamado *antes* de tirar el uuid
 - [ ] el glifo del botón ya refleja si estás logueado (relleno vs contorno).
       Cuando haya avatar de Google, decidir si se usa en vez del glifo
 
