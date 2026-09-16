@@ -1,7 +1,12 @@
 # TODO
 
-Lo que acordamos hacer, con las decisiones ya tomadas y las que faltan. Un
-item se borra de acá cuando está en `main`, no cuando funciona en mi máquina.
+Lo que falta hacer. **Un item se borra de acá cuando está en `main`**, no
+cuando funciona en mi máquina — y se borra de verdad: el registro de lo hecho
+sale del `git log`, y el razonamiento de cada cosa construida vive en el
+comentario del archivo que la implementa, que es un mejor lugar porque no
+puede desfasarse de él. Lo único que sobrevive a estar hecho son las
+decisiones y los hallazgos que no se leen en un solo lugar del código, y ésos
+están al final, en *Decisiones tomadas*.
 
 Tres proyectos grandes, en el orden en que conviene hacerlos: el glosario no
 necesita backend, el login sí, y las fotos necesitan el login para saber de
@@ -52,37 +57,6 @@ así que un artículo tiene cero, una o tres, y el crédito va al lado de la fot
 `hög` pelado, unas 500 eran "2,5 meter hög".
 
 ### Hecho
-
-- [x] `wiki.py` → descartado. El matcher en Python y en TS son dos copias de
-      la misma regla, que es el bug de las cinco copias otra vez
-- [x] `scripts/build-wiki.mjs` — enumera los md (Metro no puede listar un
-      directorio en runtime) y valida: link a artículo inexistente, dos
-      artículos peleando un trigger, `img:` sin archivo
-- [x] `src/wiki/match.ts` — triggers, alias más largo primero, límites de
-      palabra suecos sin lookbehind ni `\p{...}` (Hermes)
-- [x] `src/wiki/markdown.ts` — el renderer mínimo
-- [x] `src/ui/WikiText.tsx` — el componente, usado tanto para la descripción
-      del sitio como para los párrafos del artículo. Esa identidad es lo que
-      lo hace un wiki
-- [x] `src/ui/WikiModal.tsx` — una sola ventana, pila de artículos, atrás
-      camina lo que el lector leyó, atrás en el primero cierra
-- [x] 24 artículos, cruzados entre sí. **79,3% de las 8.821 descripciones
-      recibe al menos un link**
-
-- [x] **21 imágenes** de Commons en `wiki/img/`, webp 1024px, 3,1 MB. Bajadas
-      con su atribución sacada de la API de Commons, no escrita a mano
-- [x] `WikiImage` con `caption` + `credit`. El crédito es prop **requerida**:
-      un campo opcional es un campo vacío en el artículo veinte a las once de
-      la noche. Lo valida el build, no un abogado
-- [x] los 24 artículos verificados contra Wikipedia sv y reescritos con
-      estructura de turismo (`## Att se på plats`, `## Kända exempel`,
-      `## Visste du?`). Correcciones de datación en dos tercios de ellos
-- [x] verlo en el teléfono, instalado y andando
-
-- [x] siete artículos que no son tipos de lämning: `att_lasa_registret`,
-      `landhojningen`, `allemansratten`, `fornlamning`, `brandgrav`,
-      `runformel`, `stenmaterial`. **31 artículos, 83,6% de las
-      descripciones con al menos un link** (era 79,3%)
 
 ### Falta
 
@@ -192,68 +166,6 @@ de eventos es una tabla sola.
 
 ### Tareas
 
-- [x] uuid local con `expo-crypto` (no `Math.random()`: es el token que
-      identifica a un autor en un endpoint que acepta escrituras anónimas).
-      Vive en `contributions.db`, no en `AsyncStorage`, porque el id y las filas que
-      lo referencian tienen que borrarse o sobrevivir juntos
-- [x] **`contributions.db`, una base separada de `descriptions.db`** — esa se borra y
-      se reemplaza cada vez que cambia `ASSET_VERSION`, así que un puntaje
-      guardado ahí desaparecería en el próximo export sin un solo error
-- [x] tablas `ratings`, `comments`, `photos` (sólo metadata) como log de
-      eventos, no como filas mutables
-- [x] `outbox` con `attempts`, para que un payload venenoso no bloquee para
-      siempre lo que tiene detrás
-- [x] `POST`/`GET /api/fornlamningar/events` en `franco-may` + Neon
-- [x] el número de secuencia sale de una **fila contador dentro de la misma
-      transacción**, no de `bigserial`. Probado contra Postgres real con dos
-      transacciones concurrentes: con `bigserial` se pierde un evento para
-      siempre, con el contador cero
-- [x] el uuid viaja en el header `X-Author-Id`, nunca en la URL — un secreto
-      en un query string queda en los logs del servidor y de cada proxy
-- [x] rate limiting **en Postgres**, no en memoria: en serverless cada
-      instancia tiene su propio Map
-- [x] el salt para hashear IPs se genera solo en la base; no hay variable de
-      entorno que administrar ni que olvidarse de copiar
-- [x] escalonamiento: anónimo puede puntuar, marcar favoritos y visitados;
-      comentarios y fotos devuelven 403 hasta que haya cuentas
-- [x] sync al abrir la app y al volver al frente. Sin background task: la app
-      se abre cuando alguien está por visitar un lugar, que es justo cuando
-      los datos frescos importan
-- [x] probado de punta a punta contra producción: 401 sin header, 200 vacío,
-      POST, visible para otro autor, excluido para el propio, 403 en
-      comentario, 400 en 6 estrellas, idempotente al reenviar
-- [x] Firebase Auth: Google + mail, herencia del uuid. Google probado en el
-      teléfono y anda
-- [x] verificación del token **sin `firebase-admin`**: `jose` contra el JWKS
-      de Google, con `iss` **y** `aud` clavados al proyecto — todos los
-      proyectos de Firebase los firma la misma clave, así que verificar la
-      firma sola acepta el token de cualquier otro proyecto
-- [x] dos teléfonos en la misma cuenta: `fl_account_devices`, el autor sigue
-      siendo el dispositivo y la agrupación pasa al leer. Probado: los dos
-      dispositivos salen con un solo pseudónimo
-- [x] UI: sección `Betygsätt platsen` con cinco estrellas que responden a
-      tap y a drag, más el promedio de la comunidad en el header del sheet
-- [x] **la escala tiene nombre en cada paso** — `Inget att se`, `Knappt
-      synligt`, `Värt ett stopp`, `Värt en omväg`, `Värt en resa`. Los tres
-      de arriba son la escalera de Michelin (parada / desvío / viaje), que es
-      el vocabulario que se inventó para esta pregunta exacta. La etiqueta
-      sigue al dedo mientras arrastrás
-- [x] existe / visible / visitable / interesante son **un solo eje**: si
-      alguna es negativa no vale la pena ir, así que es una sola pregunta con
-      un solo control, y nombrar el fondo de la escala (`Inget att se`) es lo
-      que reemplaza a un botón aparte de "acá no hay nada"
-- [x] el promedio de visitantes **reemplaza** al score del modelo en cuanto
-      hay un puntaje, no se promedia con él. Mezclarlos da un número que no
-      se puede explicar: el modelo mide cuánta documentación tiene el lugar,
-      la estrella mide si valió la pena ir, y los primeros cuatro puntajes
-      reales ya no coinciden (5★ en una Stenkammargrav que el modelo puntúa
-      1,95). Cualquier media de los dos escondía justo ese desacuerdo
-- [x] se muestra la media cruda **más la cantidad** (`1,0 · 1 betyg`), no una
-      media achicada hacia un prior. El puntaje más valioso de esta app es el
-      de la persona que manejó hasta ahí y encontró un campo arado; subirle
-      ese 1 a 3,25 entierra la única advertencia que tiene el lugar. El
-      achicamiento va en el **ranking**, donde los puntajes compiten entre
-      sí, no en el display
 - [ ] usar la media achicada para ordenar el mapa (prior = media global de
       usuarios, m ≈ 3), para que un 5 solo no le gane a un 4,6 muy visitado
 - [ ] **separar tres cosas que yo había mezclado en una.** El "gating por
@@ -300,17 +212,6 @@ de eventos es una tabla sola.
       `Flera besökare hittade inget här`. Va arriba, en lugar del promedio,
       cuando la mayoría de los puntajes son de 1★. Es el caso donde la app
       tiene que estar dispuesta a decirte que no vayas
-- [x] revisado: **el registro no sabe si hay algo que ver**, así que el
-      prompt no se puede reemplazar con datos. `antikvarisk bedömning` es
-      99,5% `Fornlämning` y `Borttagen` no existe en nuestros datos. Ver la
-      sección 5, que salió de esta revisión
-- [x] **el `me` del GET normaliza los eventos propios.** El servidor excluye
-      los del dispositivo que llama pero no los de los otros dispositivos de
-      la misma cuenta, así que un puntaje hecho en el segundo teléfono llegaba
-      con el pseudónimo de la persona mientras el del primero seguía local con
-      su id de dispositivo: dos autores, una persona, contada dos veces en
-      cada promedio. Se reescribe el autor al aplicar, que es el lugar más
-      chico posible — todo lo de abajo ya agrupa por autor
 - [ ] agregados derivados en `places` (`n_betyg`, media, "no hay nada")
       recalculados desde el log, nunca escritos a mano: misma relación que
       las descripciones con el pipeline
@@ -323,21 +224,6 @@ de eventos es una tabla sola.
 
 ### Hallazgos del review de 2026-09-16 sobre el sync
 
-- [x] **Race en el GET que pierde un evento para siempre** (arreglado y
-      **deployado** 2026-09-16, commit `87cbec1`). Se invirtió el orden: el
-      contador se lee primero, así el cursor sólo puede quedarse atrás. En
-      `app/api/fornlamningar/events/route.ts` el GET hace dos queries sin
-      transacción: primero `SELECT ... FROM fl_events WHERE seq > since`, y
-      después `SELECT v FROM fl_event_seq`. Si la primera vuelve vacía (la
-      ventana sólo tenía eventos propios) y **entre las dos** otro autor
-      commitea el evento N, el cursor salta a N y ese evento no lo lee este
-      teléfono nunca. Es exactamente el caso que el contador existía para
-      impedir.
-      **Fix, fácil:** invertir el orden. Leer `v` *primero*, después los
-      eventos. Así el cursor nunca puede adelantarse a algo que no se leyó:
-      si hay filas, el cursor es la última fila; si no hay, es el `v` leído
-      *antes* de mirar, y cualquier evento posterior queda `> cursor`. Es
-      mover dos líneas; no hace falta transacción ni `FOR SHARE`.
 - [ ] **El feed es global, y una instalación nueva rehace toda la historia.**
       Cada teléfono baja todos los eventos de todos los usuarios desde
       `seq=0` y los aplica uno por uno a SQLite. Hoy son cientos de filas.
@@ -380,71 +266,6 @@ de eventos es una tabla sola.
       que se mantiene *localmente*: el uuid sigue siendo el autor, la cuenta
       sigue heredándolo; lo único que cambia es que el POST exige que el
       uuid esté linkeado. **Decidido por Franco el 2026-09-16: opción 1.**
-- [x] **"sólo logueados escriben": hecho y deployado** (2026-09-16,
-      `20c44cf` en franco-may, `dbebe01` en la app). Verificado en
-      producción: un uuid sin cuenta recibe
-      `403 {"reason":"account_required"}` y el GET sigue siendo anónimo. El
-      orden se respetó — el APK con el paso 3 se instaló **antes** de
-      pushear el servidor. Lo que se decidió al escribirlo:
-  - [x] **una corrección al plan: comentarios y fotos NO se abren.** El paso 1
-        dice fundir `ANONYMOUS_KINDS` y `ACCOUNT_KINDS` porque "la distinción
-        ya no existe". La de *cuenta* no existe más, cierto — pero comentarios
-        y fotos nunca estuvieron bloqueados sólo por falta de cuenta: son
-        cosas que otros leen y **no hay forma de bajarlas** (no hay cola de
-        moderación, ni botón de reportar, ni almacenamiento para las fotos).
-        Fundir los dos sets abriría un canal sin moderación. Van dos sets:
-        `KINDS` (todo lo posteable, todo exige cuenta) y `UNMODERATED_KINDS`
-        (comment/photo, 403 con `reason: 'unmoderated'`), que se vacía cuando
-        haya moderación y no antes
-  - [x] el 403 lleva **`reason: 'account_required'`**, no sólo
-        prosa: la app matchea sobre ese campo, y matchear sobre el mensaje se
-        rompe el día que alguien lo reescribe
-  - [x] **paso 3, app, `sync.ts`:** un 403 con `reason: 'account_required'`
-        devuelve sin penalizar las filas — se quedan en el `outbox` con
-        `attempts` sin subir y se publican cuando haya cuenta
-  - [x] **paso 4, app, UI:** una vez que el teléfono contestó algo y no hay
-        cuenta, la ficha dice "Sparat på den här telefonen" con una pastilla
-        de login inline (`signInWithGoogle` directo, sin modal). Nunca
-        bloquea: la estrella ya está guardada antes de que el cartel aparezca
-  - [x] **el orden del deploy era obligatorio** y se cumplió: el APK con el
-        paso 3 se instaló antes de pushear, porque un APK viejo trata
-        cualquier 403 como culpa del lote y le quema los diez intentos a las
-        filas en diez flushes
-      1. **Servidor, `events/route.ts` POST:** después de validar el header,
-         `SELECT account FROM fl_account_devices WHERE device = $1`. Si no
-         hay fila → `403 { error: 'sign in to publish' }`. `ANONYMOUS_KINDS`
-         y `ACCOUNT_KINDS` se funden en una sola lista `KINDS`; la distinción
-         ya no existe. El GET **no** cambia: leer sigue siendo anónimo, porque
-         el mapa tiene que mostrar los promedios a todos.
-      2. **Servidor, `author/route.ts` DELETE: NO exige link, y este paso del
-         plan estaba mal.** Exigirlo significaría que alguien **sin cuenta
-         nunca puede ser olvidado**: la app no se borra a sí misma si el
-         servidor no respondió bien, así que un 403 ahí lo deja sin salida —
-         peor que el bug que ese endpoint venía a arreglar. El agujero que
-         eso abre (mintear un uuid y hacernos escribir un tombstone de un
-         autor sin filas) se cierra **por orden y no por permiso**: borra
-         primero, y publica sólo si borró algo. Un autor sin nada que borrar
-         no genera evento, así que no hay con qué ensuciar el log.
-      3. **App, `sync.ts` `flush()`:** un 403 de este tipo **no** es un fallo
-         del payload: las filas se quedan en el `outbox` con `attempts` sin
-         subir, y se reintentan cuando haya cuenta. Distinguirlo del 403 de
-         kind por el campo `error`.
-      4. **App, UI:** la primera vez que alguien puntúa sin cuenta, el sheet
-         guarda localmente y muestra una línea debajo de las estrellas:
-         `Sparat på den här telefonen. Logga in för att dela` con el botón de
-         login inline. No es un modal ni un bloqueo: la estrella ya está
-         puesta. El menú `Konto` ya tiene el flujo; es reusarlo.
-      Probar: puntuar sin cuenta → fila local, outbox pendiente, 403 en el
-      flush, sin `attempts`; loguearse → link → el siguiente flush publica.
-
-**Nota para debuggear desde esta máquina:** el puerto 5432 está bloqueado
-(acepta el TCP y lo resetea al mandar el saludo de Postgres, lo que se lee
-como ECONNRESET y parece una base caída). No es la VPN, probado con ella
-apagada. Para migraciones usar `node scripts/apply-fl-schema.cjs`, que va por
-el endpoint HTTP de Neon en el 443.
-
----
-
 ## 3. Fotos
 
 ### El prompt de contribución (decidido 2026-09-15)
@@ -586,79 +407,10 @@ leer**: no filtran, no son señal, no son label.
 
 ### Tareas
 
-- [x] **274 lugares que el propio registro dio de baja están en la app.**
-      `Utgår på grund av felregistrering` (116) y `Överförd till annan
-      lämning` (158) van a `excluded_hard`: no son lugares, son erratas, y por
-      eso acá el veto sí se justifica — el registro no está diciendo que el
-      lugar sea aburrido, está diciendo que la ficha no es un lugar. Sólo
-      donde **todos** los sitios del cluster están dados de baja: 205 de los
-      230 clusters, y 25 quedan porque también tienen sitios vivos. 74 de esos
-      205 estaban llegando a la app
-- [x] **138 etiquetas negativas.** `Förstörd` (peso 0,9) y `Uppgift om
-      lämning, ej bekräftad i fält` (peso 0,6), con `source='register'`, misma
-      regla de todo-o-nada por cluster y nunca contra un positivo existente.
-      El ratio pasa de **1:832 a 1:61**. El AUC se mueve 0,8113 → 0,8119, y
-      eso es el resultado honesto: el set positivo está definido por
-      documentación, así que la métrica es ciega justo a lo que estos
-      negativos arreglan
 - [ ] `Grov skada` (987) es la señal más débil de las tres: dañado de
       gravedad todavía puede ser perfectamente visitable — un röse excavado
       se sigue viendo. Candidato a label negativa con peso bajo, no a
       exclusión, y hay que decidirlo aparte
-- [x] los negativos del registro y los de los usuarios (sección 2) apuntan al
-      mismo target — "valió la pena ir" — así que conviene que entren por el
-      mismo camino y con un `source` distinto en `labels`, que la tabla ya
-      tiene justo para esto
-
----
-
-## 4. La brújula en el marcador de posición (hecho 2026-09-15)
-
-El punto azul debería mostrar **hacia dónde apunta el teléfono**, para poder
-pararse en el campo y barrer con el teléfono hasta encontrar en qué dirección
-caminar.
-
-**El hallazgo que importa: el `heading` que ya trae la librería es el
-equivocado.** `<UserLocation heading />` es una sola palabra y funciona, pero
-`@maplibre/maplibre-react-native` lo alimenta con `coords.heading`, que su
-propio tipo documenta como *"direction in which the device is traveling"* —
-el rumbo del GPS sobre el suelo, no la brújula. Parado y quieto eso es `null`
-o el último valor pegado, así que la flecha no se mueve o miente; y caminando
-te dice para dónde **vas**, que es justo lo que ya sabés. Lo que se necesita
-es el magnetómetro.
-
-`expo-location` ya está instalado y expone `watchHeadingAsync`, con
-`trueHeading` y `magHeading`. Así que no hay dependencia nueva.
-
-### Tareas
-
-- [x] hook `useCompassHeading()` sobre `watchHeadingAsync`
-- [x] usar `trueHeading`, no `magHeading`: la declinación magnética en Suecia
-      es de unos 5–8° al este, y a 100 m de distancia 6° son ~10 m de error
-      lateral — suficiente para pasar de largo un röse en el bosque.
-      `trueHeading` necesita permiso de ubicación, que ya lo tenemos
-- [x] **suavizado obligatorio.** El magnetómetro crudo tiembla varios grados
-      por segundo; un cono que salta se ve roto. Filtro pasabajos sobre el
-      seno y el coseno del ángulo, **nunca sobre los grados** — promediar 359°
-      y 1° da 180°, o sea exactamente al revés
-- [x] el cono como capa propia al lado de `<UserLocation />`, no como
-      `children`: los children reemplazan el puck entero y habría que
-      redibujarlo. Mismo patrón que `ProvisionalLocation.tsx`, que ya dibuja
-      su punto con `GeoJSONSource` + `Layer`
-- [x] posición viva para esa capa: `UserLocation` la tiene adentro y no la
-      expone, así que hace falta un `watchPositionAsync` propio
-- [x] `icon-rotation-alignment: "map"` para que el cono gire con el mapa
-      cuando la brújula del mapa no está al norte
-- [x] icono propio (una cuña con degradado, como el de iOS). No importar el
-      `heading.png` de `node_modules`
-- [x] qué hacer cuando el sensor no está calibrado: `accuracy` bajo en
-      Android es común y el rumbo puede estar 30° equivocado. Mejor ocultar
-      el cono que mostrar uno que miente en el bosque
-- [x] apagar la suscripción cuando la app no está al frente; el magnetómetro
-      a 60 Hz come batería, y esto es una app que se usa lejos de un enchufe
-
----
-
 ## 6. El menú de la app (arriba a la izquierda)
 
 **La regla de los rincones, que ya está implementada:** *abajo* es actuar
@@ -675,29 +427,11 @@ usuario que la app tiene una forma.
 
 ### Tareas
 
-- [x] `Konto` — login con Google y mail, logout, crear cuenta
-- [x] **`Mina besökta platser`** — una fila por **lugar**, no por visita, con
-      la fecha y un contador de días. Y es también una lista de pendientes:
-      cada fila dice si la puntuaste, y tocarla abre el sheet con las
-      estrellas. Sin eso es un diario, y un diario no le pide nada a nadie
-- [x] `visit_day` ahora es el día **local**, y las filas viejas se repararon
-      desde `created_at` (que sí es un timestamp UTC completo). Migración por
-      rebuild de la tabla, porque un UPDATE puede violar el índice único:
-      01:00 y 14:00 del mismo día sueco son dos días UTC distintos y uno
-      local. Probado contra sqlite3 real con `TZ=Europe/Stockholm`
 - [ ] lo que **no** se reparó es el servidor: el duplicado local que la
       migración descartó ya estaba posteado, así que el log tiene dos visitas
       de un autor para un lugar en un día. Hoy no le molesta a nadie, pero es
       la razón por la que contar visitas, cuando llegue, tiene que deduplicar
       al leer y no confiar en la regla del cliente
-- [x] **`Påminnelser`** on/off — apagarlo **desprograma** la notificación de
-      esta noche, no sólo deja de programar las próximas; prenderlo pide el
-      permiso ahí mismo y el switch guarda el estado que *logró*, no el que
-      se pidió, porque el sistema puede negarse. `settings` key-value en
-      `contributions.db`, schema 3
-- [x] **`Språk`** sv/en — **la mitad de la interfaz**: `src/i18n` con 130
-      claves, los 31 artículos del wiki traducidos con sus propios `triggers:`
-      en inglés, y `check-i18n.mjs` validando claves y placeholders
 - [ ] **`Språk`, la otra mitad: las descripciones siguen en sueco** (hallazgo
       de campo 2026-09-15: "lo puse en inglés pero las descripciones siguen
       viéndose en sueco"). Es el comportamiento actual por diseño, no un bug:
@@ -709,7 +443,7 @@ usuario que la app tiene una forma.
   - [ ] `build_tiles.py --lang en` emitiendo un segundo `descriptions.db`, y
         el APK llevando los dos (+10 MB) o bajando el segundo a demanda —
         **decisión de tamaño, es de Franco**
-  - [x] **hecho**: una base por idioma, `descriptions.<lang>.db`, y cada
+  - **hecho**: una base por idioma, `descriptions.<lang>.db`, y cada
         **fila** lleva el idioma en que realmente está — el export cae al
         sueco por fila, así que hoy 5.540 de 9.547 lugares están de verdad en
         inglés y el resto son suecos adentro del archivo inglés. El matcher
@@ -726,13 +460,6 @@ usuario que la app tiene una forma.
         bases hay empaquetadas. Todo lo que lo necesita ya pregunta ahí,
         incluido el matcher del wiki: los triggers se eligen por el idioma de
         la **prosa**, así que eso sale gratis
-- [x] **`Om appen`** — las dos listas se **generan** de los archivos que
-      describen: los 23 créditos los emite `build-wiki.mjs` de las propias
-      líneas de crédito de los artículos (que ya valida que no falten), y los
-      21 paquetes los emite `build-licences.mjs` del árbol instalado, leyendo
-      el campo `license` de cada uno. Una pantalla de licencias es la única
-      que nadie mira hasta que importa, así que una copia a mano se desfasa
-      justo para el lado que duele y nada lo avisa
 - [ ] **el párrafo de fuentes está escrito a mano y va a desfasarse.** Los
       créditos de las 23 fotos y los 21 paquetes se generan, pero la lista de
       fuentes de las descripciones es prosa en `sv.json`. El pipeline **sí**
@@ -752,41 +479,17 @@ usuario que la app tiene una forma.
       4.0, o sea que la descripción es una adaptación y arrastra
       share-alike), 200 `county_attr`, 111 `county_plan`, 81 `county_page`,
       59 `county_programme` y 44 `county_pdf` (CC BY 4.0 / CC BY-SA 4.0)
-- [x] **`generation_sources` ya no está vacía** (hecho 2026-09-16, 12.446
-      filas). `load_sources` saca el `source_id` de cada fila, `payload` lo
-      quita del `model_input` y lo devuelve aparte en `source_ids`, y el loop
-      de generación lo escribe en cuanto la descripción se commitea. El id
-      **no** entra al payload a propósito: `source_hash` es un hash de lo que
-      vio el modelo, y meter un id ahí habría hecho que los 9.181 lugares
-      reportaran "mis fuentes cambiaron" y se encolaran para regenerar.
-      Verificado: las 150 filas v3 re-hashean exactamente a lo guardado
-  - [x] `--backfill-sources` estableció 8.842 de las 9.199 existentes, en dos
-        niveles, y la columna nueva `basis` dice cuál:
-        **`hash`** (148, probadas: reconstruir el payload da el `source_hash`
-        guardado), **`register-only`** (8.694, escritas antes de que el
-        commit `3b99dfb` cableara el corpus, así que por construcción vieron
-        un solo campo), y **ausentes** (357, posteriores a ese día y sin
-        `payload_version`: no las decide ni el hash ni la fecha, así que no
-        reciben nada en vez de una adivinanza — regenerarlas es lo que lo
-        arregla)
-  - [x] **corrección al número de arriba**: no son 1.061 descripciones
-        saliendo de Wikipedia. **1.401 lugares tienen una fuente de Wikipedia
-        en el corpus, pero sólo 6 descripciones del archivo fueron escritas
-        de una** — las otras 8.694 probadamente no. Así que la obligación de
-        CC BY-SA hoy son 6 lugares, y pasa a ~1.401 después de la
-        regeneración. Era mucho menos urgente de lo que parecía, y lo que lo
-        vuelve urgente es la regeneración, no el tiempo
-  - [ ] `features.uses_wikipedia` lo va a levantar `build_places` la próxima
-        vez que corra (daría 6 hoy). **No** se escribió desde
-        `build_descriptions`: esa columna alimenta el score, y escribirla
-        desde fuera de su etapa es la clase de acoplamiento que se rompe solo
-  - [ ] falta la otra mitad: **exportarla y mostrarla en el sheet** (pedido
-        2026-09-16). Ver el item de abajo, que tiene el diseño
-  - [ ] ojo con `rm places.sqlite`: los `source_id` son autoincrementales y
-        `build_sources` los preserva sólo porque inserta con `INSERT OR
-        IGNORE` sobre una tabla que no dropea. Borrar el archivo reasigna los
-        ids y deja `generation_sources` apuntando a otras filas. Si algún día
-        hay que rehacer el corpus de cero, hay que rehacer también el backfill
+- [ ] `features.uses_wikipedia` lo va a levantar `build_places` la próxima
+      vez que corra (daría 6 hoy). **No** se escribió desde
+      `build_descriptions`: esa columna alimenta el score, y escribirla
+      desde fuera de su etapa es la clase de acoplamiento que se rompe solo
+- [ ] falta la otra mitad: **exportarla y mostrarla en el sheet** (pedido
+      2026-09-16). Ver el item de abajo, que tiene el diseño
+- [ ] ojo con `rm places.sqlite`: los `source_id` son autoincrementales y
+      `build_sources` los preserva sólo porque inserta con `INSERT OR
+      IGNORE` sobre una tabla que no dropea. Borrar el archivo reasigna los
+      ids y deja `generation_sources` apuntando a otras filas. Si algún día
+      hay que rehacer el corpus de cero, hay que rehacer también el backfill
 - [ ] **una línea de atribución en el sheet, debajo del texto generado**
       (pedido 2026-09-16). Ahora que `generation_sources` tiene datos se
       puede derivar, y el diseño lo decide un número: **sólo 26 de los 8.842
@@ -818,58 +521,6 @@ usuario que la app tiene una forma.
         url, y si alguien pide que se baje, se baja. La línea del sheet es
         **la que hace posible esa promesa**, así que esos 7 son justamente
         los que más la necesitan
-- [x] **el hallazgo estaba mal**: `ATTRIBUTION` **sí** se usa. Se renderiza
-      en `MapScreen.tsx:561`, y está así desde el primer commit (`c7d65a0`),
-      así que el mapa muestra el crédito de OSM. Nada que hacer.
-      *(hallazgo original: `ATTRIBUTION` en `src/map/constants.ts` no lo usa nadie, así que
-      hoy el mapa no muestra ninguna atribución de OSM. Con `Om appen` está a
-      dos toques, que es discutible; ponerlo en el mapa es una decisión
-      visual, no técnica
-- [x] **`Glöm mig`** — `_reset()` ya existe en `contributions.ts` y no tiene
-      botón. Va separado por una línea y en color de acento: borrar todo lo
-      que contribuiste no puede estar en la misma lista visual que cambiar el
-      idioma
-- [x] **`Glöm mig` tiene que abrir una ventana de advertencia antes de
-      ejecutar.** Es la única acción de toda la app que no se puede deshacer
-      ni reintentar: no hay copia de la que volver, y los puntajes, visitas y
-      respuestas sobre carteles se van todos juntos. La advertencia tiene que
-      decir *qué* se pierde, no preguntar "¿estás seguro?" — que es la
-      pregunta que la gente aprende a contestar sí sin leer
-- [x] **`Glöm mig` son tres cosas, no una.** Las tres, en este orden, porque
-      el orden es parte del diseño:
-      1. pedirle al servidor que borre por autor — **antes** de tirar el
-         uuid, porque el uuid es lo único con que se puede pedir. Después de
-         tirarlo los eventos publicados quedan huérfanos para siempre: nadie
-         los puede volver a asociar con esa persona, ni para borrarlos
-      2. **cerrar la sesión de Firebase.** `_reset()` borra la fila `device`,
-         así que el `account_id` local se va, pero la sesión de Firebase
-         sigue abierta y te quedás con el avatar puesto y un uuid nuevo: un
-         estado incoherente
-      3. borrar local. El uuid nuevo ya sale gratis de borrar la fila
-         `device` — `getDeviceId()` lo genera en la siguiente llamada
-- [x] **el link es el agujero, y es el argumento de verdad para (1) y (2).**
-      Resuelto: la fila del link se borra con los eventos
-      Si no se cierra la sesión y el uuid nuevo se vuelve a linkear a la
-      misma cuenta, la cuenta sigue apuntando al dispositivo viejo, cuyos
-      eventos siguen publicados. Borrar local dejando el link en el servidor
-      es la peor de las tres opciones: parece que borró y no borró. O borra
-      por autor, o como mínimo desvincula
-- [x] **decidido: cerrar sesión NO rota el uuid.** Es tentador — te daría la
-      semántica que uno espera, "ahora soy anónimo" — y es la trampa contra
-      la que ya nos estrellamos una vez: partir a una persona en dos autores
-      a propósito. Además rompe "¿esto lo puntué yo?", que se resuelve por
-      autor, así que haría falta una tabla de uuids históricos para
-      reconocernos a nosotros mismos. `Logga ut` significa "dejá de mostrar
-      quién soy"; el que cambia de identidad es `Glöm mig`. Dos acciones con
-      un significado nítido cada una, en vez de un logout que hace medio
-      borrado
-- [x] **el link sólo cubre dispositivos que alguna vez iniciaron sesión**, y
-      eso es irreparable por diseño. Si puntuás en el teléfono A sin cuenta y
-      después te logueás sólo en el B, lo del A queda como autor anónimo
-      aparte. Lo único que puede probar que el A era tuyo es el A presentando
-      su uuid, y un endpoint que te deje reclamar eventos de un uuid ajeno es
-      un endpoint para robar contribuciones. La consecuencia práctica es
-      chica: loguearse una vez en cada teléfono antes de jubilarlo
 - [ ] **borra sólo este dispositivo**, incluso para alguien logueado con dos
       teléfonos. Se podría seguir el link y borrar el otro, y para una lectura
       estricta del derecho de borrado probablemente haya que hacerlo; no está
@@ -899,38 +550,6 @@ y no en statements independientes. El argumento viejo era que un borrado a
 medias es mejor que uno rechazado, y eso vale mientras todos los pasos sean
 borrados; deja de valer en el momento en que uno es una **publicación**.
 
-- [x] **Servidor, `author/route.ts`.** Dentro de **una** transacción (`tx()`),
-      en este orden:
-      1. Tomar el número de secuencia igual que hace el POST de eventos
-         (`UPDATE fl_event_seq SET v = v + 1 ... RETURNING v`).
-      2. Insertar en `fl_events` una fila con `kind = 'author_erased'`,
-         `author = <el que pide>`, `place_uuid = '*'` (no hay lugar; el CHECK
-         no existe, pero poner un marcador explícito es mejor que un string
-         vacío), `payload = '{}'`, y el `seq` obtenido.
-      3. `DELETE FROM fl_events WHERE author = $1 AND kind <> 'author_erased'`.
-      4. `DELETE FROM fl_account_devices WHERE device = $1`.
-      El tombstone se queda: es la única fila de ese autor que sobrevive y no
-      contiene nada más que el pseudónimo, que ya era público. Contar el
-      `rowCount` del paso 3 para la respuesta, como ahora.
-- [x] **Servidor, `events/route.ts`.** Hay un set nuevo `SERVER_KINDS` que el
-      POST rechaza explícitamente, en vez de caer en "unknown kind" por
-      omisión. No hizo falta tocar `payloadSchemas`: el chequeo de kind es
-      anterior, así que un cliente que lo mande ya recibe 400.
-      *(Plan original: agregar `'author_erased'` a los kinds
-      que el GET sirve (hoy sirve todo lo que hay, así que sale solo), y al
-      `payloadSchemas` con `z.object({}).loose()` para que un cliente que lo
-      mande por error reciba 400 igual que cualquier kind que no está en
-      `ANONYMOUS_KINDS`. **No** agregarlo a `ANONYMOUS_KINDS`: sólo el
-      servidor lo escribe.
-- [x] **App, `remote.ts` → `applyRemote`.** Un caso nuevo: si
-      `e.kind === 'author_erased'`, ejecutar
-      `DELETE FROM ratings/visits/signs/presence/comments/photos WHERE
-      author = e.author` en la misma transacción que aplica el lote. `e.author`
-      llega ya como pseudónimo, que es exactamente la clave con la que están
-      guardadas las filas remotas. Después el cursor avanza como siempre.
-- [x] **App, `sync.ts` → `forgetMe`.** No cambia: sigue llamando al DELETE
-      primero. Lo único nuevo es que la respuesta del servidor ahora es
-      verdad.
 - [ ] **Migrar lo ya borrado.** Los borrados hechos antes de este fix no
       tienen tombstone y no se pueden reconstruir (el autor ya no está).
       Como la app no está publicada y los únicos teléfonos son los de Franco,
@@ -968,121 +587,12 @@ fijo no puede expresar eso.
 
 ### Las decisiones
 
-- [x] **el gate es haber estado, no estar ahí.** Lo que se rechazó en la
-      sección 2 fue gatear por GPS *en el momento* — uno vuelve a casa y ahí
-      puntúa — y eso sigue funcionando porque la visita quedó registrada. Lo
-      único que cambia es el caso "nunca estuve acá"
-- [x] **por qué el puntaje necesita el gate, y no es prolijidad.** La escala
-      pregunta si valió la pena el viaje, y quien no fue sólo puede contestar
-      con lo que la app le mostró: descripción, fotos, score. O sea que su
-      estrella es **una función de los features que el modelo ya ve** — que es
-      exactamente cómo las labels de Wikidata le enseñaron "está documentado"
-      en vez de "vale la pena ir". Dejar puntuar a no-visitantes reintroduce
-      ese defecto por el target
-- [x] **`Nej` con visita del GPS no es una contradicción.** Es evidencia de
-      que el sitio no se ve estando al lado, que es casi el negativo más
-      fuerte que la app puede juntar. Por eso se guarda el par (`had_visit`) y
-      no sólo la respuesta: el desacuerdo es el caso valioso
-- [x] **confirmar no escribe una visita.** El que confirma un lugar que vio en
-      1998 no lo visitó hoy, y fabricar una fila con la fecha de hoy pondría
-      una fecha falsa en la única tabla que existe para tener fechas reales.
-      `Mina besökta platser` en cambio descarta los lugares cuya última
-      respuesta es `Nej`
-- [x] **el que confirmó sin visita del GPS aparece con `Tidigare`** en vez de
-      una fecha. El único timestamp que tenemos es cuándo nos lo dijo, que no
-      es cuándo fue, y ponerlo sería una fecha inventada en la única lista
-      donde la fecha es el contenido. Las con fecha primero y las sin fecha al
-      final, porque la lista se lee como una cronología
-- [x] **una pregunta que puede esconder a las otras tiene que dejar una
-      puerta.** `Hoppa över` en el gate reemplazaba la sección entera por
-      `Tack!` sin forma de volver, o sea que un toque borraba las estrellas de
-      ese lugar para siempre. Y las respuestas que ya existen se muestran
-      diga lo que diga el gate: esconder el propio puntaje de alguien detrás
-      de una pregunta que todavía no contestó no es nuestra decisión
-- [x] el costo, dicho en voz alta: esto ata el crecimiento de los datos a la
-      velocidad a la que la gente camina. Se paga igual — 50 puntajes de gente
-      que fue valen más que 500 de gente que leyó la descripción
-
-- [x] **el checkbox `Jag kunde inte hitta lämningen` debajo del input de
-      puntaje.** La idea de Franco, y reemplaza a la pregunta condicional que
-      yo había propuesto. El diagnóstico es lo que acierta: poner una estrella
-      es *publicar una opinión negativa*, y alguien que no pudo verificar nada
-      no quiere opinar — quiere reportar. Son dos actos distintos. Y un escape
-      a la vista, antes, saca la barrera en el momento en que existe, donde una
-      aclaración condicional llega después de que la persona ya hizo lo que no
-      quería hacer
-- [x] **no se guarda como 1★.** Una estrella es "para nada recomendable" y
-      nada más; el flag es "no pude verificar". Si el checkbox escribiera
-      `stars: 1`, al volver a abrir el lugar la persona vería *una estrella
-      puesta por ella* — justo la opinión que se negó a dar. Se guarda como
-      respuesta propia y **cuenta como el puntaje más bajo sólo donde hace
-      falta un número**: ranking, score, labels
-- [x] **exclusión mutua en las dos direcciones.** Enforced en SQLite, no sólo
-      en la UI: `stars` es nullable y un CHECK deja pasar exactamente una de
-      las dos. Probado contra sqlite3 real: las dos puestas falla, ninguna
-      puesta falla. Marcar el checkbox borra el
-      puntaje además de deshabilitarlo, y tocar una estrella desmarca el
-      checkbox. Si sólo se deshabilita queda un estado intermedio — tres
-      estrellas apagadas y el checkbox marcado — donde nadie sabe qué se
-      guardó. Es una pregunta con dos formas de contestarse, así que no puede
-      tener dos respuestas a la vez
-- [x] **`Inget att se` se queda.** No lo reemplaza: son los dos consejos
-      distintos que queríamos separar. `Inget att se` es "la encontré y no hay
-      nada que valga la pena"; el checkbox es "no pude verificar". Para el
-      próximo visitante son mensajes diferentes, y son justo los dos que el
-      registro no distingue
-- [x] **`Osäker` es una respuesta; `Hoppa över` es la ausencia de una.** La
-      respuesta del cartel es de tres valores y se guarda como texto, no como
-      un tercer entero: `has_sign IN (0,1,2)` es un booleano con una mentira
-      adentro. No
-      pueden compartir un botón. `Osäker` es dato — la persona estuvo y no
-      pudo determinarlo, y para el cartel eso vale casi tanto como un `Nej`.
-      `Hoppa över` no se guarda como dato nunca: lo único que registra es "no
-      me preguntes esto ahora". Si comparten un botón, el día que contemos
-      respuestas vamos a estar contando silencios
-- [x] **las respondidas colapsan** a una línea con `Ändra`, y las salteadas a
-      una con `Svara`. Sacar las estrellas al responder habría sacado el único
-      lugar donde alguien puede ver o corregir su propio puntaje, y saltear
-      una vez no es una decisión para siempre
-- [x] el **cartel es un hecho del sitio**, así que va al lado del período y
-      el tamaño y no al lado de los botones que lo preguntan. Mayoría de la
-      última respuesta por autor, con `unsure` como su propio bucket — se
-      inclina al `no`, pero leerlo como `no` sería contestar por la persona, y
-      todo el valor de este campo es que la respuesta viene de gente. El
-      empate también es `oklart`. Siempre con el conteo, porque con el
-      registro en 105 de 251.014 el reporte de un visitante es lo mejor que
-      esto va a tener y el lector tiene que saber qué tan flaco es
-- [x] **la advertencia por moda**, que estaba escrita y no construida. Cuenta
-      un "no lo encontré" o **un 1★ de alguien a quien el GPS puso en el
-      sitio**: una estrella es una opinión, y la opinión de alguien que no fue
-      es justo lo que esto no puede usar, mientras que el "no lo encontré" ya
-      viene gateado. Mínimo dos, porque uno no es un patrón — un solo reporte
-      decidiendo lo que ven todos los demás es una mala tarde, o una persona
-      con bronca. Y eso significa que un "no lo encontré" solo vuelve a
-      mostrar las estrellas del modelo, que es el canje correcto
 - [ ] el 1★ verificado usa `visited` (GPS). Un visitante **declarado** que
       puntúa 1★ no cuenta para la advertencia. Decidir si la presencia
       declarada alcanza, ahora que el gate la pide
 - [ ] los skips **se miden**: una pregunta que todos saltean es una pregunta
       mal escrita, y eso sólo se ve si el skip se cuenta. Empieza como tabla
       local; sincronizarlo necesita un `kind` nuevo en el servidor
-- [x] **la cola vive en un solo lugar.** Se usa desde el sheet y desde el
-      flujo de la notificación de la noche. Dos implementaciones se
-      desincronizan — es lo que ya pasó con los dos sheets abiertos a la vez y
-      con el padding de la cámara
-- [x] **la cola necesita un final visible.** Cuando no queda nada que
-      preguntar tiene que decir algo, no desaparecer. Un bloque que se esfuma
-      solo se lee como un bug, no como una tarea terminada
-- [x] `SegmentedControl` (el de una fila de celdas, el del umbral de estrellas
-      en los filtros) para las de sí/no, en vez de dos botones sueltos: dos
-      celdas pegadas se leen como **una** pregunta con dos estados
-- [x] el recordatorio de la noche considera "contestado" **sólo el puntaje**.
-      Antes bastaba contestar el cartel para silenciarlo, o sea que la
-      pregunta barata tapaba a la valiosa: una visita real sin puntaje, que es
-      lo único que ese recordatorio existe para juntar
-
----
-
 ## 8. Logs de warnings y errores, en un solo lugar (pedido 2026-09-15)
 
 **Qué es:** que la app y el backend manden sus warnings y errores al mismo
@@ -1140,82 +650,6 @@ De acuerdo con el planteo, con una corrección: **dos de los cuatro ejemplos
 motivadores son bugs, no cosas para loguear**. Loguearlos los haría visibles;
 arreglarlos los hace desaparecer. Van acá como items propios porque el
 logging es un proyecto y estos son tardes.
-
-- [x] **Bug: el `outbox` abandona filas para siempre y no lo dice**
-      (arreglado 2026-09-16, `1f602b5`). Tres cosas: `blame()` lee el cuerpo
-      del error y marca **sólo** las filas que el servidor nombra (con el
-      lote como *fallback*, no como regla); **429 y 401 ya no cuentan** como
-      culpa del payload, que era lo que mataba una puntuación en diez flushes
-      rate-limiteados; y el menú muestra "{n} bidrag kunde inte skickas" sólo
-      cuando hay alguno, con reintento.
-  - [x] **corrección: `dead` no necesita columna.** `attempts >= MAX_ATTEMPTS`
-        ya lo dice, y un flag al lado del contador sería un segundo lugar
-        donde el mismo hecho puede estar mal. Lo que faltaba no era el flag,
-        era que alguien mirara
-  - [x] las filas culpadas se guardan en un set **por flush**: sin eso el
-        `pending()` siguiente devuelve el mismo lote y cobra el mismo rechazo
-        diez veces adentro de un solo flush
-  - [x] el reintento resetea `attempts` en vez de re-registrar, así el
-        `event_id` no cambia y el `ON CONFLICT DO NOTHING` del servidor hace
-        inofensivo reintentar algo que sí llegó. Botón y nunca timer: estas
-        filas murieron de ser rechazadas
-      *(planteo original: En
-      `sync.ts` `flush()` marca el lote entero como fallido ante cualquier
-      4xx; `attempts` sube; a los 10, `pending()` (`contributions.ts:~1240`,
-      `WHERE attempts < 10`) las deja de ver. Nadie las borra, nadie las
-      muestra, y la persona cree que su puntaje está publicado.
-      **Fix:** (1) un 4xx **no** es un fallo del lote: el servidor devuelve
-      `event_id` en el 400 de payload y `kind` en el 403/400 de kind, así que
-      marcar sólo esa fila y reintentar el resto en la siguiente vuelta;
-      (2) una fila que llega a 10 intentos pasa a un estado terminal visible
-      (`dead = 1`) y el menú muestra un contador "N contribuciones no se
-      pudieron enviar" con un botón de reintentar que resetea `attempts`;
-      (3) un 5xx o error de red no suma `attempts` — sólo los 4xx, porque
-      sólo esos son culpa del payload. Recién con eso hecho, el log de la
-      sección 8 recibe "fila muerta" como warning.
-- [x] **Bug: los singletons de base se envenenan** (arreglado 2026-09-16).
-      Los dos limpian el cache cuando la promesa rechaza, como ya hacía
-      `pointsData.ts`. En `descriptions.ts` el síntoma era que todas las
-      fichas quedaban vacías hasta matar la app.
-- [x] **Bug: las migraciones 4 y 5 hacen `BEGIN … COMMIT` dentro de un
-      `execAsync`** (arreglado 2026-09-16). Los seis pasos corren ahora en
-      `withTransactionAsync` y **cada uno escribe su propio `user_version`
-      adentro de su transacción**, así que un paso está commiteado y no se
-      reintenta nunca, o rolleó entero y se reintenta desde donde empezó. El
-      `PRAGMA user_version = SCHEMA` general del final se fue a propósito:
-      tapaba justamente el caso de un paso agregado sin el suyo
-  - [x] **corrección al planteo: la idempotencia no se puede, y no hace
-        falta.** Dos de los pasos reconstruyen una tabla leyendo la columna
-        vieja, así que re-correrlos después de que salieron bien falla en
-        `has_sign`, que ya no existe. Lo que reemplaza a la idempotencia es
-        la atomicidad. Lo que sí lleva `DROP TABLE IF EXISTS` son las tablas
-        scratch, para los teléfonos que el código viejo pudo dejar trabados
-  - [x] probado contra SQLite de verdad, extrayendo el SQL y corriéndolo:
-        instalación limpia 1..6; upgrade desde 3 con datos; la colisión de
-        día UTC→local que la migración 4 existe para resolver (dos visitas en
-        días UTC distintos y el mismo día sueco se dedupan a la más temprana,
-        como promete el comentario); y una base en versión 4 con un
-        `ratings_new` colgado, que ahora migra a 6 con sus filas intactas
-- [x] `remote.ts` abría una **segunda conexión** a `contributions.db`
-      (arreglado 2026-09-16): ahora importa `open()` de `contributions.ts`.
-- [x] `visit_day` **viaja con la visita** (hecho 2026-09-16, `70b06cd` en la
-      app + `cbc59f4` en franco-may, deployado). Se lee de SQLite una vez y se
-      usa para la fila y para el payload, así coinciden por construcción; al
-      aplicar se valida contra `YYYY-MM-DD` porque el valor entra en un índice
-      UNIQUE, y si no viene se cae al `date(server_ts)` de siempre.
-      *(diagnóstico original: se calculaba en **hora local** para las propias y en
-      **UTC** para las remotas (`remote.ts` aplica `date(server_ts)`). La misma
-      persona en dos teléfonos se dedup con dos calendarios distintos. El
-      servidor no sabe la zona; mandar `visit_day` dentro del payload desde el
-      teléfono y usar eso al aplicar.
-- [x] `refreshReminder()` ya **no** pide el permiso (arreglado 2026-09-16):
-      hay `hasPermission()` que sólo consulta, y `ensurePermission()` que
-      pregunta queda sólo en el switch. *(original: pedía el permiso al pasar a
-      background**. Android descarta o muestra el diálogo al volver sin
-      contexto. Pedirlo sólo desde el switch de `Påminnelser`, que ya lo hace,
-      y en `refreshReminder` sólo programar si el permiso *ya* está.
-
----
 
 ## 9. Contribuir y reportar sitios (pedido 2026-09-15)
 
@@ -1473,10 +907,6 @@ Las tres cosas que se rompen, y que son el trabajo real:
       porque se firma con el keystore de debug y el APK se distribuye a
       mano — pero si Play está en el horizonte, el mecanismo propio es
       trabajo que después se tira
-- [x] ~~recomendación: no hacerlo todavía por el tamaño~~ — superada. El
-      tamaño nunca fue el argumento; el argumento es el de la revisión de
-      abajo, y con ese sí se hace
-
 ### Revisado el 2026-09-16: la pregunta cambió, y la respuesta también
 
 Franco preguntó "¿por qué no hacerlo todavía?". La respuesta de arriba era
@@ -1575,9 +1005,6 @@ Sobreviven 128.951 clusters, y mandarlos todos son 36,6 MB en crudo pero
 haría que un falso negativo ya estuviera en el mapa y no hiciera falta
 actualizar nada.
 
-- [x] **descartado, y no por el tamaño**: la mayoría de esos puntos son
-      ruido, y el ruido no se muestra **por más que se haga mucho zoom**.
-      Decisión de Franco, 2026-09-15. El corte se queda
 - [ ] tenerlos en el build sin mostrarlos **no simplifica lo suficiente**.
       Mediría: ahorraría mandar la geometría de un lugar que asciende, pero
       `score`/`stars`/`minzoom` se siguen recalculando en conjunto, así que
@@ -1827,6 +1254,86 @@ Las desviaciones son dos, y ninguna es de forma:
 
 Respuesta corta: **no es una desviación, es la visión sin terminar de
 conectar.** Lo que falta es que sea la fuente del export.
+
+---
+
+## Decisiones tomadas, que no viven en ningún archivo
+
+Lo de acá NO es trabajo pendiente: son las decisiones y los hallazgos de datos
+que hay que conocer para no volver a discutirlos, y que no se leen en un solo
+lugar del código. **El registro de lo construido se saca del `git log`, no de
+acá** — el razonamiento de cada cosa hecha está en el comentario del archivo
+que la implementa, que es un mejor lugar porque no puede desfasarse de él.
+
+**El puntaje**
+
+- existe / visible / visitable / interesante son **un solo eje**: si alguna es
+  negativa no vale la pena ir, así que es una sola pregunta con un solo
+  control, y nombrar el fondo de la escala (`Inget att se`) reemplaza a un
+  botón aparte de "acá no hay nada"
+- el promedio de visitantes **reemplaza** al score del modelo en cuanto hay un
+  puntaje; no se promedia con él. El modelo mide cuánta documentación tiene el
+  lugar, la estrella mide si valió la pena ir, y los primeros cuatro puntajes
+  reales ya lo contradijeron
+- se muestra la **media cruda** más la cantidad, sin shrinkage: el dato más
+  valioso que puede tener este mapa es la única persona que manejó hasta allá
+  y encontró un campo arado
+- el flag "no pude encontrarlo" **no es 1★**. Una estrella es una opinión
+  negativa; el flag es no haber podido opinar. Exclusión mutua por CHECK
+- el recordatorio de la noche considera "contestado" **sólo el puntaje**: la
+  pregunta barata (el cartel) no puede tapar a la valiosa
+- **el costo, dicho en voz alta**: gatear todo detrás de "¿estuviste acá?" ata
+  el crecimiento de los datos a la velocidad a la que la gente camina. Se paga
+  igual — 50 puntajes de gente que fue valen más que 500 de gente que leyó la
+  descripción
+
+**Identidad**
+
+- **cerrar sesión NO rota el uuid.** Es tentador porque daría la semántica
+  esperada ("ahora soy anónimo") y es la trampa contra la que ya nos
+  estrellamos una vez: partir a una persona en dos autores a propósito.
+  Además rompe "¿esto lo puntué yo?", que se resuelve por autor. `Logga ut`
+  significa "dejá de mostrar quién soy"; el que cambia de identidad es
+  `Glöm mig`
+- **publicar exige cuenta, contribuir no** (2026-09-16). Un uuid anónimo se
+  mintea infinitas veces, así que ni el rate limit por autor ni "dos
+  observaciones coincidentes" valían nada. Leer sigue siendo anónimo
+- **comentarios y fotos siguen cerrados**, y no por falta de cuenta: no hay
+  forma de bajarlos. Se abren cuando haya moderación
+
+**Hallazgos de datos**
+
+- **el registro no sabe si hay algo que ver**, así que el prompt no se puede
+  reemplazar con datos: `antikvarisk bedömning` es 99,5% `Fornlämning` y
+  `Borttagen` no existe en nuestros datos
+- **274 lugares que el registro dio de baja estaban en la app.**
+  `Utgår på grund av felregistrering` (116) y `Överförd till annan lämning`
+  (158) → `excluded_hard`: no son lugares aburridos, son erratas. Sólo donde
+  **todos** los sitios del cluster están de baja (205 de 230 clusters)
+- **138 etiquetas negativas** del registro (`Förstörd` 0,9,
+  `Uppgift om lämning, ej bekräftad i fält` 0,6). El ratio pasa de 1:832 a
+  1:61; el AUC apenas se mueve (0,8113 → 0,8119)
+- **la atribución: 1.401 lugares tienen una fuente de Wikipedia en el corpus,
+  pero sólo 6 descripciones fueron escritas de una.** La obligación de CC BY-SA
+  hoy son 6 lugares, y pasa a ~1.401 después de la regeneración — lo que la
+  vuelve urgente es regenerar, no el paso del tiempo
+- **los `source_id` son estables sólo mientras `places.sqlite` no se borre.**
+  `build_sources` los preserva porque inserta con `INSERT OR IGNORE` sobre una
+  tabla que no dropea; `rm` del archivo los reasigna y deja
+  `generation_sources` apuntando a otras filas
+
+**Hallazgos de review que resultaron falsos** (para no volver a reportarlos)
+
+- `ATTRIBUTION` **sí** se usa: se renderiza en `MapScreen.tsx:561` desde el
+  primer commit, así que el mapa muestra el crédito de OSM
+- las migraciones **no pueden ser idempotentes** y no hace falta: dos pasos
+  reconstruyen tablas leyendo la columna vieja. Lo que reemplaza a la
+  idempotencia es la atomicidad
+- el estado `dead` del `outbox` **no necesita columna**: `attempts >=
+  MAX_ATTEMPTS` ya lo dice. Lo que faltaba no era el flag, era que alguien
+  mirara
+- exigir cuenta en el `DELETE` de autor **sería un bug**: dejaría a una
+  persona sin cuenta sin forma de ser olvidada
 
 ---
 
