@@ -380,14 +380,13 @@ de eventos es una tabla sola.
       que se mantiene *localmente*: el uuid sigue siendo el autor, la cuenta
       sigue heredándolo; lo único que cambia es que el POST exige que el
       uuid esté linkeado. **Decidido por Franco el 2026-09-16: opción 1.**
-- [ ] **Implementar "sólo logueados escriben".** Cuatro cambios, en este orden
-      para que nada quede a medias. **Los pasos 3 y 4 están hechos**
-      (2026-09-16, `dbebe01`); los 1 y 2, que son el servidor, **no pude
-      escribirlos**: el classifier de permisos me bloqueó dos veces al
-      insertar el chequeo de autorización en el endpoint compartido. Franco
-      tiene que habilitarlo o hacerlo él. Lo que sí quedó decidido al
-      escribirlo:
-  - [ ] **una corrección al plan: comentarios y fotos NO se abren.** El paso 1
+- [x] **"sólo logueados escriben": hecho y deployado** (2026-09-16,
+      `20c44cf` en franco-may, `dbebe01` en la app). Verificado en
+      producción: un uuid sin cuenta recibe
+      `403 {"reason":"account_required"}` y el GET sigue siendo anónimo. El
+      orden se respetó — el APK con el paso 3 se instaló **antes** de
+      pushear el servidor. Lo que se decidió al escribirlo:
+  - [x] **una corrección al plan: comentarios y fotos NO se abren.** El paso 1
         dice fundir `ANONYMOUS_KINDS` y `ACCOUNT_KINDS` porque "la distinción
         ya no existe". La de *cuenta* no existe más, cierto — pero comentarios
         y fotos nunca estuvieron bloqueados sólo por falta de cuenta: son
@@ -397,7 +396,7 @@ de eventos es una tabla sola.
         `KINDS` (todo lo posteable, todo exige cuenta) y `UNMODERATED_KINDS`
         (comment/photo, 403 con `reason: 'unmoderated'`), que se vacía cuando
         haya moderación y no antes
-  - [ ] el 403 tiene que llevar **`reason: 'account_required'`**, no sólo
+  - [x] el 403 lleva **`reason: 'account_required'`**, no sólo
         prosa: la app matchea sobre ese campo, y matchear sobre el mensaje se
         rompe el día que alguien lo reescribe
   - [x] **paso 3, app, `sync.ts`:** un 403 con `reason: 'account_required'`
@@ -407,19 +406,25 @@ de eventos es una tabla sola.
         cuenta, la ficha dice "Sparat på den här telefonen" con una pastilla
         de login inline (`signInWithGoogle` directo, sin modal). Nunca
         bloquea: la estrella ya está guardada antes de que el cartel aparezca
-  - [ ] **el orden del deploy es obligatorio**: el APK instalado tiene que
-        tener el paso 3 **antes** de que el servidor empiece a devolver el
-        403, porque un APK viejo trata cualquier 403 como culpa del lote y le
-        quema los diez intentos a las filas en diez flushes
+  - [x] **el orden del deploy era obligatorio** y se cumplió: el APK con el
+        paso 3 se instaló antes de pushear, porque un APK viejo trata
+        cualquier 403 como culpa del lote y le quema los diez intentos a las
+        filas en diez flushes
       1. **Servidor, `events/route.ts` POST:** después de validar el header,
          `SELECT account FROM fl_account_devices WHERE device = $1`. Si no
          hay fila → `403 { error: 'sign in to publish' }`. `ANONYMOUS_KINDS`
          y `ACCOUNT_KINDS` se funden en una sola lista `KINDS`; la distinción
          ya no existe. El GET **no** cambia: leer sigue siendo anónimo, porque
          el mapa tiene que mostrar los promedios a todos.
-      2. **Servidor, `author/route.ts` DELETE:** también exige link, por
-         simetría; si no hay nada publicado no hay nada que borrar, pero el
-         tombstone de `Glöm mig` no debe poder escribirlo un uuid suelto.
+      2. **Servidor, `author/route.ts` DELETE: NO exige link, y este paso del
+         plan estaba mal.** Exigirlo significaría que alguien **sin cuenta
+         nunca puede ser olvidado**: la app no se borra a sí misma si el
+         servidor no respondió bien, así que un 403 ahí lo deja sin salida —
+         peor que el bug que ese endpoint venía a arreglar. El agujero que
+         eso abre (mintear un uuid y hacernos escribir un tombstone de un
+         autor sin filas) se cierra **por orden y no por permiso**: borra
+         primero, y publica sólo si borró algo. Un autor sin nada que borrar
+         no genera evento, así que no hay con qué ensuciar el log.
       3. **App, `sync.ts` `flush()`:** un 403 de este tipo **no** es un fallo
          del payload: las filas se quedan en el `outbox` con `attempts` sin
          subir, y se reintentan cuando haya cuenta. Distinguirlo del 403 de
