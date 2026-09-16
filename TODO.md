@@ -1319,12 +1319,36 @@ gruvby sobreviviría por su nombre — bien. Pero:
 
 ### Propuesta, en orden de importancia
 
-- [ ] **sacar `dist_to_board_m <= 500` como condición de rescate**, dejando la
-      página propia. Es una línea en `build_scores.py:766`. Afecta a 2.845
-      clusters, no a 54
-- [ ] **agregar `Stadslager` a `CLASS_BLACKLIST`** en `families.py`. Una línea.
-      Con el rescate arreglado, sobreviven los que tienen nombre o foto — Sala
-      gruvby entre ellos — y se van los 55 informes de excavación
+- [x] **sacado `dist_to_board_m <= 500` como condición de rescate** (hecho
+      2026-09-16, `e6fa057`). Removido y **no** achicado, que era la otra
+      opción: a 50 m todavía rescata 76 clusters, y ésos son justamente los
+      que el condado distinguió de su vecino, así que un radio chico estaría
+      contradiciendo al juicio al que la condición existe para deferir —
+      además de dejar una constante que nadie puede justificar después.
+      Ningún radio es defendible, así que no hay radio.
+  - [x] el argumento que lo decide es interno: `build_clusters` agrupa por
+        **grupo RAÄ y no por proximidad**, porque *"grouping by proximity is
+        us guessing"* — su pase espacial se eliminó después de medir que
+        encadenaba 535 sitios en seis kilómetros. El spread medio de un
+        cluster es 45 m. Dos clusters a 300 m son dos monumentos que **el
+        condado separó**
+  - [x] la distancia al board **sigue** siendo feature del modelo
+        (`board_le_200`, `board_le_1km`, `log_board`), que es su lugar
+        correcto: ahí el modelo la pesa contra todo lo demás en vez de ser un
+        override
+  - [x] medido: AUC **sin cambios** en 0,8119 — que es el chequeo de sanidad
+        y no un resultado, porque el rescate no es feature y no podía
+        moverlo. El pool de candidatos baja de 128.951 a **126.210** (se van
+        2.741), y de los 10.000 pines del export instalado se irían
+        exactamente **100**: 65 Stensättning, 8 Boplats, 7 Fångstgrop y 6
+        Gränsbestämt område. **Todos sin nombre** — lo que tenía nombre se
+        rescató por tenerlo. Seis son de la clase de límites administrativos
+        que Franco tocó una vez esperando Li gravfält
+- [ ] **agregar `Stadslager` a `CLASS_BLACKLIST`** en `families.py`. Una línea,
+      y **todavía no está hecha**. Con el rescate ya arreglado sobreviven los
+      que tienen nombre o foto — Sala gruvby entre ellos — y se van los 55
+      informes de excavación. Falta la decisión de Franco porque, a
+      diferencia del rescate, esto pide re-correr las etapas 2→5
 - [ ] ojo: `CLASS_BLACKLIST` la leen `build_clusters` (etapa 2) y
       `build_signals` (etapa 4), así que esto pide **re-correr etapas 2→5**, y
       eso cambia qué lugares están en el export. No es gratis en tiempo ni
