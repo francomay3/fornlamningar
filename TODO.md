@@ -1107,26 +1107,31 @@ logging es un proyecto y estos son tardes.
       (3) un 5xx o error de red no suma `attempts` — sólo los 4xx, porque
       sólo esos son culpa del payload. Recién con eso hecho, el log de la
       sección 8 recibe "fila muerta" como warning.
-- [ ] **Bug: los singletons de base se envenenan.** `open()` en
-      `contributions.ts` y `openFor()` en `descriptions.ts` cachean la
-      promesa para siempre. Si `migrate` o el `PRAGMA` tiran una vez (disco
-      lleno, una migración a medias en un teléfono viejo), **todo** lo que
-      toca la base rechaza hasta reiniciar la app, sin mensaje. `pointsData.ts`
-      ya lo hace bien: `cache.catch(() => { cache = null })`. Copiar ese patrón
-      en los otros dos.
-- [ ] **Bug: las migraciones 4 y 5 hacen `BEGIN … COMMIT` dentro de un
-      `execAsync`.** Si una sentencia falla a mitad, expo-sqlite deja la
-      transacción abierta en esa conexión y `user_version` no sube; el próximo
-      arranque reintenta la misma migración con `visits_local` ya creada y
-      `visits` ya borrada. Usar `withTransactionAsync` (que hace rollback
-      solo) y escribir cada paso idempotente (`CREATE TABLE IF NOT EXISTS`,
-      `DROP TABLE IF EXISTS`). Es lo que tiene que estar sano **antes** de que
-      haya un teléfono que no sea el de Franco, porque una migración rota es
-      irrecuperable a distancia.
-- [ ] `remote.ts` abre una **segunda conexión** a `contributions.db` con
-      `openDatabaseAsync` directo, saltándose el singleton, WAL y migrate.
-      Funciona porque `pull()` casualmente llama a `getAuthorId()` antes.
-      Importar `open()` y listo.
+- [x] **Bug: los singletons de base se envenenan** (arreglado 2026-09-16).
+      Los dos limpian el cache cuando la promesa rechaza, como ya hacía
+      `pointsData.ts`. En `descriptions.ts` el síntoma era que todas las
+      fichas quedaban vacías hasta matar la app.
+- [x] **Bug: las migraciones 4 y 5 hacen `BEGIN … COMMIT` dentro de un
+      `execAsync`** (arreglado 2026-09-16). Los seis pasos corren ahora en
+      `withTransactionAsync` y **cada uno escribe su propio `user_version`
+      adentro de su transacción**, así que un paso está commiteado y no se
+      reintenta nunca, o rolleó entero y se reintenta desde donde empezó. El
+      `PRAGMA user_version = SCHEMA` general del final se fue a propósito:
+      tapaba justamente el caso de un paso agregado sin el suyo
+  - [x] **corrección al planteo: la idempotencia no se puede, y no hace
+        falta.** Dos de los pasos reconstruyen una tabla leyendo la columna
+        vieja, así que re-correrlos después de que salieron bien falla en
+        `has_sign`, que ya no existe. Lo que reemplaza a la idempotencia es
+        la atomicidad. Lo que sí lleva `DROP TABLE IF EXISTS` son las tablas
+        scratch, para los teléfonos que el código viejo pudo dejar trabados
+  - [x] probado contra SQLite de verdad, extrayendo el SQL y corriéndolo:
+        instalación limpia 1..6; upgrade desde 3 con datos; la colisión de
+        día UTC→local que la migración 4 existe para resolver (dos visitas en
+        días UTC distintos y el mismo día sueco se dedupan a la más temprana,
+        como promete el comentario); y una base en versión 4 con un
+        `ratings_new` colgado, que ahora migra a 6 con sus filas intactas
+- [x] `remote.ts` abría una **segunda conexión** a `contributions.db`
+      (arreglado 2026-09-16): ahora importa `open()` de `contributions.ts`.
 - [ ] `visit_day` se calcula en **hora local** para las visitas propias y en
       **UTC** para las remotas (`remote.ts` aplica `date(server_ts)`). La misma
       persona en dos teléfonos se dedup con dos calendarios distintos. El
