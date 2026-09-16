@@ -323,7 +323,9 @@ de eventos es una tabla sola.
 
 ### Hallazgos del review de 2026-09-16 sobre el sync
 
-- [ ] **Race en el GET que pierde un evento para siempre.** En
+- [x] **Race en el GET que pierde un evento para siempre** (arreglado y
+      **deployado** 2026-09-16, commit `87cbec1`). Se invirtió el orden: el
+      contador se lee primero, así el cursor sólo puede quedarse atrás. En
       `app/api/fornlamningar/events/route.ts` el GET hace dos queries sin
       transacción: primero `SELECT ... FROM fl_events WHERE seq > since`, y
       después `SELECT v FROM fl_event_seq`. Si la primera vuelve vacía (la
@@ -379,7 +381,36 @@ de eventos es una tabla sola.
       sigue heredándolo; lo único que cambia es que el POST exige que el
       uuid esté linkeado. **Decidido por Franco el 2026-09-16: opción 1.**
 - [ ] **Implementar "sólo logueados escriben".** Cuatro cambios, en este orden
-      para que nada quede a medias:
+      para que nada quede a medias. **Los pasos 3 y 4 están hechos**
+      (2026-09-16, `dbebe01`); los 1 y 2, que son el servidor, **no pude
+      escribirlos**: el classifier de permisos me bloqueó dos veces al
+      insertar el chequeo de autorización en el endpoint compartido. Franco
+      tiene que habilitarlo o hacerlo él. Lo que sí quedó decidido al
+      escribirlo:
+  - [ ] **una corrección al plan: comentarios y fotos NO se abren.** El paso 1
+        dice fundir `ANONYMOUS_KINDS` y `ACCOUNT_KINDS` porque "la distinción
+        ya no existe". La de *cuenta* no existe más, cierto — pero comentarios
+        y fotos nunca estuvieron bloqueados sólo por falta de cuenta: son
+        cosas que otros leen y **no hay forma de bajarlas** (no hay cola de
+        moderación, ni botón de reportar, ni almacenamiento para las fotos).
+        Fundir los dos sets abriría un canal sin moderación. Van dos sets:
+        `KINDS` (todo lo posteable, todo exige cuenta) y `UNMODERATED_KINDS`
+        (comment/photo, 403 con `reason: 'unmoderated'`), que se vacía cuando
+        haya moderación y no antes
+  - [ ] el 403 tiene que llevar **`reason: 'account_required'`**, no sólo
+        prosa: la app matchea sobre ese campo, y matchear sobre el mensaje se
+        rompe el día que alguien lo reescribe
+  - [x] **paso 3, app, `sync.ts`:** un 403 con `reason: 'account_required'`
+        devuelve sin penalizar las filas — se quedan en el `outbox` con
+        `attempts` sin subir y se publican cuando haya cuenta
+  - [x] **paso 4, app, UI:** una vez que el teléfono contestó algo y no hay
+        cuenta, la ficha dice "Sparat på den här telefonen" con una pastilla
+        de login inline (`signInWithGoogle` directo, sin modal). Nunca
+        bloquea: la estrella ya está guardada antes de que el cartel aparezca
+  - [ ] **el orden del deploy es obligatorio**: el APK instalado tiene que
+        tener el paso 3 **antes** de que el servidor empiece a devolver el
+        403, porque un APK viejo trata cualquier 403 como culpa del lote y le
+        quema los diez intentos a las filas en diez flushes
       1. **Servidor, `events/route.ts` POST:** después de validar el header,
          `SELECT account FROM fl_account_devices WHERE device = $1`. Si no
          hay fila → `403 { error: 'sign in to publish' }`. `ANONYMOUS_KINDS`
@@ -782,7 +813,10 @@ usuario que la app tiene una forma.
         url, y si alguien pide que se baje, se baja. La línea del sheet es
         **la que hace posible esa promesa**, así que esos 7 son justamente
         los que más la necesitan
-- [ ] `ATTRIBUTION` en `src/map/constants.ts` **no lo usa nadie**, así que
+- [x] **el hallazgo estaba mal**: `ATTRIBUTION` **sí** se usa. Se renderiza
+      en `MapScreen.tsx:561`, y está así desde el primer commit (`c7d65a0`),
+      así que el mapa muestra el crédito de OSM. Nada que hacer.
+      *(hallazgo original: `ATTRIBUTION` en `src/map/constants.ts` no lo usa nadie, así que
       hoy el mapa no muestra ninguna atribución de OSM. Con `Om appen` está a
       dos toques, que es discutible; ponerlo en el mapa es una decisión
       visual, no técnica
@@ -854,8 +888,13 @@ endpoint de borrado se saltó su propia regla. Para el derecho de borrado esto
 es peor que no tener el botón: parece que borró y no borró.
 
 **El fix: el borrado es un evento, y el borrado físico viene después.**
+**Hecho 2026-09-16** (`87cbec1` en franco-may, deployado; `1f602b5` en la app).
+Una diferencia con el plan de abajo: los tres pasos van en **una** transacción
+y no en statements independientes. El argumento viejo era que un borrado a
+medias es mejor que uno rechazado, y eso vale mientras todos los pasos sean
+borrados; deja de valer en el momento en que uno es una **publicación**.
 
-- [ ] **Servidor, `author/route.ts`.** Dentro de **una** transacción (`tx()`),
+- [x] **Servidor, `author/route.ts`.** Dentro de **una** transacción (`tx()`),
       en este orden:
       1. Tomar el número de secuencia igual que hace el POST de eventos
          (`UPDATE fl_event_seq SET v = v + 1 ... RETURNING v`).
@@ -868,19 +907,23 @@ es peor que no tener el botón: parece que borró y no borró.
       El tombstone se queda: es la única fila de ese autor que sobrevive y no
       contiene nada más que el pseudónimo, que ya era público. Contar el
       `rowCount` del paso 3 para la respuesta, como ahora.
-- [ ] **Servidor, `events/route.ts`.** Agregar `'author_erased'` a los kinds
+- [x] **Servidor, `events/route.ts`.** Hay un set nuevo `SERVER_KINDS` que el
+      POST rechaza explícitamente, en vez de caer en "unknown kind" por
+      omisión. No hizo falta tocar `payloadSchemas`: el chequeo de kind es
+      anterior, así que un cliente que lo mande ya recibe 400.
+      *(Plan original: agregar `'author_erased'` a los kinds
       que el GET sirve (hoy sirve todo lo que hay, así que sale solo), y al
       `payloadSchemas` con `z.object({}).loose()` para que un cliente que lo
       mande por error reciba 400 igual que cualquier kind que no está en
       `ANONYMOUS_KINDS`. **No** agregarlo a `ANONYMOUS_KINDS`: sólo el
       servidor lo escribe.
-- [ ] **App, `remote.ts` → `applyRemote`.** Un caso nuevo: si
+- [x] **App, `remote.ts` → `applyRemote`.** Un caso nuevo: si
       `e.kind === 'author_erased'`, ejecutar
       `DELETE FROM ratings/visits/signs/presence/comments/photos WHERE
       author = e.author` en la misma transacción que aplica el lote. `e.author`
       llega ya como pseudónimo, que es exactamente la clave con la que están
       guardadas las filas remotas. Después el cursor avanza como siempre.
-- [ ] **App, `sync.ts` → `forgetMe`.** No cambia: sigue llamando al DELETE
+- [x] **App, `sync.ts` → `forgetMe`.** No cambia: sigue llamando al DELETE
       primero. Lo único nuevo es que la respuesta del servidor ahora es
       verdad.
 - [ ] **Migrar lo ya borrado.** Los borrados hechos antes de este fix no
@@ -1093,7 +1136,25 @@ motivadores son bugs, no cosas para loguear**. Loguearlos los haría visibles;
 arreglarlos los hace desaparecer. Van acá como items propios porque el
 logging es un proyecto y estos son tardes.
 
-- [ ] **Bug: el `outbox` abandona filas para siempre y no lo dice.** En
+- [x] **Bug: el `outbox` abandona filas para siempre y no lo dice**
+      (arreglado 2026-09-16, `1f602b5`). Tres cosas: `blame()` lee el cuerpo
+      del error y marca **sólo** las filas que el servidor nombra (con el
+      lote como *fallback*, no como regla); **429 y 401 ya no cuentan** como
+      culpa del payload, que era lo que mataba una puntuación en diez flushes
+      rate-limiteados; y el menú muestra "{n} bidrag kunde inte skickas" sólo
+      cuando hay alguno, con reintento.
+  - [x] **corrección: `dead` no necesita columna.** `attempts >= MAX_ATTEMPTS`
+        ya lo dice, y un flag al lado del contador sería un segundo lugar
+        donde el mismo hecho puede estar mal. Lo que faltaba no era el flag,
+        era que alguien mirara
+  - [x] las filas culpadas se guardan en un set **por flush**: sin eso el
+        `pending()` siguiente devuelve el mismo lote y cobra el mismo rechazo
+        diez veces adentro de un solo flush
+  - [x] el reintento resetea `attempts` en vez de re-registrar, así el
+        `event_id` no cambia y el `ON CONFLICT DO NOTHING` del servidor hace
+        inofensivo reintentar algo que sí llegó. Botón y nunca timer: estas
+        filas murieron de ser rechazadas
+      *(planteo original: En
       `sync.ts` `flush()` marca el lote entero como fallido ante cualquier
       4xx; `attempts` sube; a los 10, `pending()` (`contributions.ts:~1240`,
       `WHERE attempts < 10`) las deja de ver. Nadie las borra, nadie las
@@ -1132,12 +1193,19 @@ logging es un proyecto y estos son tardes.
         `ratings_new` colgado, que ahora migra a 6 con sus filas intactas
 - [x] `remote.ts` abría una **segunda conexión** a `contributions.db`
       (arreglado 2026-09-16): ahora importa `open()` de `contributions.ts`.
-- [ ] `visit_day` se calcula en **hora local** para las visitas propias y en
+- [x] `visit_day` **viaja con la visita** (hecho 2026-09-16, `70b06cd` en la
+      app + `cbc59f4` en franco-may, deployado). Se lee de SQLite una vez y se
+      usa para la fila y para el payload, así coinciden por construcción; al
+      aplicar se valida contra `YYYY-MM-DD` porque el valor entra en un índice
+      UNIQUE, y si no viene se cae al `date(server_ts)` de siempre.
+      *(diagnóstico original: se calculaba en **hora local** para las propias y en
       **UTC** para las remotas (`remote.ts` aplica `date(server_ts)`). La misma
       persona en dos teléfonos se dedup con dos calendarios distintos. El
       servidor no sabe la zona; mandar `visit_day` dentro del payload desde el
       teléfono y usar eso al aplicar.
-- [ ] `refreshReminder()` pide el permiso de notificaciones **al pasar a
+- [x] `refreshReminder()` ya **no** pide el permiso (arreglado 2026-09-16):
+      hay `hasPermission()` que sólo consulta, y `ensurePermission()` que
+      pregunta queda sólo en el switch. *(original: pedía el permiso al pasar a
       background**. Android descarta o muestra el diálogo al volver sin
       contexto. Pedirlo sólo desde el switch de `Påminnelser`, que ya lo hace,
       y en `refreshReminder` sólo programar si el permiso *ya* está.
