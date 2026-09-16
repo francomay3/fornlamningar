@@ -1257,6 +1257,85 @@ conectar.** Lo que falta es que sea la fuente del export.
 
 ---
 
+## 14. El rescate por proximidad mide urbanidad, no mérito (hallazgo 2026-09-16)
+
+Salió de una pregunta de Franco: "hay muchos kulturlager en los tiles, ¿no
+deberían estar excluidos como clase?". La clase se llama **`Stadslager`** (107
+en el export; algunos títulos generados dicen "Kulturlager", que es la palabra
+del modelo para lo mismo).
+
+### Lo que la clase es, medido
+
+Por el lenguaje del propio registro, de los 107 en el export:
+
+| | |
+|---|---|
+| sólo lenguaje de excavación (`påträffats`, `undersökning`, `under markytan`) | **55** |
+| ni una cosa ni la otra (vago) | 29 |
+| algo visible (`husgrund`, `ruin`, `stengata`, `kullersten`) | 19 |
+| sin texto | 4 |
+
+Así que ~80% es ruido: "Kulturlager med sot, tegel och keramik har
+påträffats, och en kritpipa daterades till 1620-40" no es un lugar para
+visitar, es el informe de una excavación.
+
+- [ ] **pero la clase no es homogénea**, y ahí está el problema con excluirla
+      de una: `Sala gruvby` es Stadslager y tiene "över 200 bebyggelselämningar"
+      con husgrunder, härdar y brunnar. Es un pueblo minero abandonado, o sea
+      exactamente un lugar para ir a caminar
+
+### Y excluirla no alcanzaría, por el motivo equivocado
+
+`build_scores` ya fundió las dos listas en **una** regla: excluido por clase,
+**rescatado por evidencia del sitio** (`has_name`, `sitelinks`, `has_image`,
+una página de länsstyrelsen sobre él, o estar a ≤500 m de una). Así que Sala
+gruvby sobreviviría por su nombre — bien. Pero:
+
+- [ ] de los 126 clusters Stadslager, **72 se rescatarían y 54 de esos 72 es
+      por `dist_to_board_m <= 500`**. Y esa condición está **confundida** para
+      esta clase: el 45% de los Stadslager están a ≤500 m de una recomendación
+      de länsstyrelsen, contra el **5,4% de todos los clusters** — 8× más.
+      Mediana 606 m contra 2.936 m. No es mérito: un stadslager **es** el
+      centro de una ciudad, y ahí es donde länsstyrelsen pone sus
+      recomendaciones (una iglesia, una ruina, un museo). `Boplats`, que ya
+      está excluida, está en el 5,0%: el sesgo es de las clases urbanas
+
+### El hallazgo que importa, que no es de esta clase
+
+- [ ] **2.845 clusters de clase excluida están en el export sólo porque hay
+      otra cosa a menos de 500 m** — casi tantos como los 2.895 rescatados por
+      evidencia real. Los peores: **1.193 `Stensättning`** y **841 `Boplats`**
+- [ ] **la versión exacta de esa condición ya existe**: 3.263 clusters tienen
+      una página de länsstyrelsen **sobre ellos** (`labels` con
+      `source='county'`), y eso ya es una condición de rescate aparte. De los
+      8.294 que están a ≤500 m de una, sólo 288 tienen además la propia: o sea
+      que el radio de 500 m aporta **8.006 casos en los que el board estaba
+      hablando de otra cosa**
+- [ ] el comentario que justifica la condición dice que una recomendación de
+      länsstyrelsen "es la única de estas que es un humano diciendo *vayan
+      acá*". Eso es cierto de la página propia y **falso** de la proximidad:
+      estar a 400 m de un cartel sobre una iglesia no es nadie diciendo nada
+      sobre el boplats invisible de al lado
+
+### Propuesta, en orden de importancia
+
+- [ ] **sacar `dist_to_board_m <= 500` como condición de rescate**, dejando la
+      página propia. Es una línea en `build_scores.py:766`. Afecta a 2.845
+      clusters, no a 54
+- [ ] **agregar `Stadslager` a `CLASS_BLACKLIST`** en `families.py`. Una línea.
+      Con el rescate arreglado, sobreviven los que tienen nombre o foto — Sala
+      gruvby entre ellos — y se van los 55 informes de excavación
+- [ ] ojo: `CLASS_BLACKLIST` la leen `build_clusters` (etapa 2) y
+      `build_signals` (etapa 4), así que esto pide **re-correr etapas 2→5**, y
+      eso cambia qué lugares están en el export. No es gratis en tiempo ni
+      neutral en datos: hay que decidirlo sabiendo que mueve el conjunto de
+      10.000
+- [ ] **medir antes de creerse el resultado**: el AUC y el ratio de labels, y
+      cuántos de los 2.845 tenían de verdad algo que ver. Es el mismo cuidado
+      que se tuvo con las 138 etiquetas negativas del registro
+
+---
+
 ## Decisiones tomadas, que no viven en ningún archivo
 
 Lo de acá NO es trabajo pendiente: son las decisiones y los hallazgos de datos
