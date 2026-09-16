@@ -762,10 +762,39 @@ def main():
         # A county recommendation is a rescue condition for exactly that
         # reason: it is the only one of these that is a human saying "go
         # here", rather than a proxy for the place being well documented.
+        #
+        # IT HAS TO BE A PAGE ABOUT THIS PLACE, NOT A PAGE NEARBY. There used
+        # to be a second form of this condition -- `dist_to_board_m <= 500` --
+        # and it was rescuing 2,845 clusters of excluded classes, almost as
+        # many as the 2,895 that had real evidence. 1,193 Stensättning and 841
+        # Boplats were in the export because a county board recommended
+        # something ELSE within 500 m.
+        #
+        # What it was actually measuring is urbanity. 45% of Stadslager sit
+        # within 500 m of a recommendation against 5.4% of all clusters, an
+        # eightfold rate, because a stadslager IS a town centre and a town
+        # centre is where the boards put their signs. Boplats, equally
+        # invisible but rural, sits at the 5.0% baseline.
+        #
+        # And the decisive argument is internal: build_clusters groups by RAA
+        # GROUP and not by proximity, because "grouping by proximity is us
+        # guessing" -- its spatial pass was removed after measuring that it
+        # chained 535 sites over six kilometres into one place. Mean cluster
+        # spread is 45 m. So two clusters 300 m apart are two monuments THE
+        # COUNTY ITSELF filed separately, and a page about one is evidence
+        # about one. This condition was that rejected guess, reintroduced at
+        # the scoring stage at ten times the radius the clustering refused.
+        #
+        # The exact form loses almost nothing: of the 8,294 clusters within
+        # 500 m of a recommendation, only 288 also had a page of their own --
+        # so the radius contributed 8,006 cases where the board was talking
+        # about something else. Shrinking it was the alternative and it is
+        # worse than removing it: at 50 m it still rescues 76 clusters, and
+        # those are precisely the ones the county distinguished from their
+        # neighbour, so the rescue would be contradicting the judgement it
+        # exists to defer to. No radius is defensible, so there is no radius.
         rescued = (bool(r["has_name"]) or (r["sitelinks"] or 0) > 0
                    or bool(r["has_image"])
-                   or (r["dist_to_board_m"] is not None
-                       and r["dist_to_board_m"] <= 500)
                    or r["cluster_id"] in county_pos)
         # `or in struck` and not `and not rescued`: see the note where
         # `struck` is built. A record the register has withdrawn is not a
