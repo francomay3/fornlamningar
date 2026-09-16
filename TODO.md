@@ -108,6 +108,16 @@ primera vez que abre la app; puntajes, comentarios y fotos se guardan con ese
 uuid sin pedir nada. El login sólo sirve para que el uuid sobreviva a un
 cambio de teléfono: al registrarse, la cuenta **hereda** el uuid.
 
+**Revisada el 2026-09-16 — sólo usuarios logueados escriben en el servidor.**
+El uuid sigue siendo el autor y la cuenta sigue heredándolo, y todo lo local
+(puntuar para uno mismo, visitas, `Mina besökta platser`) sigue funcionando
+sin cuenta. Lo que cambia es que **nada se publica** sin que el uuid esté
+linkeado a una cuenta: el POST de eventos exige el link. Motivo: un uuid
+anónimo se mintea infinitas veces, así que ni el rate limit por autor ni la
+regla de "dos observaciones coincidentes" de la sección 7 valían nada. Una
+cuenta de Google cuesta mintear y se puede banear. Lástima la idea original;
+era linda. Ver el item de implementación más abajo.
+
 **Mi recomendación sobre el método:** Google, Apple (obligatorio si algún día
 hay iOS) y mail. Sobre el mail hay una confusión que conviene aclarar:
 
@@ -311,6 +321,86 @@ de eventos es una tabla sola.
       los manda. El modelo se confirma a sí mismo si no mostramos a propósito
       algunos lugares de score bajo
 
+### Hallazgos del review de 2026-09-16 sobre el sync
+
+- [ ] **Race en el GET que pierde un evento para siempre.** En
+      `app/api/fornlamningar/events/route.ts` el GET hace dos queries sin
+      transacción: primero `SELECT ... FROM fl_events WHERE seq > since`, y
+      después `SELECT v FROM fl_event_seq`. Si la primera vuelve vacía (la
+      ventana sólo tenía eventos propios) y **entre las dos** otro autor
+      commitea el evento N, el cursor salta a N y ese evento no lo lee este
+      teléfono nunca. Es exactamente el caso que el contador existía para
+      impedir.
+      **Fix, fácil:** invertir el orden. Leer `v` *primero*, después los
+      eventos. Así el cursor nunca puede adelantarse a algo que no se leyó:
+      si hay filas, el cursor es la última fila; si no hay, es el `v` leído
+      *antes* de mirar, y cualquier evento posterior queda `> cursor`. Es
+      mover dos líneas; no hace falta transacción ni `FOR SHARE`.
+- [ ] **El feed es global, y una instalación nueva rehace toda la historia.**
+      Cada teléfono baja todos los eventos de todos los usuarios desde
+      `seq=0` y los aplica uno por uno a SQLite. Hoy son cientos de filas.
+      Con mil usuarios activos durante tres años son millones, y el primer
+      arranque de alguien nuevo se vuelve minutos de sync — el problema que
+      Franco describió el 16: no quiero que la instalación número mil baje y
+      aplique tres años de cambios en el primer run.
+      **Lo que sale de eso:** el log de eventos es el formato correcto para
+      *mover* cambios, no para *inicializar* un teléfono. Un teléfono nuevo
+      tiene que arrancar de un **snapshot** (los agregados por lugar:
+      promedio, conteo, cartel, advertencia) y sincronizar sólo los eventos
+      posteriores al `seq` del snapshot. Es el mismo argumento que la
+      sección 12 hace para los lugares, y la misma solución: el backend
+      publica un snapshot por generación, y la app baja snapshot + delta. Ver
+      la sección 11, que ahora junta las dos cosas. No urgente: mientras el
+      log tenga miles de filas es gratis. Sí hay que **no** construir nada que
+      dependa de que cada teléfono tenga el log completo (por ejemplo, calcular
+      la advertencia por moda en el cliente sobre eventos crudos ya es eso).
+- [ ] **El uuid anónimo no limita nada.** Cualquiera puede mintear uuids sin
+      tope, así que el rate limit por autor es decorativo (queda el de IP) y
+      una sola persona con dos `Glöm mig` son "dos observaciones coincidentes"
+      para la advertencia de la sección 7. Franco preguntó si el uuid debería
+      emitirlo el backend. **No ayuda:** un endpoint que emite uuids se lo
+      pide N veces igual; sólo cambia quién genera el número. Las opciones
+      reales son tres:
+      1. **Exigir cuenta para publicar.** Google One Tap es un toque, la app
+         no está publicada, y Firebase Auth ya está hecho. Lo local sigue
+         andando sin cuenta (puntuás para vos), pero nada se postea sin
+         `account`. Una cuenta de Google es cara de mintear en masa, y se
+         puede banear.
+      2. Anónimo puede publicar, pero los **agregados que ven los demás**
+         (promedio, advertencia) sólo cuentan autores con cuenta linkeada.
+         Es más código y una regla que nadie va a entender desde afuera.
+      3. Play Integrity / device attestation. Es la herramienta para esto,
+         pero requiere Play Store y es un proyecto aparte.
+      **Mi recomendación es la 1.** Es la única que además resuelve la
+      moderación de comentarios y fotos, que ya la pedía, y el costo es un
+      toque de Google en la primera contribución. Lo que se pierde es la
+      decisión de la sección 2 de que "el uuid anónimo es el usuario real",
+      que se mantiene *localmente*: el uuid sigue siendo el autor, la cuenta
+      sigue heredándolo; lo único que cambia es que el POST exige que el
+      uuid esté linkeado. **Decidido por Franco el 2026-09-16: opción 1.**
+- [ ] **Implementar "sólo logueados escriben".** Cuatro cambios, en este orden
+      para que nada quede a medias:
+      1. **Servidor, `events/route.ts` POST:** después de validar el header,
+         `SELECT account FROM fl_account_devices WHERE device = $1`. Si no
+         hay fila → `403 { error: 'sign in to publish' }`. `ANONYMOUS_KINDS`
+         y `ACCOUNT_KINDS` se funden en una sola lista `KINDS`; la distinción
+         ya no existe. El GET **no** cambia: leer sigue siendo anónimo, porque
+         el mapa tiene que mostrar los promedios a todos.
+      2. **Servidor, `author/route.ts` DELETE:** también exige link, por
+         simetría; si no hay nada publicado no hay nada que borrar, pero el
+         tombstone de `Glöm mig` no debe poder escribirlo un uuid suelto.
+      3. **App, `sync.ts` `flush()`:** un 403 de este tipo **no** es un fallo
+         del payload: las filas se quedan en el `outbox` con `attempts` sin
+         subir, y se reintentan cuando haya cuenta. Distinguirlo del 403 de
+         kind por el campo `error`.
+      4. **App, UI:** la primera vez que alguien puntúa sin cuenta, el sheet
+         guarda localmente y muestra una línea debajo de las estrellas:
+         `Sparat på den här telefonen. Logga in för att dela` con el botón de
+         login inline. No es un modal ni un bloqueo: la estrella ya está
+         puesta. El menú `Konto` ya tiene el flujo; es reusarlo.
+      Probar: puntuar sin cuenta → fila local, outbox pendiente, 403 en el
+      flush, sin `attempts`; loguearse → link → el siguiente flush publica.
+
 **Nota para debuggear desde esta máquina:** el puerto 5432 está bloqueado
 (acepta el TCP y lo resetea al mandar el saludo de Postgres, lo que se lee
 como ECONNRESET y parece una base caída). No es la VPN, probado con ella
@@ -415,6 +505,28 @@ reportar. Hay que elegir antes de abrirlo, no después.
 - [ ] R2 + endpoint de URL firmada
 - [ ] decidir moderación
 - [ ] metadata de fotos en el log de eventos; los archivos nunca
+
+### Agregado en el review de 2026-09-16
+
+- [ ] **Sacar el EXIF antes de subir.** Una foto de cámara lleva la posición
+      GPS, la fecha, y el modelo de teléfono adentro del JPEG. La posición es
+      casi la del sitio, pero la fecha y hora dicen *cuándo* estuvo la persona
+      ahí, y el resto identifica el dispositivo. El resize de
+      `expo-image-manipulator` ya lo descarta al reencodear; verificar que es
+      así en las dos plataformas y no confiar en que lo hace. Si el server lo
+      hace también al pasar a webp, mejor: dos capas
+- [ ] **Licencia de las fotos de usuarios.** Hoy el crédito es
+      `user:<uuid>`, pero no hay ningún lugar donde la persona acepte bajo qué
+      licencia publica. Sin eso la app no puede mostrar la foto a otros con
+      seguridad, y mucho menos reusarla. Una línea en el primer flujo de
+      cámara ("Tu foto se publica bajo CC BY 4.0") guardada como evento o
+      como fila en `settings`, una sola vez. Es la misma pregunta que ya se
+      contestó para las fotos de Commons, desde el otro lado
+- [ ] la moderación que falta decidir es la misma para **comentarios**, que
+      ya están en `ACCOUNT_KINDS`. Decidir una vez para las dos
+- [ ] la URL firmada tiene que fijar **tamaño máximo y content-type** en la
+      firma (S3 lo permite), no sólo el path: si no, "sube directo a R2" es
+      "sube lo que quieras a R2"
 
 ---
 
@@ -604,10 +716,20 @@ usuario que la app tiene una forma.
       4.0, o sea que la descripción es una adaptación y arrastra
       share-alike), 200 `county_attr`, 111 `county_plan`, 81 `county_page`,
       59 `county_programme` y 44 `county_pdf` (CC BY 4.0 / CC BY-SA 4.0)
-- [ ] `generation_sources` **existe y está vacía** (0 filas), y era
+- [ ] **`generation_sources` existe y está vacía** (0 filas), y era
       exactamente el mecanismo para que la atribución fuera calculada y no
       declarada. Llenarla es lo que hace posible la línea de crédito por
-      lugar; después hay que exportarla y mostrarla en el sheet
+      lugar; después hay que exportarla y mostrarla en el sheet.
+      **Remarcado en el review del 16:** esto no es cosmético. 1.061
+      descripciones ya publicables salen de Wikipedia (CC BY-SA) y la app no
+      puede decir cuáles, y `features.uses_wikipedia` es 0 en **todas** las
+      filas porque `build_places.rollups` lo deriva de esta tabla vacía. Es
+      media hora: `describe_place.load_sources` ya tiene los `source_id` de
+      las filas que arma en el payload; hay que devolverlos junto al payload y
+      que `build_descriptions` los inserte en `generation_sources` en la misma
+      transacción que escribe `ai_descriptions`. La app no está publicada, así
+      que no hay incumplimiento todavía, pero es lo primero que tiene que
+      estar antes de que lo esté
 - [ ] `ATTRIBUTION` en `src/map/constants.ts` **no lo usa nadie**, así que
       hoy el mapa no muestra ninguna atribución de OSM. Con `Om appen` está a
       dos toques, que es discutible; ponerlo en el mapa es una decisión
@@ -666,6 +788,55 @@ usuario que la app tiene una forma.
       botón
 - [ ] el glifo del botón ya refleja si estás logueado (relleno vs contorno).
       Cuando haya avatar de Google, decidir si se usa en vez del glifo
+
+### `Glöm mig` no olvida en los otros teléfonos (review 2026-09-16)
+
+**El bug.** `DELETE /api/fornlamningar/author` hace
+`DELETE FROM fl_events WHERE author = $1`. Pero el log es append-only *para
+los lectores*: todo teléfono que ya sincronizó tiene esas filas replicadas en
+su `contributions.db` y su cursor está más adelante. Borrar en el servidor no
+les manda nada, así que **los puntajes de la persona olvidada siguen en el
+promedio de todos los demás para siempre**. El propio
+`scripts/fornlamningar-events.sql` dice que una retractación es un evento; el
+endpoint de borrado se saltó su propia regla. Para el derecho de borrado esto
+es peor que no tener el botón: parece que borró y no borró.
+
+**El fix: el borrado es un evento, y el borrado físico viene después.**
+
+- [ ] **Servidor, `author/route.ts`.** Dentro de **una** transacción (`tx()`),
+      en este orden:
+      1. Tomar el número de secuencia igual que hace el POST de eventos
+         (`UPDATE fl_event_seq SET v = v + 1 ... RETURNING v`).
+      2. Insertar en `fl_events` una fila con `kind = 'author_erased'`,
+         `author = <el que pide>`, `place_uuid = '*'` (no hay lugar; el CHECK
+         no existe, pero poner un marcador explícito es mejor que un string
+         vacío), `payload = '{}'`, y el `seq` obtenido.
+      3. `DELETE FROM fl_events WHERE author = $1 AND kind <> 'author_erased'`.
+      4. `DELETE FROM fl_account_devices WHERE device = $1`.
+      El tombstone se queda: es la única fila de ese autor que sobrevive y no
+      contiene nada más que el pseudónimo, que ya era público. Contar el
+      `rowCount` del paso 3 para la respuesta, como ahora.
+- [ ] **Servidor, `events/route.ts`.** Agregar `'author_erased'` a los kinds
+      que el GET sirve (hoy sirve todo lo que hay, así que sale solo), y al
+      `payloadSchemas` con `z.object({}).loose()` para que un cliente que lo
+      mande por error reciba 400 igual que cualquier kind que no está en
+      `ANONYMOUS_KINDS`. **No** agregarlo a `ANONYMOUS_KINDS`: sólo el
+      servidor lo escribe.
+- [ ] **App, `remote.ts` → `applyRemote`.** Un caso nuevo: si
+      `e.kind === 'author_erased'`, ejecutar
+      `DELETE FROM ratings/visits/signs/presence/comments/photos WHERE
+      author = e.author` en la misma transacción que aplica el lote. `e.author`
+      llega ya como pseudónimo, que es exactamente la clave con la que están
+      guardadas las filas remotas. Después el cursor avanza como siempre.
+- [ ] **App, `sync.ts` → `forgetMe`.** No cambia: sigue llamando al DELETE
+      primero. Lo único nuevo es que la respuesta del servidor ahora es
+      verdad.
+- [ ] **Migrar lo ya borrado.** Los borrados hechos antes de este fix no
+      tienen tombstone y no se pueden reconstruir (el autor ya no está).
+      Como la app no está publicada y los únicos teléfonos son los de Franco,
+      alcanza con reinstalar. Anotarlo acá para no buscarlo después.
+- [ ] Probar como se probó lo demás: teléfono A puntúa, B sincroniza y ve el
+      promedio, A hace `Glöm mig`, B sincroniza y el promedio desaparece.
 
 ---
 
@@ -863,6 +1034,57 @@ previó, y un fallback silencioso es un hueco que nadie encuentra.
 - [ ] el backend ya tiene Postgres y `tx()`; la tabla puede vivir al lado de
       `fl_events` con el mismo `apply-fl-schema.cjs`
 
+### Comentarios del review de 2026-09-16
+
+De acuerdo con el planteo, con una corrección: **dos de los cuatro ejemplos
+motivadores son bugs, no cosas para loguear**. Loguearlos los haría visibles;
+arreglarlos los hace desaparecer. Van acá como items propios porque el
+logging es un proyecto y estos son tardes.
+
+- [ ] **Bug: el `outbox` abandona filas para siempre y no lo dice.** En
+      `sync.ts` `flush()` marca el lote entero como fallido ante cualquier
+      4xx; `attempts` sube; a los 10, `pending()` (`contributions.ts:~1240`,
+      `WHERE attempts < 10`) las deja de ver. Nadie las borra, nadie las
+      muestra, y la persona cree que su puntaje está publicado.
+      **Fix:** (1) un 4xx **no** es un fallo del lote: el servidor devuelve
+      `event_id` en el 400 de payload y `kind` en el 403/400 de kind, así que
+      marcar sólo esa fila y reintentar el resto en la siguiente vuelta;
+      (2) una fila que llega a 10 intentos pasa a un estado terminal visible
+      (`dead = 1`) y el menú muestra un contador "N contribuciones no se
+      pudieron enviar" con un botón de reintentar que resetea `attempts`;
+      (3) un 5xx o error de red no suma `attempts` — sólo los 4xx, porque
+      sólo esos son culpa del payload. Recién con eso hecho, el log de la
+      sección 8 recibe "fila muerta" como warning.
+- [ ] **Bug: los singletons de base se envenenan.** `open()` en
+      `contributions.ts` y `openFor()` en `descriptions.ts` cachean la
+      promesa para siempre. Si `migrate` o el `PRAGMA` tiran una vez (disco
+      lleno, una migración a medias en un teléfono viejo), **todo** lo que
+      toca la base rechaza hasta reiniciar la app, sin mensaje. `pointsData.ts`
+      ya lo hace bien: `cache.catch(() => { cache = null })`. Copiar ese patrón
+      en los otros dos.
+- [ ] **Bug: las migraciones 4 y 5 hacen `BEGIN … COMMIT` dentro de un
+      `execAsync`.** Si una sentencia falla a mitad, expo-sqlite deja la
+      transacción abierta en esa conexión y `user_version` no sube; el próximo
+      arranque reintenta la misma migración con `visits_local` ya creada y
+      `visits` ya borrada. Usar `withTransactionAsync` (que hace rollback
+      solo) y escribir cada paso idempotente (`CREATE TABLE IF NOT EXISTS`,
+      `DROP TABLE IF EXISTS`). Es lo que tiene que estar sano **antes** de que
+      haya un teléfono que no sea el de Franco, porque una migración rota es
+      irrecuperable a distancia.
+- [ ] `remote.ts` abre una **segunda conexión** a `contributions.db` con
+      `openDatabaseAsync` directo, saltándose el singleton, WAL y migrate.
+      Funciona porque `pull()` casualmente llama a `getAuthorId()` antes.
+      Importar `open()` y listo.
+- [ ] `visit_day` se calcula en **hora local** para las visitas propias y en
+      **UTC** para las remotas (`remote.ts` aplica `date(server_ts)`). La misma
+      persona en dos teléfonos se dedup con dos calendarios distintos. El
+      servidor no sabe la zona; mandar `visit_day` dentro del payload desde el
+      teléfono y usar eso al aplicar.
+- [ ] `refreshReminder()` pide el permiso de notificaciones **al pasar a
+      background**. Android descarta o muestra el diálogo al volver sin
+      contexto. Pedirlo sólo desde el switch de `Påminnelser`, que ya lo hace,
+      y en `refreshReminder` sólo programar si el permiso *ya* está.
+
 ---
 
 ## 9. Contribuir y reportar sitios (pedido 2026-09-15)
@@ -898,6 +1120,58 @@ contrarias — agregar lo que falta y desmentir lo que sobra.
 - [ ] un reporte y un sitio nuevo son afirmaciones **sobre el mundo, firmadas**
       — a diferencia de una valoración. Es el segundo candidato después de las
       fotos a exigir cuenta y no uuid anónimo. Decisión de Franco
+
+### El flujo que Franco describió (2026-09-16), y lo que implica
+
+**Mantener apretado en el mapa → menú → "Agregar sitio".** La app le pide al
+backend los lugares del **registro completo** más cercanos a ese punto (no
+los 10.000 del mapa: justamente los que no están), se los muestra
+simplificados — tipo, distancia, la primera línea de la descripción — y la
+persona elige cuál es el que tiene delante. Al elegir, ese lugar queda
+**verificado**: alguien estuvo ahí y lo encontró. En la siguiente
+regeneración entra al top 10k, se le genera descripción y traducción, y
+aparece en el mapa de todos.
+
+Es mejor que "agregar un sitio libre" por tres razones, y conviene dejarlas
+escritas:
+
+- el 95% de las veces lo que la persona ve **ya está en el registro**, sólo
+  que el score lo dejó afuera. Esto convierte un falso negativo en una
+  etiqueta positiva con un toque, sin inventar entidades ni necesitar uuid
+  propio del cliente
+- la verificación es **la label que más falta**: alguien fue y lo encontró
+  sin que la app lo mandara, así que no tiene el sesgo de selección de la
+  sección 2. Entra a `labels` con `source='user_verified'`
+- el caso "no está en el registro" queda como **último item de la lista**
+  ("ninguno de estos"), que es el flujo original de reporte libre, y se
+  vuelve raro en vez de ser el default
+
+Lo que hace falta para eso:
+
+- [ ] **el backend tiene que tener los 129k clusters con posición y tipo.**
+      Hoy no tiene ninguno: Postgres sólo tiene `fl_events`. Es la misma
+      necesidad que la sección 11 (snapshots servidos desde el backend) y la
+      sección 12 (el conjunto de lugares como dato del servidor): una tabla
+      `fl_places(cluster_id, lon, lat, family, class_sv, title, score)` que
+      el pipeline **sube** en cada generación. Con PostGIS o con un índice
+      sobre `(lon, lat)` redondeados alcanza para "los 10 más cercanos"
+- [ ] `GET /api/fornlamningar/places/near?lon&lat&n=10` → lista simplificada
+- [ ] el evento es `kind='verified'` sobre un `cluster_id` existente, así que
+      **sí** entra en `fl_events`, a diferencia del sitio libre. Con cuenta,
+      como todo lo que se escribe (decisión de la sección 2)
+- [ ] `build_labels.py` lee los `verified` del servidor (o de un export del
+      log) como positivos con `source='user_verified'`. Es la tercera fuente
+      de labels después de Wikidata y el registro, y la única que mide lo que
+      queremos medir
+- [ ] **un verificado entra al top 10k por regla, no por score.** Si el modelo
+      lo puntuó bajo y una persona lo encontró, la persona gana; el export
+      fuerza `verified` adentro del corte igual que `excluded_hard` fuerza
+      afuera. Si no, el toque del usuario no cambia nada visible y la feature
+      se siente rota
+- [ ] la posición del pin largo se guarda en el evento (`lon`, `lat`,
+      `accuracy_m`) aunque haya elegido un lugar existente: es la segunda
+      posición observada de ese lugar, y con varias se puede detectar el caso
+      "la posición del registro está mal" sin preguntarlo
 
 ## 10. El filtro de estrellas no son las estrellas del usuario (hallazgo 2026-09-15)
 
@@ -1055,11 +1329,10 @@ Las tres cosas que se rompen, y que son el trabajo real:
       de un delta chico son irrelevantes para el egress; si algún día hay
       muchos usuarios, el escape es un snapshot completo por generación en R2
 
-- [ ] **cuándo**: no todavía. Mientras Franco sea el único usuario, actualizar
-      descripciones es publicar un APK. Esto se vuelve necesario el día que
-      haya gente a la que no se le puede pedir que reinstale — y es el mismo
-      día en que se vuelve necesaria la sección 8, porque van a ser
-      transacciones aplicándose en teléfonos que nadie puede ver
+- [ ] **cuándo**: ~~no todavía~~ **decidido el 2026-09-16: se hace**, ver la
+      revisión al final de esta sección. Sigue siendo cierto que trae consigo
+      la sección 8: van a ser transacciones aplicándose en teléfonos que nadie
+      puede ver, así que los logs van en el mismo paquete de trabajo
 
 ### La alternativa que ahorra casi todo el trabajo
 
@@ -1070,9 +1343,61 @@ Las tres cosas que se rompen, y que son el trabajo real:
       porque se firma con el keystore de debug y el APK se distribuye a
       mano — pero si Play está en el horizonte, el mecanismo propio es
       trabajo que después se tira
-- [ ] **recomendación: no hacerlo todavía por el tamaño.** 2 MB no lo
-      justifican. Hacerlo cuando pese una de las otras dos razones: querer
-      corregir textos sin publicar, o agregar un tercer idioma
+- [x] ~~recomendación: no hacerlo todavía por el tamaño~~ — superada. El
+      tamaño nunca fue el argumento; el argumento es el de la revisión de
+      abajo, y con ese sí se hace
+
+### Revisado el 2026-09-16: la pregunta cambió, y la respuesta también
+
+Franco preguntó "¿por qué no hacerlo todavía?". La respuesta de arriba era
+correcta para la pregunta de arriba — *ahorrar 2 MB no vale dos días*. Pero
+el mismo día apareció otra pregunta, y esa sí lo justifica:
+
+> No quiero que a los tres años de publicada, cada instalación nueva baje
+> tres años de cambios y los aplique todos en el primer run. La base entera
+> debería ir aplicando los cambios en el backend, y una instalación nueva
+> baja una base fresca; después sólo actualizaciones.
+
+Eso es exactamente el modelo correcto, y unifica tres cosas que este TODO
+tenía separadas:
+
+| qué | hoy | con el modelo de Franco |
+|---|---|---|
+| descripciones (sección 11) | en el APK, deltas por filas | snapshot por generación + deltas |
+| lugares (sección 12) | en el APK, snapshot completo | el mismo snapshot |
+| agregados de usuarios (sección 2) | cada teléfono rehace el log | el backend los materializa; snapshot + eventos desde su `seq` |
+
+**El principio:** el backend es el dueño del estado actual; el log de
+eventos y los deltas son cómo *viaja*, no cómo se *guarda*. Un teléfono
+nuevo baja el estado, no la historia.
+
+- [ ] **el APK lleva igual una base sueca**, por la razón de arriba: primer
+      arranque offline en el campo. Pero esa base es un **piso** con número de
+      generación, no la verdad. Al primer arranque con red, la app compara su
+      generación con la del servidor y baja el snapshot si está atrás
+- [ ] **un número de generación para todo** — lugares, descripciones por
+      idioma, agregados. Sale de una corrida del pipeline. Es lo que la
+      sección 12 ya pedía, extendido a los agregados
+- [ ] **el snapshot es un SQLite por generación e idioma en R2**, prearmado
+      por el pipeline. Los deltas (`since=<gen>`) son un endpoint dinámico
+      sobre Postgres que devuelve filas. El corte entre "bajá el snapshot" y
+      "aplicá deltas" lo decide el servidor: si `since` está a más de N
+      generaciones, contesta `{snapshot_url}` en vez de filas. Así el cliente
+      nunca aplica tres años de nada
+- [ ] eso obliga a que **el pipeline suba a Postgres** en cada generación
+      (`fl_places`, `fl_descriptions`), que es lo mismo que necesita el flujo
+      de "agregar sitio" de la sección 9. Un `push_generation.py` al final
+      de `run_pipeline.sh`
+- [ ] Play Asset Delivery sigue siendo la alternativa **para el idioma**,
+      pero no cubre ni los lugares ni los agregados ni las correcciones sin
+      release. Con el modelo de Franco el mecanismo propio deja de ser
+      "trabajo que después se tira": es el único que hace las tres cosas
+- [ ] **decidido el 2026-09-16: se hace.** Es el siguiente proyecto grande.
+      El orden dentro de él importa: primero los ids estables de la sección
+      12 — sin eso, un snapshot nuevo huerfanea las contribuciones — y la
+      decisión de cuentas de la sección 2 ya está tomada. Después el
+      `push_generation.py`, después el endpoint de snapshot/delta, y la app al
+      final, porque es lo único que no se puede probar sin lo anterior
 
 ---
 
@@ -1135,26 +1460,279 @@ actualizar nada.
       mecanismo de actualización sino el score, y ahí la respuesta es
       `build_scores.py`, no la red
 
+### La mitad que faltaba: un lugar no sólo entra o sale, puede cambiar de id (review 2026-09-16)
+
+Todo lo caro cuelga de `cluster_id`: las 13 horas de `generated.sqlite`, las
+filas de `places.sqlite`, `lansstyrelsen.matches.cluster_id`, y **cada
+puntaje, visita y respuesta de cada usuario**, en el teléfono y en Postgres.
+Si el id de un lugar cambia entre dos generaciones, todo eso queda huérfano
+sin un solo error. Ya pasó una vez: `generated.sqlite` tiene hoy **95
+descripciones con prefijo `sp:`** del método espacial que se eliminó, y nada
+las detecta.
+
+**Franco preguntó si debería haber clusters en absoluto.** Medido antes de
+opinar, sobre `work.clusters`:
+
+| tipo de id | cuántos | estable? |
+|---|---|---|
+| `one:<uuid>` (sitio suelto) | 212.397 | **sí** — es el uuid del registro |
+| `raa:<parish>:<group>` (grupo RAÄ) | 38.473 | **sí** — sale de datos del registro |
+| `raa:<parish>:<group>#<idx>` (grupo partido por la guarda espacial) | **159** | **no** — `idx` es el orden de un `SELECT` sin `ORDER BY` |
+
+O sea: **el 99,94% de los ids ya son estables** y el problema son 159
+clusters más una limpieza única. Los clusters sí deben existir — un gravfält
+de 160 tumbas es un destino, y `raa_group` es el condado diciendo "estas
+fichas son un monumento", que fue la medición que mató el clustering
+espacial. Lo que hay que arreglar es cómo se numeran los pedazos cuando un
+grupo se parte, no la idea.
+
+- [ ] **`#idx` determinístico.** En `build_clusters.py`, en vez de
+      `roots.setdefault(root, len(roots))`, ordenar los sub-clusters por el
+      **menor uuid de sus miembros** y numerarlos en ese orden. Mejor todavía:
+      usar ese uuid como sufijo (`raa:1384:268#eddd2aa1`), así el id de un
+      pedazo no depende ni siquiera de cuántos pedazos hay. Un sitio que se
+      mueve de pedazo cambia de cluster, lo cual es correcto; los demás no se
+      enteran
+- [ ] **`ORDER BY uuid` en el `SELECT` de `sites`** que alimenta al
+      clustering, para que ninguna otra cosa dependa del orden físico de la
+      tabla
+- [ ] **limpieza única:** borrar las 95 filas `sp:%` de `generated.sqlite`,
+      y agregarle a `build_descriptions.py --status` un conteo de
+      "`cluster_id` en `generated` que no existe en `work.clusters`". Ese
+      número tiene que ser cero después de cada `run_pipeline.sh`, y si no lo
+      es, es la alarma de que algo renombró clusters
+- [ ] **la única fuente de inestabilidad que queda es el registro mismo**: si
+      RAÄ cambia el `raa_group` o el `parish_code` de una ficha (pasa, poco),
+      el cluster cambia. Para eso, el export lleva una tabla `redirects(old_id,
+      new_id)` calculada comparando la generación anterior con la nueva por
+      **intersección de miembros**: si el 100% de los uuids del cluster viejo
+      están en un cluster nuevo, es un rename. La app aplica los redirects a
+      `contributions.db` al actualizar; el servidor los aplica al leer.
+      Construirlo cuando haya un caso real, no antes — pero el dato que lo
+      hace posible (`site_clusters` de la generación anterior) hay que
+      **guardarlo** desde ahora, y hoy se hace `DROP TABLE`
+- [ ] con eso, la regla de esta sección queda completa: un lugar que **sale**
+      conserva las contribuciones (ya decidido), un lugar que **cambia de id**
+      las hereda por redirect, y un lugar que **entra** no tiene ninguna
+
+
+---
+
+## 13. Higiene: lo que el review de 2026-09-16 encontró desfasado
+
+Nada de esto es diseño. Es el costo de que el proyecto haya crecido tres
+capas (fuentes, lugares, traducciones, backend) mientras el runner, los docs
+y algunos scripts se quedaron en la versión de hace un mes. Cada item es
+chico; juntos son la diferencia entre un repo que otro agente puede tocar y
+uno que no.
+
+### Pipeline
+
+- [ ] **`run_pipeline.sh` no construye el producto.** Corre stages 1–6 pero
+      no `build_sources.py`, `build_places.py`, `crawl_lansstyrelsen.py
+      --join` ni `crawl_wikimedia.py`. `places.sqlite` — "lo que estamos
+      construyendo" según `paths.py` — no lo genera nada del runner. Y
+      `build_labels.py` y `build_sources.py` leen `lansstyrelsen.matches.
+      cluster_id`, que sólo se actualiza con el `--join` manual: un rebuild
+      que mueva clusters usa un mapping viejo sin avisar.
+      **Fix:** agregar al runner, después de `2:cluster`, un stage
+      `crawl_lansstyrelsen.py --join` (es sólo el join, no el crawl), y
+      después de `5:score` los stages `build_sources.py` y `build_places.py`.
+      Los crawls (`crawl_wikimedia.py`, `crawl_lansstyrelsen.py` sin `--join`)
+      quedan afuera como el de K-samsök: son RAW, se corren a mano
+- [ ] **`describe_place.load_sources` devuelve `[]` en silencio si
+      `places.sqlite` no existe**, y hashea ese payload degradado como válido.
+      Tiene que fallar. Con el runner arreglado el archivo siempre está, pero
+      un `sys.exit("places.sqlite missing: run build_sources.py first")` es
+      lo que convierte un dato silenciosamente peor en un error
+- [ ] **`generated.sqlite` en LFS con WAL abierto.** Está en `journal_mode=
+      WAL` (`build_descriptions.open_out`), así que después de una sesión de
+      generación el `-wal` tiene filas que el archivo principal no tiene, y
+      `git add` commitea sólo el principal. Hoy el `-wal` (1 MB) es más nuevo
+      que el `.sqlite`. **Fix fácil:** al salir de `build_descriptions.py`
+      (incluido el SIGINT) ejecutar `PRAGMA wal_checkpoint(TRUNCATE)`. Y un
+      check en `--status` que avise si el `-wal` tiene tamaño > 0
+- [ ] **archivos muertos en `src/data/`**, de bases que ya no existen:
+      `sites.sqlite-wal` (48 MB) y `-shm`, `descriptions.sqlite-wal`/`-shm`,
+      `ksamsok_raw.sqlite-wal`/`-shm`. Y la tabla `scores_old` en
+      `work.sqlite` (245.860 filas, nada la lee). Borrar. No hay nada que
+      recuperar: un WAL sin su base principal es basura
+- [ ] **`dims.py:202` abre `src/data/sites.sqlite`**, que no existe. Usar
+      `paths.WORK`. Nueve docstrings más nombran `sites.sqlite`,
+      `ksamsok_raw.sqlite`, `fornlamningar_full.gpkg` o `descriptions.sqlite`
+      (`build_sites.py`, `build_clusters.py`, `build_labels.py`,
+      `build_signals.py`, `build_scores.py`, `build_descriptions.py`,
+      `describe_place.py`, `build_tiles.py`). Buscar y reemplazar por los
+      nombres de `paths.py`
+- [ ] `paths.TILES` y `paths.APP_DATA` **no los usa nadie**; `build_tiles.py`
+      duplica la ruta como `DEFAULT_OUT`. Usar `paths` o borrarlos
+- [ ] `run_pipeline.sh` nunca pasa `--keep-geojson`, pero `sync-assets.sh`
+      de la app **exige** `tiles_input.geojsonl`. Una corrida limpia borra el
+      archivo que el build de la app necesita. Que el runner lo pase siempre
+- [ ] **`dominant_class` con dos reglas.** `build_clusters.py` elige el
+      miembro representativo con `families.representative_order`; `build_
+      signals.py` elige la clase con `class_significance`. `build_tiles` usa
+      la primera y `build_scores` la segunda, así que el ícono del mapa y el
+      score de un cluster pueden hablar de clases distintas.
+      **Fix:** `build_signals.py` no calcula clase. Lee
+      `clusters.dominant_class` con un JOIN y punto. Si `class_significance`
+      tiene algo que `representative_order` no (peso por "importancia" además
+      de por representatividad), se fusiona en `families.py`, que es el único
+      lugar donde puede vivir una regla sobre clases. Una regla, un archivo
+- [ ] **`clusters.name` es `MAX(s.title)`**: en un cluster de varios sitios el
+      nombre popular es el que ordena último alfabéticamente. Franco preguntó
+      si el título debería generarlo el modelo — **ya lo hace**: `describe_
+      place` emite `{title, content}` y `ai_descriptions.title` existe. Lo que
+      está mal es la *otra* columna, `name`, que es el nombre popular del
+      registro y sirve de fallback y de label del mapa. **Fix:** tomar el
+      `title` del **miembro representativo** (el mismo que da `uuid` y
+      `dominant_class`), no el `MAX`. Y es el mismo item que "colapsar `name`
+      y `title`" de abajo: una sola columna `title`, generada cuando hay
+      descripción, del representativo cuando no
+- [ ] **inglés a medias en las fuentes.** `sources.lang` existe pero
+      `load_sources` no filtra por él, así que leads de Wikipedia en inglés
+      entran a un prompt que pide sueco. Y `ai_descriptions` guarda el inglés
+      como columnas `title_en`/`content_en`: un tercer idioma es una
+      migración de schema y cinco scripts.
+      **Fix en dos pasos, el primero hoy:** (1) `load_sources(cluster_id,
+      lang)` filtra `lang IN (?, NULL)` — el sueco genera con fuentes suecas
+      y sin idioma; la traducción al inglés puede recibir las inglesas como
+      contexto *adicional* (nombres propios, terminología) pero no como
+      fuente, porque la traducción es del texto sueco y no una regeneración.
+      (2) Cuando haya tercer idioma, mover las traducciones a
+      `translations(cluster_id, lang, title, content, translated_at, model,
+      source_hash)` y dejar `ai_descriptions` sólo con el sueco canónico. No
+      antes: hoy es un rename sin beneficio
+- [ ] **`places.sqlite` pesa 815 MB sin motivo.** El UNIQUE de `sources`
+      incluye `text` entero, así que el índice (297 MB) es más grande que la
+      tabla (244 MB). **Fix:** columna `text_sha TEXT` (sha1 del texto) y
+      `UNIQUE (cluster_id, kind, lang, url, text_sha)`. Baja a ~500 MB.
+      Después `VACUUM`, que nunca se corrió. Ver también la nota sobre qué es
+      `places.sqlite` más abajo
+- [ ] `build_places.py` y `build_sources.py` hacen `INSERT OR REPLACE` /
+      `INSERT OR IGNORE` y **nunca borran**: un cluster que desaparece de
+      `work` queda en `places.sqlite` para siempre, y un texto del registro
+      que RAÄ corrigió queda al lado del nuevo y los dos van al modelo. Con
+      los ids estables de la sección 12, agregar un `DELETE ... WHERE
+      cluster_id NOT IN (SELECT cluster_id FROM work.clusters)` al final de
+      cada uno
+- [ ] `build_labels.py` joinea `hand_labels.csv` por `lamningsnummer`, que
+      **no es único** en `sites`. Una etiqueta puede abrirse en varios uuids
+      y `n_hand` cuenta el abanico. Joinear por uuid, o dedup por cluster
+- [ ] `build_signals.py` y `build_scores.py` tienen `print()` en castellano
+      en medio de código en inglés. Cosmético, pero delata pegado de otra
+      sesión
+- [ ] **README.md y PIPELINE.md describen otro proyecto.** README dice que la
+      app es Next.js en `franco-may`, lista seis stages y una base que se
+      llama `sites.sqlite`. PIPELINE.md tiene un "Stage 7 — Frontend" que
+      describe la web. Ninguno menciona `build_sources`, `build_places`,
+      `describe_place`, `generated.sqlite`, `places.sqlite` ni la app RN.
+      **Qué hacer:** README se reescribe corto — los tiers de `paths.py`, la
+      tabla de stages real (con los que faltan en el runner), y un link a la
+      app. PIPELINE.md **no se reescribe**: es el registro de qué se midió y
+      qué hipótesis murieron, y eso sigue siendo verdad. Se le agrega arriba
+      una nota "el pipeline descrito acá llega hasta `scores`; lo que viene
+      después (fuentes, lugares, descripciones, app) está en README y en este
+      TODO" y se borra la parte de Stage 7 que habla de la web como producto
+
+### App
+
+- [ ] **dos lockfiles** (`package-lock.json` y `yarn.lock`). `build-licences.
+      mjs` dice "run yarn install", así que gana yarn: borrar `package-lock.
+      json` y agregarlo al `.gitignore`
+- [ ] **`versionCode` no existe en `app.json`**: cada prebuild sale con
+      versionCode 1, y la segunda subida a Play se rechaza. Agregar
+      `android.versionCode` y **subirlo en cada release** — o mejor, que
+      `sync-assets.sh` lo derive del número de generación del export, así el
+      APK y sus datos tienen un solo número (es lo que la sección 11 pide de
+      todas formas)
+- [ ] **iOS no compila** y el README dice `npx expo run:ios`. Los plugins de
+      Firebase y Google Sign-In están en `app.json` pero no hay
+      `GoogleService-Info.plist`. Como iOS está diferido a propósito (sección
+      2), lo honesto es que el README lo diga y sacar la línea
+- [ ] README dice "sin cuentas" y "`descriptions.db`, 10 MB"; AGENTS.md dice
+      "sin bottom-sheet library" y "sin icon font". Las cuatro son falsas.
+      Comentarios stale: `App.tsx` ("no-op hasta que endpoint.ts apunte a un
+      server"), `LocateButton.tsx` ("la app no tiene gesture-handler"),
+      `i18n/index.ts` y `LanguageDialog.tsx` ("las descripciones son sólo en
+      sueco"). Un agente que lea eso construye la app equivocada
+- [ ] el build de Android deja recursos generados viejos: al renombrar
+      `descriptions.db` a `descriptions.sv.db`, el APK salió con las dos y
+      6 MB de peso muerto. `assembleRelease` no limpia
+      `android/app/build/generated/res/react/release/raw`
+- [ ] `check-i18n.mjs` no detecta **claves duplicadas** en un mismo archivo.
+      `sv.json` tenía `common.cancel` dos veces (mismo valor, así que no hizo
+      daño); si los valores hubieran diferido, el que gana es el último y
+      nada lo avisa
+- [ ] `src/data/descriptionAssets.ts` lo genera `sync-assets.sh` y está
+      trackeado; los otros cuatro generados están ignorados. Ignorarlo también
+- [ ] filtros en `AsyncStorage`, idioma y recordatorios en `settings` de
+      SQLite: dos stores de preferencias. Mover los filtros a `settings`
+
+### Qué es `places.sqlite`, y si se desvía de la visión
+
+Franco describió la visión: una tabla `places` (raa_id, posición, tipo,
+cartel, si los usuarios lo encuentran…) y una tabla `sources` (raa_id,
+atribución, contenido, timestamp…). **`places.sqlite` es exactamente eso**:
+`features` es `places` (una fila por cluster con lon/lat, clase, familia,
+título, descripción, cartel, estacionamiento, score, provenance), `sources`
+es `sources` (por cluster: kind, lang, texto, autor, publisher, licencia, url,
+fetched_at), más `images` y `generation_sources`. No va al build: es el tier
+PRODUCT; lo que va al teléfono es el tier PAYLOAD que `build_tiles.py` emite.
+
+Las desviaciones son dos, y ninguna es de forma:
+
+- **`build_tiles.py` no lo lee.** Recalcula títulos, dimensiones y
+  descripciones desde `work` + `generated` + `wikimedia`. Así que hoy el
+  producto es un archivo que nada consume, y el export sale de tres bases
+  intermedias. El pendiente "`build_tiles.py` leyendo de `places.sqlite`" de
+  abajo es lo que cierra esto, y con eso `places.sqlite` pasa a ser la única
+  cosa que hay que subir al backend en la sección 11
+- **`sources` es en un 97% el registro copiado.** 325k de 335k filas son
+  `register`, `register_parts` y `register_vegetation`: el `beskrivning` de
+  RAÄ que ya está en `work.sites`, ahora con columna de licencia. Es
+  defendible (una fuente es una fuente, y la licencia del registro también
+  hay que declararla), pero es lo que hace que el archivo pese lo que pesa.
+  Con el `text_sha` de arriba el costo baja a la mitad y deja de importar
+
+Respuesta corta: **no es una desviación, es la visión sin terminar de
+conectar.** Lo que falta es que sea la fuente del export.
 
 ---
 
 ## Pendientes viejos, de antes de hoy
 
-- [ ] `check-i18n.mjs` no detecta **claves duplicadas** en un mismo archivo.
-      `sv.json` tenía `common.cancel` dos veces (mismo valor, así que no hizo
-      daño); si los valores hubieran diferido, el que gana es el último y
-      nada lo avisa
-- [ ] el build de Android deja recursos generados viejos: al renombrar
-      `descriptions.db` a `descriptions.sv.db`, el APK salió con las dos y
-      6 MB de peso muerto. `assembleRelease` no limpia
-      `android/app/build/generated/res/react/release/raw`
+Con comentarios del review de 2026-09-16 en cursiva.
+
 - [ ] colapsar `name` y `title` en una columna (`titles.py` ya está; falta el
-      rename de schema en `build_places.py` y `build_tiles.py`)
+      rename de schema en `build_places.py` y `build_tiles.py`).
+      *Subirlo: es el mismo fix que el `MAX(s.title)` de la sección 13, y con
+      él desaparece la pregunta de "¿de qué miembro es este nombre?"*
 - [ ] `build_tiles.py` leyendo de `places.sqlite`, no de `work.sqlite` +
-      `generated.sqlite`. Nada lo bloquea ya
+      `generated.sqlite`. Nada lo bloquea ya.
+      *Subirlo también: es lo que convierte a `places.sqlite` en el producto
+      que `paths.py` dice que es, y es el prerequisito de subir una sola base
+      al backend (sección 11). Hoy `build_tiles` es un segundo `build_places`
+      con reglas propias*
 - [ ] 19,3% de las descripciones con más de una medida. Dos iteraciones del
-      prompt no movieron nada; queda post-procesar la prosa o un segundo pase
-- [ ] el APK instalado es de antes del cambio de clustering
-- [ ] ~55% de los objetos `fornvard` no matchean con nada
+      prompt no movieron nada; queda post-procesar la prosa o un segundo pase.
+      *Coincido con el post-proceso. Un modelo local de 8B no va a obedecer
+      "una medida" de forma confiable, y `describe_place.check()` ya sabe
+      encontrar números en la prosa: es el lugar natural para un pase que
+      deje sólo la primera medida y mande el resto a `size`*
+- [ ] el APK instalado es de antes del cambio de clustering.
+      *Es exactamente el caso donde hoy se pierden contribuciones por uuid
+      huérfano (sección 12). Antes de reinstalar, exportar `contributions.db`
+      del teléfono y contar cuántas filas apuntan a `cluster_id` que ya no
+      existen: es la primera medición real del problema*
+- [ ] ~55% de los objetos `fornvard` no matchean con nada.
+      *Probablemente muchos son polígonos grandes (áreas de fornvård) que
+      contienen varios clusters; un match por contención en vez de por
+      distancia al centroide podría recuperar una parte. Medir antes*
 - [ ] regenerar descripciones de los que entraron/salieron del top 10k
-      (2.374 con texto ya afuera, 3.526 adentro sin texto)
+      (2.374 con texto ya afuera, 3.526 adentro sin texto).
+      *Los 2.374 de afuera no hay que tocarlos: texto ya generado es texto que
+      va a servir cuando vuelvan a entrar, y borrarlo es tirar horas de
+      modelo. Sólo los 3.526 de adentro. Y con el modelo de la sección 11 este
+      item deja de ser un evento y pasa a ser lo que hace el pipeline en cada
+      generación*

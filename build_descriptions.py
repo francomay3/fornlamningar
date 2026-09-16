@@ -89,6 +89,78 @@ def source_hash(model_input):
     return hashlib.sha256(blob.encode()).hexdigest()[:16]
 
 
+def open_places(path=None):
+    """A WRITABLE connection to places.sqlite, for the attribution alone.
+
+    `generation_sources` is the join table that says which corpus rows a
+    description was written from, and it lives beside `sources` in
+    places.sqlite because that is where the corpus is -- the id is only
+    meaningful next to the table it indexes.
+
+    So a generation run writes to two files: the text into generated.sqlite,
+    the attribution here. They cannot share a transaction, and the order is
+    chosen for which failure is repairable: the description is committed
+    FIRST, so an interruption between the two leaves a description whose
+    attribution is missing, which `--backfill-sources` rebuilds from the
+    payload. The other order would leave attribution for a description that
+    does not exist, and nothing could tell that from a stale row.
+
+    Returns None when there is no corpus, which is not an error: places.sqlite
+    is built by build_sources.py and a generation run does not require it --
+    `load_sources` already returns nothing in that case, so there is also
+    nothing to attribute.
+    """
+    path = path or paths.PLACES
+    if not os.path.exists(path):
+        return None
+    conn = sqlite3.connect(path, timeout=30)
+    # build_sources.py owns this schema; this is the "if not exists" half of
+    # it, so a run that predates a corpus rebuild still has somewhere to
+    # write. Kept byte-identical to build_sources.SCHEMA on purpose.
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS generation_sources (
+            cluster_id  TEXT NOT NULL,
+            lang        TEXT NOT NULL,
+            source_id   INTEGER NOT NULL,
+            basis       TEXT NOT NULL DEFAULT 'payload',
+            PRIMARY KEY (cluster_id, lang, source_id)
+        )""")
+    # For a file whose table predates `basis`. ALTER is the only way to add a
+    # column, and re-adding one raises -- which is the check.
+    try:
+        conn.execute("ALTER TABLE generation_sources "
+                     "ADD COLUMN basis TEXT NOT NULL DEFAULT 'payload'")
+    except sqlite3.OperationalError:
+        pass
+    conn.commit()
+    return conn
+
+
+def record_sources(places, cluster_id, source_ids, lang="sv", basis="payload"):
+    """Replace this place's attribution with the rows that just fed it.
+
+    DELETE then INSERT, not INSERT OR IGNORE: regenerating a description
+    after the corpus lost a row has to DROP that row's credit. An
+    accumulating join table would keep crediting a county page we no longer
+    hold, which is the one thing this table exists to get right.
+
+    `lang` is the language of the DESCRIPTION, not of the source. A
+    translation adds no sources -- it is a pass over text already written --
+    so English rows would be a copy of these under another name, and the
+    honest reading of an English description's provenance is the Swedish
+    one's.
+    """
+    if places is None:
+        return
+    places.execute("DELETE FROM generation_sources WHERE cluster_id = ? "
+                   "AND lang = ?", (cluster_id, lang))
+    places.executemany(
+        "INSERT INTO generation_sources(cluster_id, lang, source_id, basis) "
+        "VALUES (?,?,?,?)",
+        [(cluster_id, lang, i, basis) for i in source_ids])
+    places.commit()
+
+
 def open_out(path):
     conn = sqlite3.connect(path, timeout=30)
     conn.execute("PRAGMA journal_mode=WAL")
@@ -331,6 +403,127 @@ def run_resolve_titles(sites, out, a):
           f"{'would be' if a.dry_run else 'were'} replaced with a resolved name")
 
 
+# When the corpus stopped being invisible to the generator.
+#
+# Commit 3b99dfb, 2026-09-11 16:09, wired `load_sources` into `payload`.
+# Every description written before it saw ONE field -- the register's survey
+# text -- whatever sat in places.sqlite beside it. That is what makes their
+# attribution recoverable without a hash: it is RAA and nothing else.
+#
+# The boundary is the whole DAY and not the commit minute, deliberately. The
+# 9 and 10 September runs took hours, so a process could have been started
+# with the old code and committed rows after a newer commit existed. Dropping
+# the 72 rows written on the 11th costs nothing and removes the only case
+# where that reasoning could be wrong.
+CORPUS_WIRED_DAY = "2026-09-11"
+
+
+def run_backfill_sources(sites, out, a):
+    """Record the attribution for descriptions written before it was kept.
+
+    The 9,181 rows already in the file were generated without anything
+    writing `generation_sources`, so the app cannot say which of them draw
+    on Wikipedia -- 1,061 of them do, under CC BY-SA -- and
+    `features.uses_wikipedia` is 0 for every place in the country because
+    build_places derives it from this empty table.
+
+    IT IS RECOVERABLE BECAUSE THE PAYLOAD IS DETERMINISTIC, and `source_hash`
+    is the proof. Rebuilding the payload for a stored row and getting the
+    same hash means the corpus today is byte-for-byte what the model was
+    shown, so today's source ids are the ones that fed it. A different hash
+    means the sources have moved since, and then we genuinely do not know
+    what was sent: those rows are skipped rather than credited with a guess,
+    and they are already in the regeneration queue for the same reason.
+
+    A row whose `payload_version` is not the current one cannot be compared
+    at all -- that is what the version is for -- so it is counted separately.
+    Both skips print, because "nothing to do" and "1,400 places we cannot
+    attribute" must not look the same.
+    """
+    places = open_places()
+    if places is None:
+        sys.exit(f"no corpus at {paths.PLACES} -- run build_sources.py first")
+
+    rows = out.execute(
+        """SELECT cluster_id, source_hash, payload_version, created_at
+             FROM ai_descriptions WHERE content <> ''
+            ORDER BY cluster_id""").fetchall()
+    created_at = {r[0]: (r[3] or "") for r in rows}
+    rows = [(r[0], r[1], r[2]) for r in rows]
+    print(f"{len(rows):,} descriptions to attribute")
+
+    # Every register row per cluster, for the pre-corpus tier. All of them
+    # rather than the one whose text `clusters.best_description` happened to
+    # hold: they are all RAA, so as a statement about publisher and licence
+    # -- which is what attribution is -- the set is exact, and picking one
+    # would mean re-deriving the representative rule a sixth time.
+    register = {}
+    for cid, sid in places.execute(
+            "SELECT cluster_id, source_id FROM sources "
+            " WHERE kind = 'register' AND usable = 1 AND text <> ''"):
+        register.setdefault(cid, []).append(sid)
+
+    proved = pre = changed = unknown = gone = empty = 0
+    written = 0
+    for cid, stored, shape in rows:
+        if shape != dp.PAYLOAD_VERSION or not stored:
+            # No hash to compare, but a date that says what the payload
+            # COULD have held. Before the corpus was wired in there is
+            # nothing to reconstruct: the answer is the register.
+            if created_at.get(cid, "") < CORPUS_WIRED_DAY:
+                ids = register.get(cid, [])
+                if ids:
+                    pre += 1
+                    if not a.dry_run:
+                        record_sources(places, cid, ids,
+                                       basis="register-only")
+                    written += len(ids)
+                else:
+                    empty += 1
+                continue
+            unknown += 1
+            continue
+        pl = dp.payload(sites, cid)
+        if pl is None:
+            gone += 1
+            continue
+        if source_hash(pl["model_input"]) != stored:
+            changed += 1
+            continue
+        proved += 1
+        if not pl["source_ids"]:
+            # A place with no corpus row at all: described from the register
+            # text, which the corpus does hold as kind='register'. Reaching
+            # here means even that is missing, so there is nothing to credit.
+            empty += 1
+            continue
+        if not a.dry_run:
+            # `hash`, not the default `payload`: this row was reconstructed
+            # afterwards and proved, which is a different claim from having
+            # been written down as it happened.
+            record_sources(places, cid, pl["source_ids"], basis="hash")
+        written += len(pl["source_ids"])
+
+    print(f"  {proved:,} proved by hash")
+    if pre:
+        print(f"  {pre:,} written from the register alone, before the corpus "
+              f"existed ({CORPUS_WIRED_DAY})")
+    if empty:
+        print(f"  {empty:,} with no corpus row to credit at all")
+    print(f"  {written:,} attribution rows"
+          + (" (dry run, nothing written)" if a.dry_run else " written"))
+    if changed:
+        print(f"  {changed:,} skipped: sources changed since the text was "
+              f"written, so what the model saw cannot be reconstructed")
+    if unknown:
+        print(f"  {unknown:,} SKIPPED AND STILL UNATTRIBUTED: written after "
+              f"{CORPUS_WIRED_DAY} with no payload_version stamped, so "
+              f"neither the hash nor the date settles what they drew on. "
+              f"Regenerating them is what fixes it")
+    if gone:
+        print(f"  {gone:,} skipped: no payload builds for them any more")
+
+
 def run_retitle(sites, out, a):
     """Rewrite the titles of rows that already have approved body text.
 
@@ -414,6 +607,10 @@ def main():
                         "resolved place name. No model calls")
     p.add_argument("--dry-run", action="store_true",
                    help="with --resolve-titles: print, change nothing")
+    p.add_argument("--backfill-sources", action="store_true",
+                   help="record generation_sources for descriptions written "
+                        "before it was kept; proves each one by re-hashing "
+                        "its payload. Honours --dry-run")
     p.add_argument("--status", action="store_true")
     a = p.parse_args()
 
@@ -446,6 +643,9 @@ def main():
                 "GROUP BY 1 ORDER BY 2 DESC LIMIT 10"):
             print(f"  flag {f}: {c:,}")
         return
+
+    if a.backfill_sources:
+        return run_backfill_sources(sites, out, a)
 
     if a.retitle:
         return run_retitle(sites, out, a)
@@ -529,6 +729,13 @@ def main():
           + (f", nearest first around {near[0]:.4f},{near[1]:.4f}" if near
              else ", best score first")
           + (f", within the exported top {a.top:,}" if a.top else "") + ")")
+
+    # Opened here and not with `out`, so the modes that do not generate
+    # (--status, --translate, --retitle) never touch the corpus file.
+    places = open_places()
+    if places is None:
+        print("  no corpus at " + paths.PLACES
+              + " -- descriptions will have no attribution recorded")
 
     signal.signal(signal.SIGINT, lambda *_: (
         stop.set(), print("\n  stopping after the places in flight...")))
@@ -622,6 +829,9 @@ def main():
              source_hash(pl["model_input"]), dp.PAYLOAD_VERSION,
              ",".join(flags), int(elapsed * 1000)))
         out.commit()
+        # The attribution, in the other file, immediately after. See
+        # open_places() for why the order is this one.
+        record_sources(places, pl["cluster_id"], pl["source_ids"])
         out.execute("DELETE FROM failures WHERE cluster_id = ?", (cid,))
         out.commit()
         n += 1

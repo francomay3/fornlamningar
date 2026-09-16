@@ -279,7 +279,7 @@ def load_sources(cluster_id, places_db=None):
     db = sqlite3.connect(f"file:{places_db}?mode=ro", uri=True)
     try:
         rows = db.execute("""
-            SELECT kind, publisher, title, text FROM sources
+            SELECT source_id, kind, publisher, title, text FROM sources
              WHERE cluster_id = ? AND usable = 1 AND text <> ''
              -- The tail of this ORDER BY is a TIEBREAKER, and it is load
              -- bearing. trust and length alone leave 25,723 groups of tied
@@ -302,7 +302,7 @@ def load_sources(cluster_id, places_db=None):
     finally:
         db.close()
     out, seen = [], set()
-    for kind, publisher, title, text in rows:
+    for source_id, kind, publisher, title, text in rows:
         t = " ".join(text.split())
         # The same sentence can arrive twice -- a page linked from two county
         # objects, a folder blurb repeated per lamningsnummer. Sending it
@@ -311,7 +311,15 @@ def load_sources(cluster_id, places_db=None):
         if key in seen:
             continue
         seen.add(key)
-        out.append({"kind": "folklore" if kind == "tradition" else kind,
+        # `source_id` RIDES ALONG BUT IS NOT PART OF THE PAYLOAD. It is the
+        # attribution: the row that fed a description is what lets the app
+        # say "this text draws on Wikipedia, CC BY-SA". `payload` strips it
+        # before hashing, because source_hash is a hash of what the MODEL
+        # saw -- putting an id in there would make every place report
+        # "my sources changed" the moment this column appeared, and queue
+        # 9,181 regenerations that nothing asked for.
+        out.append({"source_id": source_id,
+                    "kind": "folklore" if kind == "tradition" else kind,
                     "publisher": publisher, "title": title, "text": t})
     return out
 
@@ -377,7 +385,16 @@ def payload(conn, cluster_id, places_db=None):
     # The register text is already in `sources` as kind='register'; keep the
     # dedicated field too, because every prompt example is written against it
     # and the model treats it as the spine of the description.
-    extra = [s for s in sources if s["kind"] != "register"]
+    #
+    # `source_id` is dropped HERE, on the way into the payload, and kept in
+    # `source_ids` for the caller to record as attribution. Everything that
+    # survives the dedup above fed the description -- the register row too,
+    # via the `source` field -- so all of them are attributable, and the ones
+    # the dedup dropped are not: their text reached the model through another
+    # row, and crediting them would over-claim.
+    source_ids = sorted(s["source_id"] for s in sources)
+    extra = [{k: v for k, v in s.items() if k != "source_id"}
+             for s in sources if s["kind"] != "register"]
 
     title, _src = resolve_title(wiki_title=wiki_title_for(sources),
                                 register_name=r["name"])
@@ -399,7 +416,7 @@ def payload(conn, cluster_id, places_db=None):
     out["max_words"] = word_budget(extra, register)
     return {"cluster_id": r["cluster_id"], "uuid": r["uuid"],
             "lamning": r["lamningsnummer"], "boilerplate": r["all_boilerplate"],
-            "title": title, "model_input": out}
+            "title": title, "source_ids": source_ids, "model_input": out}
 
 
 def wiki_title_for(sources):

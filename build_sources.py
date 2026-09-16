@@ -120,6 +120,22 @@ CREATE TABLE IF NOT EXISTS generation_sources (
     cluster_id  TEXT NOT NULL,
     lang        TEXT NOT NULL,
     source_id   INTEGER NOT NULL,
+    -- HOW WE KNOW. Attribution is a claim about the past, and the rows here
+    -- were not all established the same way:
+    --   payload        recorded by build_descriptions.py as the description
+    --                  was written, straight from the payload. Exact.
+    --   hash           reconstructed afterwards and PROVED: rebuilding the
+    --                  payload gave the same source_hash, so the corpus is
+    --                  byte-for-byte what the model saw.
+    --   register-only  the description predates the corpus being wired into
+    --                  the generator (commit 3b99dfb, 2026-09-11 16:09), so
+    --                  by construction it was written from the register text
+    --                  alone. Exact as to WHICH PUBLISHER, since every
+    --                  register row is RAA.
+    -- A reader that needs certainty can filter on this. A row we could not
+    -- establish at all is simply absent, which is why the column has no
+    -- "guessed" value: there is nothing here we are unsure of.
+    basis       TEXT NOT NULL DEFAULT 'payload',
     PRIMARY KEY (cluster_id, lang, source_id)
 );
 """
