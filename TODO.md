@@ -744,15 +744,44 @@ usuario que la app tiene una forma.
         vez que corra (daría 6 hoy). **No** se escribió desde
         `build_descriptions`: esa columna alimenta el score, y escribirla
         desde fuera de su etapa es la clase de acoplamiento que se rompe solo
-  - [ ] falta la otra mitad: **exportarla y mostrarla en el sheet**. Con
-        `basis` disponible, la línea de crédito puede además distinguir lo
-        probado de lo no establecido, y un lugar sin filas es "no lo sabemos"
-        y no "no tiene fuentes"
+  - [ ] falta la otra mitad: **exportarla y mostrarla en el sheet** (pedido
+        2026-09-16). Ver el item de abajo, que tiene el diseño
   - [ ] ojo con `rm places.sqlite`: los `source_id` son autoincrementales y
         `build_sources` los preserva sólo porque inserta con `INSERT OR
         IGNORE` sobre una tabla que no dropea. Borrar el archivo reasigna los
         ids y deja `generation_sources` apuntando a otras filas. Si algún día
         hay que rehacer el corpus de cero, hay que rehacer también el backfill
+- [ ] **una línea de atribución en el sheet, debajo del texto generado**
+      (pedido 2026-09-16). Ahora que `generation_sources` tiene datos se
+      puede derivar, y el diseño lo decide un número: **sólo 26 de los 8.842
+      lugares atribuidos tienen algo más que el registro.** Las licencias
+      declaradas de lo que atribuye hoy son `CC0 1.0` en 8.842 lugares
+      (el registro de RAÄ), `CC BY-SA 4.0` en 6 y `unresolved` en 7
+  - [ ] **entonces la línea no va en todos los lugares.** Una línea idéntica
+        repetida en 8.816 fichas no es atribución, es ruido que la gente
+        aprende a no leer — y encima el crédito a RAÄ ya está en `Om appen` y
+        el sheet ya linkea a Fornsök. La versión útil: la línea aparece
+        **sólo cuando hay algo más que el registro**, y dice qué: "Bygger
+        också på Wikipedia (CC BY-SA 4.0)" con el link a la fuente. Hoy son
+        26 fichas; después de la regeneración, ~1.401
+  - [ ] lo que hay que mover para que exista: `build_tiles.py` tiene que leer
+        `generation_sources` JOIN `sources` y meter en el shard, por lugar,
+        los `publisher`/`licence`/`licence_url`/`url` **distintos** de las
+        fuentes no-registro. Es una columna más en `descriptions.<lang>.db`
+        (JSON, como `size` y `period`), no una tabla nueva
+  - [ ] **un lugar sin filas es "no lo sabemos", no "no tiene fuentes".** Son
+        las 357 que el backfill no pudo establecer. No puede mostrar una
+        línea que afirme nada; lo correcto es no mostrar nada, que es lo mismo
+        que hace un lugar que sólo usa el registro — y por eso los dos casos
+        conviven sin que haya que explicarlos
+  - [ ] `basis` permite además no publicar lo no probado: si alguna vez se
+        quiere ser estricto, la línea se deriva sólo de `basis IN ('payload',
+        'hash')`. Hoy no cambia nada, porque las 26 salen todas de ahí
+  - [ ] el `unresolved` de 7 lugares es la decisión que ya está tomada y
+        escrita en `build_sources.py`: se usa, se atribuye con publisher y
+        url, y si alguien pide que se baje, se baja. La línea del sheet es
+        **la que hace posible esa promesa**, así que esos 7 son justamente
+        los que más la necesitan
 - [ ] `ATTRIBUTION` en `src/map/constants.ts` **no lo usa nadie**, así que
       hoy el mapa no muestra ninguna atribución de OSM. Con `Om appen` está a
       dos toques, que es discutible; ponerlo en el mapa es una decisión
