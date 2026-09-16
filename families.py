@@ -255,20 +255,8 @@ CLASS_BLACKLIST = {
     "Boplatsvall", "Skärvstenshög", "Fossil åker",
     "Område med fossil åkermark", "Kemisk industri", "Förvaringsanläggning",
     "Område med skogsbrukslämningar",
-    # A legal boundary, not a monument. 118 records whose entire description
-    # is administrative -- "Gränslinjebestämt område. Ingående RAÄ-nr 81 i
-    # Fjärås sn." -- and what they delimit is a monument that already has its
-    # own record and its own pin. At Fjärås the boundary sits 180 m from
-    # Frodestenen's grave field and describes it in the language of a land
-    # survey.
-    #
-    # 39 of the 118 had reached the exported 10,000, where they show as a pin
-    # with no name, no generated title and a sentence of bureaucracy. Franco
-    # tapped one of them expecting Li gravfält.
-    #
-    # NOT "Gränsmärke" (1,149): a boundary MARKER is a real stone somebody
-    # put there, and some of them are worth walking to.
-    "Gränsbestämt område",
+    # "Gränsbestämt område" WAS HERE and has moved to CLASS_NOT_A_PLACE: a
+    # rescuable prior was the wrong shape for it. See below.
 }
 # "Fossil åker" above used to read "Fossil åkermark", which is not a class the
 # register has: the two real names are "Fossil åker" (8,276 sites) and "Område
@@ -282,6 +270,69 @@ CLASS_BLACKLIST = {
 # Weak on its own (0.26x photograph lift) but 29.6% of the dataset and it does
 # contain good sites. Excluded by default, rescued by any positive evidence.
 CLASS_SOFT_BLACKLIST = {"Stensättning"}
+
+# Classes where the ORDINARY RESCUE CONDITIONS MEASURE THE WRONG THING, so the
+# only evidence that counts is the register saying something is above ground.
+#
+# A stadslager is the archaeological deposit under a town: the medieval layer
+# beneath a modern street. By the register's own language 55 of the 107 in the
+# export are pure excavation report -- "Kulturlager med sot, tegel och keramik
+# har paatraeffats, och en kritpipa daterades till 1620-40" -- and 29 more say
+# nothing either way. There is, by construction, nothing to walk to.
+#
+# The reason it needs its own rule rather than CLASS_BLACKLIST is that the
+# usual rescues do not mean here what they mean everywhere else:
+#
+#   has_name  For most classes a folk name is somebody having known and cared
+#             about the monument -- Galgbacken, Varggropen, Drakaroer. For a
+#             stadslager the named thing is THE TOWN: Trelleborg, Varberg,
+#             Landskrona, Askersund, "AEngelholms medeltida stad". All 22 of
+#             them, and a town's name says nothing about whether there is
+#             anything to see in the ground beneath it.
+#   proximity Removed for everybody (see build_scores), and this class is
+#             where it was worst: 45% within 500 m of a county board sign
+#             against a 5.4% baseline, because a stadslager IS a town centre
+#             and a town centre is where the signs are.
+#
+# `any_visible` is the register's own `placering = 'Synlig ovan mark'`, and it
+# answers the actual question. On these 126 clusters it separates them 3 / 123,
+# and the three are exactly the destinations: Sala gruvby (a mining village
+# with over 200 building remains), Kungahaella/Klosterkullen (whose cluster
+# also holds a Kloster and a Stadsvall/stadsmur) and Braette (a deserted
+# town). The 22 town names are all not-visible.
+#
+# So: excluded unless the register says it shows above ground.
+CLASS_BURIED = {"Stadslager"}
+
+# Classes that are not monuments at all, excluded with NO rescue.
+#
+# This is the same kind of judgement as a record the register has struck out
+# (see `struck` in build_scores) and not the same as a bad prior: it is not a
+# place we expect to be dull, it is not a place. Everything else in this file
+# is a prior that site-level evidence can overturn, and the argument for that
+# is strong -- a veto never learns it was wrong, because the sites it hides
+# never come back to argue. It does not apply here, because there is no
+# version of this record that is a destination.
+#
+# "Gränsbestämt område" is a legal boundary. 118 records whose entire
+# description is administrative -- "Gränslinjebestämt område. Ingående RAÄ-nr
+# 81 i Fjärås sn." -- and what they delimit is a monument that already has its
+# own record and its own pin. At Fjärås the boundary sits 180 m from
+# Frodestenen's grave field and describes it in the language of a land survey.
+# Measured: 70 of the 71 clusters have another monument within 500 m, so the
+# pin is a duplicate of one that already exists. Franco tapped one of them
+# expecting Li gravfält.
+#
+# It was in CLASS_BLACKLIST, and the rescue conditions do not work for it any
+# better than they did for a stadslager. `has_name` fires on the name of the
+# thing delimited -- "Sala silvergruva", "Nydala Kloster", "Ytterby gruva",
+# all of which have their own records -- and `any_visible` is 1 for all 71,
+# because what is visible above ground is the monument, not the boundary. So
+# both of the conditions that could rescue it are describing something else.
+#
+# NOT "Gränsmärke" (1,149): a boundary MARKER is a real stone somebody put
+# there, and some of them are worth walking to.
+CLASS_NOT_A_PLACE = {"Gränsbestämt område"}
 
 
 def representative_order(alias="s"):

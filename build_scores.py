@@ -38,6 +38,15 @@ import random
 import sqlite3
 import sys
 
+# The blacklists reach this stage as COLUMNS (`class_blacklisted`,
+# `class_soft_blacklisted`) computed by build_signals. CLASS_BURIED is read
+# here directly instead, and that is deliberate rather than inconsistent:
+# families.py exists precisely so that more than one stage can read the
+# taxonomy, its rule needs no new column -- `any_visible` is already in
+# signals -- and applying it here means adding a class to it does not require
+# re-running stage 4.
+from families import CLASS_BURIED, CLASS_NOT_A_PLACE
+
 import numpy as np
 
 import logistic as LR
@@ -796,10 +805,25 @@ def main():
         rescued = (bool(r["has_name"]) or (r["sitelinks"] or 0) > 0
                    or bool(r["has_image"])
                    or r["cluster_id"] in county_pos)
+        # A CLASS WHERE THE ORDINARY RESCUES MEASURE THE WRONG THING gets its
+        # own, narrower one: see CLASS_BURIED in families.py. For a stadslager
+        # `has_name` is the name of the TOWN on top of it, so it carries no
+        # information about whether there is anything to see; the register's
+        # own "visible above ground" does. This overrides `rescued` rather
+        # than adding to it -- the point is that the others do not count.
+        if (r["dominant_class"] or "") in CLASS_BURIED:
+            rescued = bool(r["any_visible"])
         # `or in struck` and not `and not rescued`: see the note where
         # `struck` is built. A record the register has withdrawn is not a
         # place with a bad prior, it is not a place.
+        # CLASS_NOT_A_PLACE sits beside `struck` and not beside the
+        # blacklist, for the same reason: it is not a place with a bad prior,
+        # it is not a place. No rescue, because both conditions that could
+        # rescue one of these describe something else -- see families.py.
         hard = int((bool(r["class_blacklisted"]) and not rescued)
+                   or ((r["dominant_class"] or "") in CLASS_BURIED
+                       and not rescued)
+                   or (r["dominant_class"] or "") in CLASS_NOT_A_PLACE
                    or r["cluster_id"] in struck)
         soft = int(bool(r["class_soft_blacklisted"]) and not rescued)
         out.append((r["cluster_id"], cw.get(r["dominant_class"] or "?", 0.0),
