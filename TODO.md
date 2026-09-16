@@ -1344,11 +1344,31 @@ gruvby sobreviviría por su nombre — bien. Pero:
         Gränsbestämt område. **Todos sin nombre** — lo que tenía nombre se
         rescató por tenerlo. Seis son de la clase de límites administrativos
         que Franco tocó una vez esperando Li gravfält
-- [ ] **agregar `Stadslager` a `CLASS_BLACKLIST`** en `families.py`. Una línea,
-      y **todavía no está hecha**. Con el rescate ya arreglado sobreviven los
-      que tienen nombre o foto — Sala gruvby entre ellos — y se van los 55
-      informes de excavación. Falta la decisión de Franco porque, a
-      diferencia del rescate, esto pide re-correr las etapas 2→5
+- [x] **`Stadslager` excluido** (hecho 2026-09-16, `cc0cfe8`), pero **no** con
+      `CLASS_BLACKLIST`: ahí el rescate lo habría salvado por `has_name`, y
+      para esta clase el nombre es **el del pueblo de encima** (Trelleborg,
+      Varberg, Landskrona, "Ängelholms medeltida stad" — los 22). Se hizo con
+      un `CLASS_BURIED` nuevo, cuyo único rescate es el propio campo del
+      registro `placering = 'Synlig ovan mark'`. Sobre estos 126 clusters ese
+      campo los separa **3 / 123**, y los tres son los destinos de verdad:
+      Sala gruvby, Kungahälla/Klosterkullen y Brätte. Se fueron 104 de los
+      107 pines
+  - [x] aplicado en `build_scores` y no como columna nueva de `signals`, así
+        que agregar una clase a la lista **no** pide re-correr la etapa 4
+  - [x] **el agujero que destapó**: al sacar 204 pines de ruido subieron
+        otros desde abajo del corte y `Gränsbestämt område` pasó de 6 a 10 —
+        la clase de límites administrativos. Estaba en `CLASS_BLACKLIST`,
+        donde el rescate tampoco sirve: `has_name` es el nombre de lo
+        delimitado ("Sala silvergruva", "Nydala Kloster") y `any_visible` es
+        1 en **los 71**, porque lo visible es el monumento y no el límite.
+        Movido a un `CLASS_NOT_A_PLACE` nuevo, excluido sin rescate al lado
+        de `struck`: 70 de los 71 tienen otro monumento a menos de 500 m, o
+        sea que el pin duplica uno que ya existe
+  - [x] **exportado, y el export no costó nada**: de los 2.912 lugares del
+        nuevo top 10.000 sin descripción generada, **cero** muestran hoy
+        prosa generada. Los 2.200 que tienen texto muestran el texto crudo
+        del registro ("Kyrkoruin.") y lo siguen mostrando. Entran 458,
+        se van 204
 - [ ] ojo: `CLASS_BLACKLIST` la leen `build_clusters` (etapa 2) y
       `build_signals` (etapa 4), así que esto pide **re-correr etapas 2→5**, y
       eso cambia qué lugares están en el export. No es gratis en tiempo ni
