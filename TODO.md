@@ -716,20 +716,43 @@ usuario que la app tiene una forma.
       4.0, o sea que la descripción es una adaptación y arrastra
       share-alike), 200 `county_attr`, 111 `county_plan`, 81 `county_page`,
       59 `county_programme` y 44 `county_pdf` (CC BY 4.0 / CC BY-SA 4.0)
-- [ ] **`generation_sources` existe y está vacía** (0 filas), y era
-      exactamente el mecanismo para que la atribución fuera calculada y no
-      declarada. Llenarla es lo que hace posible la línea de crédito por
-      lugar; después hay que exportarla y mostrarla en el sheet.
-      **Remarcado en el review del 16:** esto no es cosmético. 1.061
-      descripciones ya publicables salen de Wikipedia (CC BY-SA) y la app no
-      puede decir cuáles, y `features.uses_wikipedia` es 0 en **todas** las
-      filas porque `build_places.rollups` lo deriva de esta tabla vacía. Es
-      media hora: `describe_place.load_sources` ya tiene los `source_id` de
-      las filas que arma en el payload; hay que devolverlos junto al payload y
-      que `build_descriptions` los inserte en `generation_sources` en la misma
-      transacción que escribe `ai_descriptions`. La app no está publicada, así
-      que no hay incumplimiento todavía, pero es lo primero que tiene que
-      estar antes de que lo esté
+- [x] **`generation_sources` ya no está vacía** (hecho 2026-09-16, 12.446
+      filas). `load_sources` saca el `source_id` de cada fila, `payload` lo
+      quita del `model_input` y lo devuelve aparte en `source_ids`, y el loop
+      de generación lo escribe en cuanto la descripción se commitea. El id
+      **no** entra al payload a propósito: `source_hash` es un hash de lo que
+      vio el modelo, y meter un id ahí habría hecho que los 9.181 lugares
+      reportaran "mis fuentes cambiaron" y se encolaran para regenerar.
+      Verificado: las 150 filas v3 re-hashean exactamente a lo guardado
+  - [x] `--backfill-sources` estableció 8.842 de las 9.199 existentes, en dos
+        niveles, y la columna nueva `basis` dice cuál:
+        **`hash`** (148, probadas: reconstruir el payload da el `source_hash`
+        guardado), **`register-only`** (8.694, escritas antes de que el
+        commit `3b99dfb` cableara el corpus, así que por construcción vieron
+        un solo campo), y **ausentes** (357, posteriores a ese día y sin
+        `payload_version`: no las decide ni el hash ni la fecha, así que no
+        reciben nada en vez de una adivinanza — regenerarlas es lo que lo
+        arregla)
+  - [x] **corrección al número de arriba**: no son 1.061 descripciones
+        saliendo de Wikipedia. **1.401 lugares tienen una fuente de Wikipedia
+        en el corpus, pero sólo 6 descripciones del archivo fueron escritas
+        de una** — las otras 8.694 probadamente no. Así que la obligación de
+        CC BY-SA hoy son 6 lugares, y pasa a ~1.401 después de la
+        regeneración. Era mucho menos urgente de lo que parecía, y lo que lo
+        vuelve urgente es la regeneración, no el tiempo
+  - [ ] `features.uses_wikipedia` lo va a levantar `build_places` la próxima
+        vez que corra (daría 6 hoy). **No** se escribió desde
+        `build_descriptions`: esa columna alimenta el score, y escribirla
+        desde fuera de su etapa es la clase de acoplamiento que se rompe solo
+  - [ ] falta la otra mitad: **exportarla y mostrarla en el sheet**. Con
+        `basis` disponible, la línea de crédito puede además distinguir lo
+        probado de lo no establecido, y un lugar sin filas es "no lo sabemos"
+        y no "no tiene fuentes"
+  - [ ] ojo con `rm places.sqlite`: los `source_id` son autoincrementales y
+        `build_sources` los preserva sólo porque inserta con `INSERT OR
+        IGNORE` sobre una tabla que no dropea. Borrar el archivo reasigna los
+        ids y deja `generation_sources` apuntando a otras filas. Si algún día
+        hay que rehacer el corpus de cero, hay que rehacer también el backfill
 - [ ] `ATTRIBUTION` en `src/map/constants.ts` **no lo usa nadie**, así que
       hoy el mapa no muestra ninguna atribución de OSM. Con `Om appen` está a
       dos toques, que es discutible; ponerlo en el mapa es una decisión
