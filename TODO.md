@@ -735,15 +735,11 @@ el log de cambios y nada mas** — escritores concurrentes, orden garantizado,
 append. Los datos derivados y masivos son archivos versionados en el CDN, como
 los tiles ya son. Un snapshot es un archivo, y un archivo no necesita base.
 
-Lo que quedo del dia, y sirve igual:
-
-- `franco-may/docker-compose.yml` — Postgres local, puerto **15432** y no
-  5432, porque ese puerto lo resetean algunas redes y el sintoma parece base
-  muerta. Para desarrollar contra `fl_events` sin tocar la base con los
-  eventos reales
-- `apply-fl-schema.cjs` elige transporte por el hostname: SQL sobre HTTPS para
-  Neon, protocolo Postgres para el contenedor. Antes no podia correr contra
-  local, y dos scripts de migracion son dos esquemas que se desfasan
+No quedo nada de infraestructura: se probo un Postgres local en Docker y se
+saco el mismo dia. El telefono habla con `https://franco-may.com` — la URL
+esta escrita en `src/data/endpoint.ts` — asi que nada de lo que Franco hace
+habria llegado nunca a un contenedor, y probar contra produccion es la unica
+forma de probar lo que va a pasar de verdad. **Todo contra produccion.**
 
 Lo que hace falta cuando se retome, en vez de la lista de arriba:
 
