@@ -307,6 +307,35 @@ def main():
                     "(uuid,source,label,weight,confidence,note) VALUES (?,?,?,?,?,?)",
                     pairs)
         print(f"hand labels loaded: {n_hand} matched to crawled sites")
+        # TWO HAND LABELS ON ONE CLUSTER, DISAGREEING, is the way this file can
+        # poison the test set, and it cannot be fixed here because there is no
+        # right answer: somebody looked twice and said different things.
+        #
+        # It matters because the labels are per UUID and the score is per
+        # CLUSTER. Both rows survive -- they are different uuids -- and
+        # build_scores aggregates them through site_clusters, so the cluster
+        # is simultaneously a positive and a negative in the set that is
+        # supposed to be ground truth.
+        #
+        # Measured today: 40 labels reach 39 clusters, and the one cluster
+        # holding two (raa:1444:Fjaras 41, a Stenkammargrav of three sites,
+        # L1997:2183 and L1997:2184) has them AGREEING at 1.0. So this warns
+        # rather than fails -- the situation is legitimate, it is only a
+        # contradiction that is not.
+        #
+        # This is also the item the TODO had wrong. It said the join fans out
+        # because `lamningsnummer` is not unique in `sites`; measured, it has
+        # zero duplicate groups and all 40 rows match exactly one uuid.
+        clash = conn.execute("""
+            SELECT sc.cluster_id, count(DISTINCT l.label)
+              FROM labels l
+              JOIN site_clusters sc ON sc.uuid = l.uuid
+             WHERE l.source = 'hand'
+             GROUP BY sc.cluster_id
+            HAVING count(DISTINCT l.label) > 1""").fetchall()
+        for cluster_id, _n in clash:
+            print(f"  ! {cluster_id} has hand labels that disagree; it is a "
+                  "positive AND a negative in the test set", flush=True)
 
     # County board recommendations, from crawl_lansstyrelsen.py.
     #
