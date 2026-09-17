@@ -75,32 +75,6 @@ MAX_SEARCH = 5000.0   # metres; give up beyond this and record NULL
 
 
 
-def class_significance(conn):
-    """Smoothed positive rate per class, measured from the labels table.
-
-    Used to pick which class REPRESENTS a mixed cluster. The previous rule --
-    most frequent class -- mislabelled mixed clusters, and the first fix fell
-    back to alphabetical order, which is arbitrary. Ranking by measured
-    significance means a `Gravfalt` sharing an RAA number with a `Skarvstenshog`
-    identifies the cluster as a grave field, which is what a visitor sees.
-    """
-    tot = conn.execute("SELECT COUNT(*) FROM sites").fetchone()[0]
-    npos = conn.execute(
-        "SELECT COUNT(*) FROM labels WHERE label > 0").fetchone()[0]
-    base = (npos / tot) if tot else 0.0
-    rates = {}
-    for cls, n, k in conn.execute("""
-            SELECT s.class_sv, COUNT(*),
-                   SUM(CASE WHEN l.uuid IS NOT NULL THEN 1 ELSE 0 END)
-            FROM sites s
-            LEFT JOIN labels l ON l.uuid = s.uuid AND l.label > 0
-            GROUP BY s.class_sv"""):
-        if not cls:
-            continue
-        rates[cls] = (k + 60.0 * base) / (n + 60.0)   # same smoothing as scoring
-    return rates, base
-
-
 # --------------------------------------------------------------------------- #
 # GeoPackage geometry reading
 # --------------------------------------------------------------------------- #
@@ -466,8 +440,6 @@ def main():
             "WHERE s.class_sv IS NOT NULL GROUP BY 1, 2"):
         members.setdefault(cid, set()).add(cls)
 
-    sig, _base = class_significance(conn)
-    print(f"  significance measured for {len(sig):,} classes")
 
     # Second pass over NON-blacklisted members only. Cluster attributes are
     # aggregated with MAX() across members, so without this a charcoal pit
@@ -617,22 +589,31 @@ def main():
                             break
             k = dens_grid._range(int(e // 1000.0) * 100_000 + int(n // 1000.0))
             nb = int(k[1] - k[0]) if k else 0
-        # `dominant_class` from build_clusters is the most FREQUENT class, which
-        # mislabels mixed clusters: Blomsholms gravfalt (240 m, ~40 monuments)
-        # shared an RAA number with two fossil-field records, came out as
-        # "Omrade med fossil akermark", and was blacklisted out of existence.
-        # 982 clusters were being discarded this way.
+        # THE CLASS IS READ, NOT CHOSEN. This used to pick the cluster's most
+        # SIGNIFICANT class -- `max` over its members by measured positive
+        # rate -- while build_clusters.py picked its representative with
+        # families.representative_order and build_tiles.py drew that one's
+        # icon. Two rules about the same question, and they disagreed for
+        # 6,015 clusters, 751 of them among the 10,000 that ship.
         #
-        # So: prefer a NON-blacklisted class when the cluster has one, and only
-        # blacklist a cluster when every one of its classes is blacklisted --
-        # i.e. when there is genuinely nothing there worth seeing.
+        # It was not a tie, it was a bias. `max` picks the cluster's most
+        # FLATTERING member, so a Fardvag holding one runestone scored as a
+        # runestone: over those 751 the score's class carried a higher weight
+        # in 725 of them, mean +1.50 on a scale capped at +/-2.0. The pin
+        # showed a route, the text described a route, and it ranked as rock
+        # art. A score is a prediction about what the visitor finds AT THIS
+        # PIN, so it has to be about the same stone the pin, the icon and the
+        # description are about.
+        #
+        # representative_order keeps the fix this code was written for --
+        # Blomsholms gravfalt, 240 m and ~40 monuments, called "Omrade med
+        # fossil akermark" because it shared an RAA number with two
+        # fossil-field records -- because its first clause is that a
+        # blacklisted class loses. Measured: exactly 1 cluster of 251,029
+        # wears a blacklisted class while holding a clean member.
         member = members.get(r["cluster_id"], set())
         worthy = member - CLASS_BLACKLIST
-        # Represent the cluster by its most SIGNIFICANT class, not its most
-        # frequent one, preferring classes that are not blacklisted.
-        pool = worthy or member
-        cls = (max(pool, key=lambda c: sig.get(c, 0.0)) if pool
-               else r["dominant_class"])
+        cls = r["dominant_class"]
         all_blacklisted = bool(member) and not worthy
         # Prefer attributes measured on the worthy members.
         wa = worthy_agg.get(r["cluster_id"])
