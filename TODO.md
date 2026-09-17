@@ -712,61 +712,45 @@ escritas:
 
 Lo que hace falta para eso:
 
-### Hecho el 2026-09-17: el servidor ya conoce los lugares
+### Decidido el 2026-09-17: el picker queda para despues, y el reporte es texto
 
-Postgres local en Docker (`franco-may/docker-compose.yml`, puerto **15432** y
-no 5432, porque ese puerto lo resetean algunas redes y el sintoma parece base
-muerta). `apply-fl-schema.cjs` elige transporte por el hostname: SQL sobre
-HTTPS para Neon, protocolo Postgres para el contenedor — antes no podia correr
-contra local, y dos scripts de migracion son dos esquemas que se desfasan.
+Se construyo y se revirtio, y el motivo vale mas que el codigo. `fl_places` en
+Postgres (163.701 filas, 49 MB) y `POST /places/near` tenian **un solo
+lector**: la lista de "cual de estos estas viendo". Franco dejo la feature para
+mas adelante, y mientras tanto **agregar un sitio manda lo que la persona
+escriba mas la posicion, y lo lee un humano**. Con este trafico eso es mas
+barato que cualquier otra cosa.
 
-- [x] `fl_places` — 163.701 filas (todo lo no `excluded_hard`), **49 MB**
-      (37 heap + 12 de indice). Los soft-excluded estan adentro a proposito:
-      37.626 lugares que el score dejo afuera del mapa, y son casi todo el
-      valor de esto
-- [x] `upload_places.py --local|--remote` — drop y recarga via `psql \copy`,
-      **5,3 s**. Todo en una transaccion y la generacion la pone un DEFAULT de
-      columna: la primera version la estampaba con un UPDATE posterior, que en
-      Postgres reescribe cada fila y dejaba la tabla de 37 MB como 96 MB
-- [x] `POST /api/fornlamningar/places/near` — POST y no GET para que la
-      posicion de la persona no quede en los access logs. Anillos de 2/10/50/
-      200 km hasta encontrar algo; **0,4 ms** en Kungsbacka, 19 ms en Abisko
-      donde el mas cercano esta a 7,4 km
-- [ ] **falta subirlo a Neon** (`--remote`, escrito y sin usar): son 49 MB, el
-      10% del tier gratis. Decision de Franco
-- [ ] el `ORDER BY` de `upload_places.py` es **una copia** del de
-      `build_tiles.py`, porque `in_tiles` significa exactamente "paso ese
-      corte". Si aparece una tercera copia, ese es el momento de moverlo a un
-      modulo que los dos importen
-- [ ] `features` tiene 251.029 filas para 251.029 clusters actuales, pero
-      incluye filas de clusterings viejos; el `title` se busca por id asi que
-      las viejas no matchean. Vale revisar si alguna coincide por id con un
-      cluster cuya membresia cambio — seria un titulo de otro lugar
+Y estaba en el lugar equivocado igual. El picker corre cuando alguien esta
+parado en un campo sin senal, que es exactamente donde un endpoint no tiene
+respuesta. Medido, para cuando vuelva: el registro entero no excluido como
+SQLite local son **9,9 MB de archivo — 4,0 MB comprimido en el APK sin el
+blurb, 12,0 MB con el**. O sea que la version offline de esto cuesta ~7% del
+APK y ninguna base de datos. Franco ya lo habia autorizado: "podria aceptar
+que esten todas en el build, si eso simplifica algo, pero no mostrarlas
+todas".
 
-- [ ] **el backend tiene que tener los 129k clusters con posición y tipo.**
-      Hoy no tiene ninguno: Postgres sólo tiene `fl_events`. Es la misma
-      necesidad que la sección 11 (snapshots servidos desde el backend) y la
-      sección 12 (el conjunto de lugares como dato del servidor): una tabla
-      `fl_places(cluster_id, lon, lat, family, class_sv, title, score)` que
-      el pipeline **sube** en cada generación. Con PostGIS o con un índice
-      sobre `(lon, lat)` redondeados alcanza para "los 10 más cercanos"
-- [ ] `GET /api/fornlamningar/places/near?lon&lat&n=10` → lista simplificada
-- [ ] el evento es `kind='verified'` sobre un `cluster_id` existente, así que
-      **sí** entra en `fl_events`, a diferencia del sitio libre. Con cuenta,
-      como todo lo que se escribe (decisión de la sección 2)
-- [ ] `build_labels.py` lee los `verified` del servidor (o de un export del
-      log) como positivos con `source='user_verified'`. Es la tercera fuente
-      de labels después de Wikidata y el registro, y la única que mide lo que
-      queremos medir
-- [ ] **un verificado entra al top 10k por regla, no por score.** Si el modelo
-      lo puntuó bajo y una persona lo encontró, la persona gana; el export
-      fuerza `verified` adentro del corte igual que `excluded_hard` fuerza
-      afuera. Si no, el toque del usuario no cambia nada visible y la feature
-      se siente rota
-- [ ] la posición del pin largo se guarda en el evento (`lon`, `lat`,
-      `accuracy_m`) aunque haya elegido un lugar existente: es la segunda
-      posición observada de ese lugar, y con varias se puede detectar el caso
-      "la posición del registro está mal" sin preguntarlo
+Lo que deja en claro, y aplica a las secciones 11 y 12: **Postgres se queda con
+el log de cambios y nada mas** — escritores concurrentes, orden garantizado,
+append. Los datos derivados y masivos son archivos versionados en el CDN, como
+los tiles ya son. Un snapshot es un archivo, y un archivo no necesita base.
+
+Lo que quedo del dia, y sirve igual:
+
+- `franco-may/docker-compose.yml` — Postgres local, puerto **15432** y no
+  5432, porque ese puerto lo resetean algunas redes y el sintoma parece base
+  muerta. Para desarrollar contra `fl_events` sin tocar la base con los
+  eventos reales
+- `apply-fl-schema.cjs` elige transporte por el hostname: SQL sobre HTTPS para
+  Neon, protocolo Postgres para el contenedor. Antes no podia correr contra
+  local, y dos scripts de migracion son dos esquemas que se desfasan
+
+Lo que hace falta cuando se retome, en vez de la lista de arriba:
+
+- [ ] `nearby.db` local (4 MB) en vez de un endpoint, para que el picker
+      funcione sin senal
+- [ ] el `verified` sigue yendo por `fl_events`, que es el camino correcto y
+      ya existe
 
 ## 10. El filtro de estrellas no son las estrellas del usuario (hallazgo 2026-09-15)
 
