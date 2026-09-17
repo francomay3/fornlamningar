@@ -1122,9 +1122,11 @@ uno que no.
       abrir la base, porque abrirla es lo que lo reabsorbe. Verificado
       matando un writer con SIGKILL: 5.191.232 bytes reportados y 20.000
       filas recuperadas
-- [ ] **archivos muertos en `src/data/`** — *bloqueado: el clasificador de
-      permisos no me deja borrar archivos. Es un comando de una linea, esta
-      en el mensaje del 2026-09-17.* De bases que ya no existen:
+- [ ] **archivos muertos en `src/data/`** — *los seis WAL/shm huérfanos los
+      borró Franco a mano el 2026-09-17 (48,6 MB). Falta sólo la tabla
+      `scores_old` de `work.sqlite`, 245.860 filas y 12 MB, que nada lee: un
+      `DROP TABLE` también me lo bloquea el clasificador de permisos.* Eran,
+      de bases que ya no existen:
       `sites.sqlite-wal` (48 MB) y `-shm`, `descriptions.sqlite-wal`/`-shm`,
       `ksamsok_raw.sqlite-wal`/`-shm`. Y la tabla `scores_old` en
       `work.sqlite` (245.860 filas, nada la lee). Borrar. No hay nada que
@@ -1198,9 +1200,17 @@ uno que no.
       los ids estables de la sección 12, agregar un `DELETE ... WHERE
       cluster_id NOT IN (SELECT cluster_id FROM work.clusters)` al final de
       cada uno
-- [ ] `build_labels.py` joinea `hand_labels.csv` por `lamningsnummer`, que
-      **no es único** en `sites`. Una etiqueta puede abrirse en varios uuids
-      y `n_hand` cuenta el abanico. Joinear por uuid, o dedup por cluster
+- [x] ~~`build_labels.py` joinea `hand_labels.csv` por `lamningsnummer`, que
+      **no es único** en `sites`~~ — **falso, medido el 2026-09-17**: cero
+      grupos duplicados en toda la tabla, las 40 filas matchean exactamente
+      un uuid y `n_hand` es 40. Lo real es lo de al lado: esas 40 etiquetas
+      caen en **39 clusters**, y las etiquetas son por uuid mientras el score
+      es por cluster — si dos se contradijeran, ese cluster sería positivo
+      **y** negativo en el set que hace de ground truth. El único con dos
+      (raa:1444:Fjärås 41) las tiene de acuerdo, así que `build_labels` ahora
+      **avisa** en vez de fallar: dos etiquetas en un cluster es legítimo, una
+      contradicción no — y no se puede arreglar en código, porque alguien miró
+      dos veces y dijo cosas distintas
 - [x] `build_signals.py` y `build_scores.py` tienen `print()` en castellano
       en medio de código en inglés. Cosmético, pero delata pegado de otra
       sesión
@@ -1257,8 +1267,12 @@ uno que no.
       nada lo avisa
 - [x] `src/data/descriptionAssets.ts` lo genera `sync-assets.sh` y está
       trackeado; los otros cuatro generados están ignorados. Ignorarlo también
-- [ ] filtros en `AsyncStorage`, idioma y recordatorios en `settings` de
-      SQLite: dos stores de preferencias. Mover los filtros a `settings`
+- [x] filtros en `AsyncStorage`, idioma y recordatorios en `settings` de
+      SQLite: dos stores de preferencias. Mover los filtros a `settings`.
+      **Hecho 2026-09-17**, migrando en la primera lectura: se escribe la fila
+      nueva antes de borrar la clave vieja, así una migración interrumpida se
+      repite en vez de perder la selección. **Falta verificarlo en el
+      teléfono** — que un install que ya existía conserve sus tildes
 
 ### Qué es `places.sqlite`, y si se desvía de la visión
 
