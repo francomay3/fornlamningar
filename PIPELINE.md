@@ -1,5 +1,23 @@
 # Pipeline plan: from national dataset to visitable sites
 
+> **What this document is, and what it is not.**
+>
+> It is the RECORD: what was measured, what was decided and why, and which
+> hypotheses turned out to be wrong. That is why it is not rewritten as the
+> code changes -- a measurement does not stop being true because the thing it
+> was measuring moved.
+>
+> It is NOT a description of the pipeline as it stands. It reaches as far as
+> `scores`; everything after that -- the corpus (`build_sources.py`), the
+> product (`build_places.py`), the generated descriptions
+> (`build_descriptions.py`, `describe_place.py`) and the app -- is in
+> [README.md](README.md) and [TODO.md](TODO.md).
+>
+> Database and file names here are the ones of the time. `sites.sqlite` is now
+> `work.sqlite`, `ksamsok_raw.sqlite` is `raa_api.sqlite`,
+> `fornlamningar_full.gpkg` is `raa_export.gpkg`; [paths.py](paths.py) is the
+> current list and says which tier each one belongs to.
+
 Goal: from 311,847 registered archaeological remains, produce a ranked, filtered
 set of places that are actually worth travelling to and can be found on arrival.
 
@@ -562,7 +580,7 @@ coordinates and sitelinks. A probe found only 403 Swedish heritage items with
 both an article and coordinates under a narrow `P31` filter, so the recall gain
 may be modest; a broader class list is worth trying.
 
-## Stage 7 — Frontend
+## Stage 7 — the runner, and the app
 
 ### The pipeline runner was dropped, deliberately
 
@@ -590,30 +608,49 @@ per-stage timing, `--from N` to resume mid-chain, and `--json` to emit JSONL for
 any future UI. The crawl stays a separate run-once job.
 
 ```
-./run_pipeline.sh            # all stages, ~4 min
-./run_pipeline.sh --from 4   # signals + score only, ~2.5 min
+./run_pipeline.sh                # all stages, ~4 min
+./run_pipeline.sh --from score   # re-score onward
 ```
 
-### The app frontend is the product
+That verdict held. What changed is the stage count: the runner now has nine,
+because the stages that build the product were missing from it for a month --
+see README.md. `--from` takes a name because the numbers shifted when they
+were added.
 
-This is the one remaining unbuilt stage, and it cannot be skipped: the whole
-project exists to make these sites findable on a phone. Right now there are
-245,860 ranked clusters in SQLite and no way to look at them in the field --
-which is the exact problem (Fornsök's map being unusable on mobile) that
-started the project.
+### The app is built, and it is not the web
 
-- **Map** MapLibre GL; bbox-filtered queries or vector tiles -- never ship
-  245,860 clusters as JSON
-- **Ranking** default to `score_intrinsic` for discovery; offer `score_full`
-  when the user wants the well-known places
-- **Filters** class, `excluded_hard`/`excluded_soft`, distance from the user
-- **Per site** name, class, RAA-nummer, the Swedish description, a Fornsok link,
-  and `dist_to_way_m` as a practical access hint
-- **Signage** cannot come from data (see the signage section). Crowdsource it
-  in-app, seeded from `hand_labels.csv`
-- **AI descriptions** regenerate only for the shortlist, only where a
-  non-boilerplate Swedish description exists, with a prompt that forbids
-  inference beyond the source text
+This section used to describe the product as a frontend in the `franco-may`
+Next.js site, and that is the one thing in this document worth correcting
+rather than annotating, because it names the wrong artefact.
+
+**The product is an Android app**, `fornlamningar-app`: React Native (Expo) +
+MapLibre, installed on a phone, working in a field with no signal. The web
+map in `franco-may` still exists and is useful, but it is not what the
+project is for -- the problem that started this was Fornsök's map being
+unusable **on mobile**.
+
+What the plan above got right, and what it got wrong, both worth keeping:
+
+- **Map.** Right that 245,860 clusters must never ship as JSON. Wrong about
+  the mechanism: the app ships the top 10,000 as a single 2.6 MB GeoJSON
+  source and lets MapLibre tile it ON DEVICE, which is better than the
+  tippecanoe tiles the web uses -- tippecanoe decides at BUILD time which
+  points survive each zoom, and the device decides at RENDER time, which is
+  what lets hiding a family backfill the space with the next-best site
+  instead of leaving a hole.
+- **Ranking.** As planned: `score_intrinsic`.
+- **Filters.** As planned, plus one the plan could not have predicted: stars,
+  which are the model's percentile until visitors have rated a place and the
+  visitors' mean afterwards.
+- **Per site.** As planned, and the description is generated rather than the
+  register's raw text wherever one exists.
+- **Signage.** Confirmed: there is no dataset, checked with a county
+  antiquarian. Crowdsourced in-app through the question queue, as planned.
+- **AI descriptions.** Built, and NOT limited to the shortlist: 9,220 places
+  have one, generated by a local model in ~13 h, with the sources and the
+  payload hash recorded so a description knows what it was built from. The
+  prompt does forbid inference beyond the sources, which was the right
+  instinct.
 
 ## Open decisions
 
@@ -633,9 +670,9 @@ started the project.
 5. **Per-county fornvårdsprogram** from Länsstyrelsernas Geodatakatalog — 21
    separate datasets, uneven, some access-restricted (`Felaktig behörighet` when
    tried). Worth it only for target counties.
-6. **AI descriptions.** Deferred to the frontend stage. Regenerate only for the surviving
-   shortlist, only where a non-boilerplate Swedish description exists, with a
-   prompt that forbids inference beyond the source text.
+6. ~~**AI descriptions.**~~ **Built.** See `build_descriptions.py` and
+   `describe_place.py`, and the section above for what the plan got wrong
+   about them.
 
 ---
 

@@ -257,13 +257,15 @@ src/data/raa/
 #    would only mean a 700 MB LFS object going stale on every rerun.
 src/data/work.sqlite
 src/data/tiles_input.geojsonl
-# One table of everything anyone has written about a place, assembled from
-# sites.sqlite + the two caches above by build_sources.py. 473 MB of text we
-# already have in three other files.
-src/data/sources.sqlite
-# The product. Derived from work.sqlite + sources.sqlite + the caches, so it
-# is rebuildable -- but it is also the thing we are building, so if it ever
-# stops being a pure function of those it must move up into LFS.
+# The product: `features` (one row per visitable place) and `sources`
+# (everything anybody has written about it, with licence and provenance),
+# assembled from work.sqlite + the caches by build_sources.py and
+# build_places.py. It had its own file, sources.sqlite, until the corpus moved
+# in beside the descriptions -- one place's sources are the reason its
+# description reads the way it does.
+#
+# Rebuildable, but it is also the thing we are building, so if it ever stops
+# being a pure function of those it must move up into LFS.
 src/data/places.sqlite
 
 # Review samples: output of sample_for_review.py. The verdicts they collect
