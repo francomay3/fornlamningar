@@ -1215,34 +1215,43 @@ uno que no.
 
 ### App
 
-- [ ] **dos lockfiles** (`package-lock.json` y `yarn.lock`). `build-licences.
+- [x] **dos lockfiles** (`package-lock.json` y `yarn.lock`). `build-licences.
       mjs` dice "run yarn install", así que gana yarn: borrar `package-lock.
       json` y agregarlo al `.gitignore`
-- [ ] **`versionCode` no existe en `app.json`**: cada prebuild sale con
+- [x] **`versionCode` no existe en `app.json`**: cada prebuild sale con
       versionCode 1, y la segunda subida a Play se rechaza. Agregar
       `android.versionCode` y **subirlo en cada release** — o mejor, que
       `sync-assets.sh` lo derive del número de generación del export, así el
       APK y sus datos tienen un solo número (es lo que la sección 11 pide de
-      todas formas)
-- [ ] **iOS no compila** y el README dice `npx expo run:ios`. Los plugins de
+      todas formas).
+      **Hecho a medias 2026-09-17:** el campo existe y está en 1, así que es
+      visible y se puede subir a mano. Derivarlo de la generación sigue
+      pendiente, porque ese número todavía no existe en ninguna parte —
+      `ASSET_VERSION` es un hash y un hash no es monótono
+- [x] **iOS no compila** y el README dice `npx expo run:ios`. Los plugins de
       Firebase y Google Sign-In están en `app.json` pero no hay
       `GoogleService-Info.plist`. Como iOS está diferido a propósito (sección
       2), lo honesto es que el README lo diga y sacar la línea
-- [ ] README dice "sin cuentas" y "`descriptions.db`, 10 MB"; AGENTS.md dice
+- [x] README dice "sin cuentas" y "`descriptions.db`, 10 MB"; AGENTS.md dice
       "sin bottom-sheet library" y "sin icon font". Las cuatro son falsas.
       Comentarios stale: `App.tsx` ("no-op hasta que endpoint.ts apunte a un
       server"), `LocateButton.tsx` ("la app no tiene gesture-handler"),
       `i18n/index.ts` y `LanguageDialog.tsx` ("las descripciones son sólo en
-      sueco"). Un agente que lea eso construye la app equivocada
-- [ ] el build de Android deja recursos generados viejos: al renombrar
+      sueco"). Un agente que lea eso construye la app equivocada.
+      **Hecho 2026-09-17.** Y el último no era sólo un comentario: estaba **en
+      pantalla**. `language.note` le decía a todo lector de inglés "the
+      places' descriptions are in Swedish until they have been translated"
+      cuando 5.390 de 9.551 ya estaban en inglés. Ahora dice que algunas
+      faltan, que es la brecha real: 4.161 filas con `lang = 'sv'`
+- [x] el build de Android deja recursos generados viejos: al renombrar
       `descriptions.db` a `descriptions.sv.db`, el APK salió con las dos y
       6 MB de peso muerto. `assembleRelease` no limpia
       `android/app/build/generated/res/react/release/raw`
-- [ ] `check-i18n.mjs` no detecta **claves duplicadas** en un mismo archivo.
+- [x] `check-i18n.mjs` no detecta **claves duplicadas** en un mismo archivo.
       `sv.json` tenía `common.cancel` dos veces (mismo valor, así que no hizo
       daño); si los valores hubieran diferido, el que gana es el último y
       nada lo avisa
-- [ ] `src/data/descriptionAssets.ts` lo genera `sync-assets.sh` y está
+- [x] `src/data/descriptionAssets.ts` lo genera `sync-assets.sh` y está
       trackeado; los otros cuatro generados están ignorados. Ignorarlo también
 - [ ] filtros en `AsyncStorage`, idioma y recordatorios en `settings` de
       SQLite: dos stores de preferencias. Mover los filtros a `settings`
