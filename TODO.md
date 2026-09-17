@@ -1141,7 +1141,7 @@ uno que no.
 - [x] `run_pipeline.sh` nunca pasa `--keep-geojson`, pero `sync-assets.sh`
       de la app **exige** `tiles_input.geojsonl`. Una corrida limpia borra el
       archivo que el build de la app necesita. Que el runner lo pase siempre
-- [ ] **`dominant_class` con dos reglas.** `build_clusters.py` elige el
+- [x] **`dominant_class` con dos reglas.** `build_clusters.py` elige el
       miembro representativo con `families.representative_order`; `build_
       signals.py` elige la clase con `class_significance`. `build_tiles` usa
       la primera y `build_scores` la segunda, así que el ícono del mapa y el
@@ -1175,13 +1175,19 @@ uno que no.
       `translations(cluster_id, lang, title, content, translated_at, model,
       source_hash)` y dejar `ai_descriptions` sólo con el sueco canónico. No
       antes: hoy es un rename sin beneficio
-- [ ] **`places.sqlite` pesa 815 MB sin motivo.** El UNIQUE de `sources`
+- [x] **`places.sqlite` pesa 815 MB sin motivo.** El UNIQUE de `sources`
       incluye `text` entero, así que el índice (297 MB) es más grande que la
       tabla (244 MB). **Fix:** columna `text_sha TEXT` (sha1 del texto) y
       `UNIQUE (cluster_id, kind, lang, url, text_sha)`. Baja a ~500 MB.
       Después `VACUUM`, que nunca se corrió. Ver también la nota sobre qué es
-      `places.sqlite` más abajo
-- [ ] `build_places.py` y `build_sources.py` hacen `INSERT OR REPLACE` /
+      `places.sqlite` más abajo.
+      **Hecho 2026-09-17: 781 MB → 476 MB**, con un `row_sha` de las cinco
+      columnas juntas en vez de una por columna — el índice pasó de 298 MB a
+      16 MB. Y deduplica **más** que el viejo: en SQLite un NULL nunca es
+      igual a otro NULL, así que el `UNIQUE` anterior dejaba pasar 2.564
+      filas duplicadas con `url` NULL, que iban al modelo dos veces.
+      Migrado en el lugar para no perder `first_seen_at`
+- [x] `build_places.py` y `build_sources.py` hacen `INSERT OR REPLACE` /
       `INSERT OR IGNORE` y **nunca borran**: un cluster que desaparece de
       `work` queda en `places.sqlite` para siempre, y un texto del registro
       que RAÄ corrigió queda al lado del nuevo y los dos van al modelo. Con
