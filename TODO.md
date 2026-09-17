@@ -1161,7 +1161,7 @@ uno que no.
       `dominant_class`), no el `MAX`. Y es el mismo item que "colapsar `name`
       y `title`" de abajo: una sola columna `title`, generada cuando hay
       descripción, del representativo cuando no
-- [ ] **inglés a medias en las fuentes.** `sources.lang` existe pero
+- [x] **inglés a medias en las fuentes.** `sources.lang` existe pero
       `load_sources` no filtra por él, así que leads de Wikipedia en inglés
       entran a un prompt que pide sueco. Y `ai_descriptions` guarda el inglés
       como columnas `title_en`/`content_en`: un tercer idioma es una
@@ -1171,6 +1171,10 @@ uno que no.
       y sin idioma; la traducción al inglés puede recibir las inglesas como
       contexto *adicional* (nombres propios, terminología) pero no como
       fuente, porque la traducción es del texto sueco y no una regeneración.
+      **Paso (1) hecho 2026-09-17, y costó nada:** las 208 filas en inglés son
+      **todas** `wikipedia`, y 201 de los 202 clusters que tienen una también
+      tienen el artículo **sueco** del mismo lugar. Ninguno queda sin fuentes.
+      Afectaba 178 lugares ya generados. El paso (2) sigue pendiente
       (2) Cuando haya tercer idioma, mover las traducciones a
       `translations(cluster_id, lang, title, content, translated_at, model,
       source_hash)` y dejar `ai_descriptions` sólo con el sueco canónico. No
@@ -1200,7 +1204,7 @@ uno que no.
 - [x] `build_signals.py` y `build_scores.py` tienen `print()` en castellano
       en medio de código en inglés. Cosmético, pero delata pegado de otra
       sesión
-- [ ] **README.md y PIPELINE.md describen otro proyecto.** README dice que la
+- [x] **README.md y PIPELINE.md describen otro proyecto.** README dice que la
       app es Next.js en `franco-may`, lista seis stages y una base que se
       llama `sites.sqlite`. PIPELINE.md tiene un "Stage 7 — Frontend" que
       describe la web. Ninguno menciona `build_sources`, `build_places`,
