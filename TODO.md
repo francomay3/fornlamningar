@@ -748,31 +748,43 @@ Lo que hace falta cuando se retome, en vez de la lista de arriba:
 - [ ] el `verified` sigue yendo por `fl_events`, que es el camino correcto y
       ya existe
 
-## 10. El filtro de estrellas no son las estrellas del usuario (hallazgo 2026-09-15)
+## 10. El filtro de estrellas — RESUELTO el 2026-09-16
 
-Reportado como bug: "filtrar por estrellas no toma en consideración el nuevo
-puntaje de un fornlämning luego de que lo puntúes". El filtro hace lo que
-dice hoy — sólo que lo que dice no es lo que se lee.
+Era un bug y Franco tenía razón: *"si tenés estrellas puestas por los
+usuarios, quiero que se use la del usuario"*.
 
-- [ ] **son dos escalas distintas con el mismo icono.** Las del filtro son
-      buckets del percentil de `score` que calcula el pipeline (`stars` viene
-      en el tile, ver `src/map/thinning.ts`); las de la ficha son el promedio
-      de las valoraciones de la gente. El filtro no puede mirar las segundas
-      hoy: son filas de `contributions.db`, y el filtro es una expresión de
-      MapLibre sobre el tile — a propósito, porque así no hay que parsear
-      2,3 MB en JS
-- [ ] el `Beräknat automatiskt` debajo del control **existe** y claramente no
-      alcanza. Lo mínimo es que el texto diga de qué son esas estrellas
-- [ ] la decisión de verdad es si el filtro debería honrar las valoraciones
-      reales cuando las hay. Las valoraciones son **escasísimas** (una por
-      lugar, y sólo de quien pasó por ahí), así que un filtro que las mezcle
-      hace desaparecer lugares buenos sin visitar. Alternativas: dejarlo como
-      está con mejor rótulo; o un filtro aparte "mis lugares valorados" que no
-      toque el score. **Decisión de Franco**
+Lo que quedó, y por qué no fue un promedio: son dos escalas con el mismo
+icono — las del filtro son buckets del percentil de `score` que viaja **en el
+tile**, y las de la ficha son el promedio de las valoraciones de la gente, que
+son filas de `contributions.db`. El filtro es una expresión de MapLibre sobre
+el tile, a propósito, para no parsear 2,3 MB en JS.
+
+La solución fue **la misma decisión que ya tomaba `PlaceRating`**: un switch
+duro, las de los visitantes si hay alguna y las del modelo si no. En la
+expresión eso no es aritmética sino **dos listas literales de uuid**,
+`promote` y `demote`, y la comparación se hace contra la media que se muestra.
+Ver `starClause` en `src/state/filters.ts`.
+
+Las valoraciones siguen siendo escasísimas, que era el riesgo real de mezclarlas
+— pero un switch duro no las mezcla: un lugar sin valorar conserva su percentil
+entero.
 
 ---
 
 ## 11. Un archivo por idioma, descargado on demand (investigado 2026-09-15)
+
+> **Esto es un documento de diseño, no una lista de tareas.** Los puntos de
+> abajo son el razonamiento y las mediciones; nada de esto está empezado. Las
+> tareas reales, cuando se decida hacerlo, son las cuatro del final de la
+> sección 12.
+>
+> **Corregido el 2026-09-17:** donde abajo dice que esto *"obliga a que el
+> pipeline suba a Postgres en cada generación"*, eso quedó descartado. Se
+> construyó (`fl_places`, 163.701 filas, 49 MB) y se revirtió el mismo día:
+> **Postgres se queda con el log de cambios y nada más** — escritores
+> concurrentes, orden garantizado, append. Un snapshot es un **archivo
+> versionado en el CDN**, como los tiles ya son, y un archivo no necesita base
+> de datos.
 
 La idea: un SQLite por idioma con **todo** lo que es texto de ese idioma
 —strings de la interfaz, los 31 artículos del wiki con sus triggers, y las
@@ -800,7 +812,7 @@ Total del idioma como concepto: **4,1 MB de 56,3 — el 7%**.
 
 ### Por qué el ahorro real es la mitad de eso
 
-- [ ] **el sueco tiene que venir empaquetado.** Si no, lo primero que hace
+- **el sueco tiene que venir empaquetado.** Si no, lo primero que hace
       una app recién instalada es pedir 2 MB por red, y el caso de uso es
       alguien en el campo sin señal. Así que el esquema realista no es "la
       app no tiene ningún idioma" sino "el sueco viene, los demás se bajan",
@@ -808,30 +820,30 @@ Total del idioma como concepto: **4,1 MB de 56,3 — el 7%**.
 
 ### Por qué igual vale la pena, cuando toque
 
-- [ ] **corregir una traducción no necesita un release.** Hoy una frase mal
+- **corregir una traducción no necesita un release.** Hoy una frase mal
       traducida se arregla publicando un APK. Con el idioma como archivo
       versionado se arregla y el próximo arranque lo trae. Aplica sobre todo
       a los artículos y a las descripciones, que son lo que más va a cambiar
-- [ ] **cada idioma nuevo cuesta cero en el APK.** El tercero y el cuarto son
+- **cada idioma nuevo cuesta cero en el APK.** El tercero y el cuarto son
       gratis en vez de +2 MB cada uno
-- [ ] el formato de descripción más rico que está diferido (resumen + cuerpo
+- el formato de descripción más rico que está diferido (resumen + cuerpo
       Markdown) multiplica el tamaño de las descripciones. Si eso llega, esto
       pasa de lindo a necesario
 
 ### El trabajo, en orden de dificultad
 
-- [ ] **~1 día, lo difícil: los artículos dejan de ser código.**
+- **~1 día, lo difícil: los artículos dejan de ser código.**
       `src/wiki/articles.ts` son 943 líneas generadas que van en el bundle, y
       `linkify()` se llama **durante el render** con las tablas de triggers en
       memoria. Pasarlo a SQLite convierte algo sincrónico en asíncrono. Se
       resuelve cargando strings + triggers al arrancar (~130 KB, un
       parpadeo) y dejando sólo los cuerpos en consulta por id. `useLanguage`
       ya tiene el tercer estado `ready` para esperar eso
-  - [ ] lo que **no** puede moverse: el mapa de `require()` de las 23
+  - lo que **no** puede moverse: el mapa de `require()` de las 23
         imágenes y sus créditos. Metro no resuelve un `require` desde una
         variable, así que `articles.ts` se parte en dos — imágenes y créditos
         generados y empaquetados, texto en la base
-- [ ] **~½ día, la descarga hecha en serio.** Un manifiesto
+- **~½ día, la descarga hecha en serio.** Un manifiesto
       (`{idioma: {url, bytes, sha256, version}}`), `createDownloadResumable`
       de expo-file-system, verificar el hash antes de aceptar el archivo,
       rename atómico, y no borrar el viejo hasta que el nuevo verifique. Más
@@ -839,12 +851,12 @@ Total del idioma como concepto: **4,1 MB de 56,3 — el 7%**.
       pasa si se elige inglés sin señal (no se puede elegir, con un mensaje
       que lo diga). `ASSET_VERSION` cubre lo empaquetado; hay que extenderlo
       a lo descargado
-- [ ] **~3 h, lo fácil: un solo generador.** Hoy hay tres productores de
+- **~3 h, lo fácil: un solo generador.** Hoy hay tres productores de
       texto por idioma (`check-i18n.mjs` sobre los JSON, `build-wiki.mjs`
       sobre los `.md`, y `build_tiles.py` + `sync-assets.sh` para las
       descripciones). Se unifican en un script que emite `lang.<code>.db` con
       tres tablas, conservando la validación de claves y placeholders
-- [ ] **dónde se sirven, que cuesta plata y es decisión de Franco.** Vercel
+- **dónde se sirven, que cuesta plata y es decisión de Franco.** Vercel
       cobra egress: 2 MB por descarga contra los 100 GB del plan son unas
       50.000 descargas por mes — cómodo hoy, pero escala con el éxito. R2 no
       cobra egress y ya estaba en el plan para las fotos
@@ -865,53 +877,53 @@ Un delta de filas sueltas, comprimido:
 | 1.000 descripciones | 180 KB | 11× |
 | 6.500 (una regeneración grande) | **1,13 MB** | todavía menos que 2,05 MB |
 
-- [ ] **las filas viajan, el archivo no — nunca.** Incluso si cambia la tabla
+- **las filas viajan, el archivo no — nunca.** Incluso si cambia la tabla
       entera, mandar las filas comprimidas (1,13 MB) es más barato que mandar
       el archivo (2,05 MB): el índice y el overhead de SQLite pesan más que
       el texto. Así que el `.db` prearmado del APK existe sólo para que la
       instalación sea instantánea y offline, y todo lo demás son filas
-- [ ] **la forma es la que ya tiene el sync de contribuciones**: un log
+- **la forma es la que ya tiene el sync de contribuciones**: un log
       append-only y un cursor.
       `GET /api/fornlamningar/descriptions?lang=sv&since=<version>` →
       `{ version, rows, deleted }`, aplicado con `UPSERT` en **una
       transacción**, y la versión local avanza **después** del commit
-- [ ] **la misma disciplina, por la misma razón**: una fila que el schema
+- **la misma disciplina, por la misma razón**: una fila que el schema
       rechaza no puede abortar el lote, porque el cursor no avanza, el
       siguiente pull trae la misma ventana y falla igual — sync trabado para
       siempre. Ya nos pasó en producción con `signs.has_sign`
-- [ ] **el dato de qué cambió ya existe**: `generated.sqlite` tiene
+- **el dato de qué cambió ya existe**: `generated.sqlite` tiene
       `created_at`, `translated_at` y el `source_hash` con `payload_version`.
       No hay que inventar el versionado, hay que exponerlo
 
 Las tres cosas que se rompen, y que son el trabajo real:
 
-- [ ] **la base deja de ser un asset reemplazable y pasa a ser estado
+- **la base deja de ser un asset reemplazable y pasa a ser estado
       mutable.** Hoy se borra y se re-copia cuando cambia `ASSET_VERSION`, y
       eso es lo que la hace segura. Con deltas hay dos caminos de
       actualización que pueden pelearse, así que hace falta una regla
       explícita: **lo empaquetado es un piso** — si la base del APK es más
       nueva que la versión local, se re-copia y la cadena de deltas arranca
       de cero
-- [ ] **las bajas.** Cuando se mueve el clustering hay lugares que
+- **las bajas.** Cuando se mueve el clustering hay lugares que
       desaparecen del export — ya pasó, 11 entre el export sueco y el
       inglés. El delta tiene que poder decir "este uuid ya no existe", y hay
       que decidir qué pasa con la valoración que alguien dejó ahí. Mi
       opinión: la valoración se queda, el evento es de la persona y no del
       export
-- [ ] **quién sirve el endpoint.** Un archivo estático por versión no escala:
+- **quién sirve el endpoint.** Un archivo estático por versión no escala:
       con clientes en versiones arbitrarias son N² archivos de delta. Es un
       endpoint dinámico, y el backend ya tiene Postgres y `tx()`. Los 50 KB
       de un delta chico son irrelevantes para el egress; si algún día hay
       muchos usuarios, el escape es un snapshot completo por generación en R2
 
-- [ ] **cuándo**: ~~no todavía~~ **decidido el 2026-09-16: se hace**, ver la
+- **cuándo**: ~~no todavía~~ **decidido el 2026-09-16: se hace**, ver la
       revisión al final de esta sección. Sigue siendo cierto que trae consigo
       la sección 8: van a ser transacciones aplicándose en teléfonos que nadie
       puede ver, así que los logs van en el mismo paquete de trabajo
 
 ### La alternativa que ahorra casi todo el trabajo
 
-- [ ] **decidir si hay Play Store antes de construir esto.** Play Asset
+- **decidir si hay Play Store antes de construir esto.** Play Asset
       Delivery hace exactamente esto sin manifiesto, sin servidor, sin
       verificación de hash y sin costo de egress: un AAB con un paquete por
       idioma y Google entrega el que corresponda on demand. Hoy no aplica
@@ -942,28 +954,28 @@ tenía separadas:
 eventos y los deltas son cómo *viaja*, no cómo se *guarda*. Un teléfono
 nuevo baja el estado, no la historia.
 
-- [ ] **el APK lleva igual una base sueca**, por la razón de arriba: primer
+- **el APK lleva igual una base sueca**, por la razón de arriba: primer
       arranque offline en el campo. Pero esa base es un **piso** con número de
       generación, no la verdad. Al primer arranque con red, la app compara su
       generación con la del servidor y baja el snapshot si está atrás
-- [ ] **un número de generación para todo** — lugares, descripciones por
+- **un número de generación para todo** — lugares, descripciones por
       idioma, agregados. Sale de una corrida del pipeline. Es lo que la
       sección 12 ya pedía, extendido a los agregados
-- [ ] **el snapshot es un SQLite por generación e idioma en R2**, prearmado
+- **el snapshot es un SQLite por generación e idioma en R2**, prearmado
       por el pipeline. Los deltas (`since=<gen>`) son un endpoint dinámico
       sobre Postgres que devuelve filas. El corte entre "bajá el snapshot" y
       "aplicá deltas" lo decide el servidor: si `since` está a más de N
       generaciones, contesta `{snapshot_url}` en vez de filas. Así el cliente
       nunca aplica tres años de nada
-- [ ] eso obliga a que **el pipeline suba a Postgres** en cada generación
+- eso obliga a que **el pipeline suba a Postgres** en cada generación
       (`fl_places`, `fl_descriptions`), que es lo mismo que necesita el flujo
       de "agregar sitio" de la sección 9. Un `push_generation.py` al final
       de `run_pipeline.sh`
-- [ ] Play Asset Delivery sigue siendo la alternativa **para el idioma**,
+- Play Asset Delivery sigue siendo la alternativa **para el idioma**,
       pero no cubre ni los lugares ni los agregados ni las correcciones sin
       release. Con el modelo de Franco el mecanismo propio deja de ser
       "trabajo que después se tira": es el único que hace las tres cosas
-- [ ] **decidido el 2026-09-16: se hace.** Es el siguiente proyecto grande.
+- **decidido el 2026-09-16: se hace.** Es el siguiente proyecto grande.
       El orden dentro de él importa: primero los ids estables de la sección
       12 — sin eso, un snapshot nuevo huerfanea las contribuciones — y la
       decisión de cuentas de la sección 2 ya está tomada. Después el
@@ -996,14 +1008,14 @@ conjunto entero**:
 Agregar o quitar un lugar cambia los valores **de los otros**. Un delta
 tendría que traer las filas recalculadas, que potencialmente son todas.
 
-- [ ] **snapshot versionado, el archivo completo, 480 KB.** No deltas. Es la
+- **snapshot versionado, el archivo completo, 480 KB.** No deltas. Es la
       conclusión opuesta a la de las descripciones y por un motivo con
       nombre: aquello es row-local, esto se calcula en conjunto
-- [ ] **se versionan juntos con las descripciones.** Los dos salen del mismo
+- **se versionan juntos con las descripciones.** Los dos salen del mismo
       export; si uno se actualiza y el otro no, hay un marcador sin
       descripción o una descripción sin marcador. **Un solo número de
       generación para los dos**, no dos versiones independientes
-- [ ] **un lugar que se va no se lleva los datos de la gente.** Misma regla
+- **un lugar que se va no se lleva los datos de la gente.** Misma regla
       que las bajas de la sección 11: la valoración, la visita y la
       respuesta son de la persona, no del export. `visitedPlaces()` cruza
       contribuciones con descripciones, así que hay que verificar que siga
@@ -1016,14 +1028,14 @@ Sobreviven 128.951 clusters, y mandarlos todos son 36,6 MB en crudo pero
 haría que un falso negativo ya estuviera en el mapa y no hiciera falta
 actualizar nada.
 
-- [ ] tenerlos en el build sin mostrarlos **no simplifica lo suficiente**.
+- tenerlos en el build sin mostrarlos **no simplifica lo suficiente**.
       Mediría: ahorraría mandar la geometría de un lugar que asciende, pero
       `score`/`stars`/`minzoom` se siguen recalculando en conjunto, así que
       la actualización existe igual — y el snapshot completo son 480 KB de
       todas formas. A cambio habría que parsear 128.951 features en el
       teléfono para descartar la mayoría. Mala relación: se paga RAM para
       abaratar una actualización que ya es barata
-- [ ] lo que **sí** queda de esto: el corte en 10.000 es un número puesto a
+- lo que **sí** queda de esto: el corte en 10.000 es un número puesto a
       mano. Si un falso negativo aparece seguido, el problema no es el
       mecanismo de actualización sino el score, y ahí la respuesta es
       `build_scores.py`, no la red
@@ -1054,22 +1066,22 @@ fichas son un monumento", que fue la medición que mató el clustering
 espacial. Lo que hay que arreglar es cómo se numeran los pedazos cuando un
 grupo se parte, no la idea.
 
-- [ ] **`#idx` determinístico.** En `build_clusters.py`, en vez de
+- **`#idx` determinístico.** En `build_clusters.py`, en vez de
       `roots.setdefault(root, len(roots))`, ordenar los sub-clusters por el
       **menor uuid de sus miembros** y numerarlos en ese orden. Mejor todavía:
       usar ese uuid como sufijo (`raa:1384:268#eddd2aa1`), así el id de un
       pedazo no depende ni siquiera de cuántos pedazos hay. Un sitio que se
       mueve de pedazo cambia de cluster, lo cual es correcto; los demás no se
       enteran
-- [ ] **`ORDER BY uuid` en el `SELECT` de `sites`** que alimenta al
+- **`ORDER BY uuid` en el `SELECT` de `sites`** que alimenta al
       clustering, para que ninguna otra cosa dependa del orden físico de la
       tabla
-- [ ] **limpieza única:** borrar las 95 filas `sp:%` de `generated.sqlite`,
+- **limpieza única:** borrar las 95 filas `sp:%` de `generated.sqlite`,
       y agregarle a `build_descriptions.py --status` un conteo de
       "`cluster_id` en `generated` que no existe en `work.clusters`". Ese
       número tiene que ser cero después de cada `run_pipeline.sh`, y si no lo
       es, es la alarma de que algo renombró clusters
-- [ ] **la única fuente de inestabilidad que queda es el registro mismo**: si
+- **la única fuente de inestabilidad que queda es el registro mismo**: si
       RAÄ cambia el `raa_group` o el `parish_code` de una ficha (pasa, poco),
       el cluster cambia. Para eso, el export lleva una tabla `redirects(old_id,
       new_id)` calculada comparando la generación anterior con la nueva por
@@ -1079,12 +1091,26 @@ grupo se parte, no la idea.
       Construirlo cuando haya un caso real, no antes — pero el dato que lo
       hace posible (`site_clusters` de la generación anterior) hay que
       **guardarlo** desde ahora, y hoy se hace `DROP TABLE`
-- [ ] con eso, la regla de esta sección queda completa: un lugar que **sale**
+- con eso, la regla de esta sección queda completa: un lugar que **sale**
       conserva las contribuciones (ya decidido), un lugar que **cambia de id**
       las hereda por redirect, y un lugar que **entra** no tiene ninguna
 
 
 ---
+
+### Las tareas reales, si esto se hace
+
+Todo lo de arriba es análisis. Lo accionable son cuatro cosas, y la primera
+bloquea a las otras tres:
+
+- [ ] **decidir dónde se sirven los snapshots** (R2, Vercel Blob, otro) y
+      cuánto cuesta. Decisión de Franco, porque cuesta plata
+- [ ] un generador único de bundles por idioma, en vez de los tres productores
+      que hay hoy
+- [ ] el manifiesto versionado y la descarga verificada del lado de la app
+- [ ] un número de generación compartido entre lugares y descripciones, que
+      hoy **no existe en ninguna parte**: `ASSET_VERSION` es un hash y un hash
+      no es monótono. Es también lo que le falta al `versionCode` del APK
 
 ## 13. Higiene: lo que el review de 2026-09-16 encontró desfasado
 
@@ -1305,126 +1331,37 @@ conectar.** Lo que falta es que sea la fuente del export.
 
 ---
 
-## 14. El rescate por proximidad mide urbanidad, no mérito (hallazgo 2026-09-16)
+## 14. El rescate por proximidad y las clases enterradas — RESUELTO el 2026-09-17
 
-Salió de una pregunta de Franco: "hay muchos kulturlager en los tiles, ¿no
-deberían estar excluidos como clase?". La clase se llama **`Stadslager`** (107
-en el export; algunos títulos generados dicen "Kulturlager", que es la palabra
-del modelo para lo mismo).
+Franco: *"eso de rescatar por tener un cartel a menos de 500m me suena a
+demasiado... saca la regla o achica mucho más el radio"*. Y después: *"el
+Stadslager tiene que quedar excluido de los tiles"*.
 
-### Lo que la clase es, medido
+Lo medido, que es lo que vale guardar:
 
-Por el lenguaje del propio registro, de los 107 en el export:
+- **el rescate por proximidad medía urbanidad, no mérito.** Un cartel de
+  Länsstyrelsen a menos de 500 m rescataba al vecino, no al sitio del que
+  habla. Sacado. La versión exacta de la condición ya existía y es la correcta:
+  3.263 clusters tienen un match directo del organismo, que es *"este sitio"* y
+  no *"algo cerca"*
+- **`CLASS_BLACKLIST` no alcanzaba para el Stadslager**, y por el motivo
+  equivocado: para esa clase `has_name` es el nombre **del pueblo de encima**
+  (Trelleborg, Varberg, "Ängelholms medeltida stad" — los 22). Un nombre de
+  ciudad no dice nada sobre si hay algo que ver debajo
+- **lo que sí funciona es un campo del propio registro**: `placering = 'Synlig
+  ovan mark'` separa los 126 clusters en **3 / 123**, y los tres son destinos
+  reales (Sala gruvby, Kungahälla/Klosterkullen, Brätte). De ahí
+  `CLASS_BURIED`, excluido salvo que el registro diga que asoma
+- **y destapó otra clase**: `Gränsbestämt område` subió de 6 a 10 pines al
+  liberarse el cupo. Ahí ni `has_name` ni `any_visible` sirven — los 71 tienen
+  `any_visible = 1`, porque lo visible es el monumento y no el límite, y 70 de
+  71 tienen otro monumento a menos de 500 m. De ahí `CLASS_NOT_A_PLACE`,
+  excluido **sin rescate**
+- **una regla sobre clases vive en `families.py` y en ningún otro lado.**
+  Aplicado en `build_scores` y no como columna de `signals`, así que agregar
+  una clase no obliga a re-correr la etapa de señales
 
-| | |
-|---|---|
-| sólo lenguaje de excavación (`påträffats`, `undersökning`, `under markytan`) | **55** |
-| ni una cosa ni la otra (vago) | 29 |
-| algo visible (`husgrund`, `ruin`, `stengata`, `kullersten`) | 19 |
-| sin texto | 4 |
-
-Así que ~80% es ruido: "Kulturlager med sot, tegel och keramik har
-påträffats, och en kritpipa daterades till 1620-40" no es un lugar para
-visitar, es el informe de una excavación.
-
-- [ ] **pero la clase no es homogénea**, y ahí está el problema con excluirla
-      de una: `Sala gruvby` es Stadslager y tiene "över 200 bebyggelselämningar"
-      con husgrunder, härdar y brunnar. Es un pueblo minero abandonado, o sea
-      exactamente un lugar para ir a caminar
-
-### Y excluirla no alcanzaría, por el motivo equivocado
-
-`build_scores` ya fundió las dos listas en **una** regla: excluido por clase,
-**rescatado por evidencia del sitio** (`has_name`, `sitelinks`, `has_image`,
-una página de länsstyrelsen sobre él, o estar a ≤500 m de una). Así que Sala
-gruvby sobreviviría por su nombre — bien. Pero:
-
-- [ ] de los 126 clusters Stadslager, **72 se rescatarían y 54 de esos 72 es
-      por `dist_to_board_m <= 500`**. Y esa condición está **confundida** para
-      esta clase: el 45% de los Stadslager están a ≤500 m de una recomendación
-      de länsstyrelsen, contra el **5,4% de todos los clusters** — 8× más.
-      Mediana 606 m contra 2.936 m. No es mérito: un stadslager **es** el
-      centro de una ciudad, y ahí es donde länsstyrelsen pone sus
-      recomendaciones (una iglesia, una ruina, un museo). `Boplats`, que ya
-      está excluida, está en el 5,0%: el sesgo es de las clases urbanas
-
-### El hallazgo que importa, que no es de esta clase
-
-- [ ] **2.845 clusters de clase excluida están en el export sólo porque hay
-      otra cosa a menos de 500 m** — casi tantos como los 2.895 rescatados por
-      evidencia real. Los peores: **1.193 `Stensättning`** y **841 `Boplats`**
-- [ ] **la versión exacta de esa condición ya existe**: 3.263 clusters tienen
-      una página de länsstyrelsen **sobre ellos** (`labels` con
-      `source='county'`), y eso ya es una condición de rescate aparte. De los
-      8.294 que están a ≤500 m de una, sólo 288 tienen además la propia: o sea
-      que el radio de 500 m aporta **8.006 casos en los que el board estaba
-      hablando de otra cosa**
-- [ ] el comentario que justifica la condición dice que una recomendación de
-      länsstyrelsen "es la única de estas que es un humano diciendo *vayan
-      acá*". Eso es cierto de la página propia y **falso** de la proximidad:
-      estar a 400 m de un cartel sobre una iglesia no es nadie diciendo nada
-      sobre el boplats invisible de al lado
-
-### Propuesta, en orden de importancia
-
-- [x] **sacado `dist_to_board_m <= 500` como condición de rescate** (hecho
-      2026-09-16, `e6fa057`). Removido y **no** achicado, que era la otra
-      opción: a 50 m todavía rescata 76 clusters, y ésos son justamente los
-      que el condado distinguió de su vecino, así que un radio chico estaría
-      contradiciendo al juicio al que la condición existe para deferir —
-      además de dejar una constante que nadie puede justificar después.
-      Ningún radio es defendible, así que no hay radio.
-  - [x] el argumento que lo decide es interno: `build_clusters` agrupa por
-        **grupo RAÄ y no por proximidad**, porque *"grouping by proximity is
-        us guessing"* — su pase espacial se eliminó después de medir que
-        encadenaba 535 sitios en seis kilómetros. El spread medio de un
-        cluster es 45 m. Dos clusters a 300 m son dos monumentos que **el
-        condado separó**
-  - [x] la distancia al board **sigue** siendo feature del modelo
-        (`board_le_200`, `board_le_1km`, `log_board`), que es su lugar
-        correcto: ahí el modelo la pesa contra todo lo demás en vez de ser un
-        override
-  - [x] medido: AUC **sin cambios** en 0,8119 — que es el chequeo de sanidad
-        y no un resultado, porque el rescate no es feature y no podía
-        moverlo. El pool de candidatos baja de 128.951 a **126.210** (se van
-        2.741), y de los 10.000 pines del export instalado se irían
-        exactamente **100**: 65 Stensättning, 8 Boplats, 7 Fångstgrop y 6
-        Gränsbestämt område. **Todos sin nombre** — lo que tenía nombre se
-        rescató por tenerlo. Seis son de la clase de límites administrativos
-        que Franco tocó una vez esperando Li gravfält
-- [x] **`Stadslager` excluido** (hecho 2026-09-16, `cc0cfe8`), pero **no** con
-      `CLASS_BLACKLIST`: ahí el rescate lo habría salvado por `has_name`, y
-      para esta clase el nombre es **el del pueblo de encima** (Trelleborg,
-      Varberg, Landskrona, "Ängelholms medeltida stad" — los 22). Se hizo con
-      un `CLASS_BURIED` nuevo, cuyo único rescate es el propio campo del
-      registro `placering = 'Synlig ovan mark'`. Sobre estos 126 clusters ese
-      campo los separa **3 / 123**, y los tres son los destinos de verdad:
-      Sala gruvby, Kungahälla/Klosterkullen y Brätte. Se fueron 104 de los
-      107 pines
-  - [x] aplicado en `build_scores` y no como columna nueva de `signals`, así
-        que agregar una clase a la lista **no** pide re-correr la etapa 4
-  - [x] **el agujero que destapó**: al sacar 204 pines de ruido subieron
-        otros desde abajo del corte y `Gränsbestämt område` pasó de 6 a 10 —
-        la clase de límites administrativos. Estaba en `CLASS_BLACKLIST`,
-        donde el rescate tampoco sirve: `has_name` es el nombre de lo
-        delimitado ("Sala silvergruva", "Nydala Kloster") y `any_visible` es
-        1 en **los 71**, porque lo visible es el monumento y no el límite.
-        Movido a un `CLASS_NOT_A_PLACE` nuevo, excluido sin rescate al lado
-        de `struck`: 70 de los 71 tienen otro monumento a menos de 500 m, o
-        sea que el pin duplica uno que ya existe
-  - [x] **exportado, y el export no costó nada**: de los 2.912 lugares del
-        nuevo top 10.000 sin descripción generada, **cero** muestran hoy
-        prosa generada. Los 2.200 que tienen texto muestran el texto crudo
-        del registro ("Kyrkoruin.") y lo siguen mostrando. Entran 458,
-        se van 204
-- [ ] ojo: `CLASS_BLACKLIST` la leen `build_clusters` (etapa 2) y
-      `build_signals` (etapa 4), así que esto pide **re-correr etapas 2→5**, y
-      eso cambia qué lugares están en el export. No es gratis en tiempo ni
-      neutral en datos: hay que decidirlo sabiendo que mueve el conjunto de
-      10.000
-- [ ] **medir antes de creerse el resultado**: el AUC y el ratio de labels, y
-      cuántos de los 2.845 tenían de verdad algo que ver. Es el mismo cuidado
-      que se tuvo con las 138 etiquetas negativas del registro
+Resultado exportado: Stadslager 3, Gränsbestämt område 0, 10.000 pines.
 
 ---
 
