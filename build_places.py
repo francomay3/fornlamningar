@@ -428,6 +428,54 @@ def rollups(out):
     out.commit()
 
 
+def prune(out):
+    """Drop rows about clusters that no longer exist.
+
+    Every builder here is INSERT OR REPLACE, so a cluster that disappeared
+    from work.sqlite -- re-clustering split it, or the register struck its
+    records -- kept its feature, its members and its images for ever.
+
+    Measured today there are none, and that is the point of running it
+    anyway: the invariant should be ENFORCED and not observed. The same
+    check on build_sources.py's table found 25,777, and the difference is
+    only that this file's builders happen to rebuild from the full cluster
+    list each time while that one appends.
+
+    A stale row here is worse than a stale source, because `features` is
+    what build_tiles.py joins for titles: a cluster_id reused by a later
+    clustering with different membership would wear the previous place's
+    generated title.
+    """
+    out.execute("ATTACH ? AS w", (os.path.abspath(paths.WORK),))
+    try:
+        total = 0
+        for table in ("features", "feature_sites", "images",
+                      "generation_sources"):
+            n, = out.execute(f"""
+                SELECT count(*) FROM {table} t
+                 WHERE NOT EXISTS (SELECT 1 FROM w.clusters c
+                                    WHERE c.cluster_id = t.cluster_id)
+                """).fetchone()
+            # generation_sources is COUNTED and not deleted, for the reason
+            # build_sources.prune explains: its rows are the attribution of
+            # descriptions that may still exist in generated.sqlite.
+            if n and table != "generation_sources":
+                out.execute(f"""
+                    DELETE FROM {table}
+                     WHERE NOT EXISTS (SELECT 1 FROM w.clusters c
+                                        WHERE c.cluster_id = {table}.cluster_id)
+                    """)
+                total += n
+            elif n:
+                print(f"          {n:,} generation_sources rows are about "
+                      "clusters that are gone; kept as attribution")
+        if total:
+            out.commit()
+            print(f"pruned:   {total:,} rows about clusters that no longer exist")
+    finally:
+        out.execute("DETACH w")
+
+
 def status(out):
     n, = out.execute("SELECT COUNT(*) FROM features").fetchone()
     print(f"\n{n:,} places")
@@ -476,6 +524,7 @@ def main():
     n = pdf_images(out)
     print(f"          {n:,} from county folders")
     rollups(out)
+    prune(out)
     status(out)
 
 

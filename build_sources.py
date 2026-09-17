@@ -59,6 +59,7 @@ Usage:
 """
 
 import argparse
+import hashlib
 import json
 import os
 import sqlite3
@@ -109,7 +110,27 @@ CREATE TABLE IF NOT EXISTS sources (
     -- built on fetched_at called every one of them current.
     fetched_at    TEXT,
     first_seen_at TEXT,
-    UNIQUE (cluster_id, kind, lang, url, text)
+    -- sha1 of (cluster_id, kind, lang, url, text), and the UNIQUE that used
+    -- to name those five columns directly.
+    --
+    -- WHY: the old constraint put the whole TEXT in the index, so the index
+    -- (298 MB) was larger than the table (245 MB) and places.sqlite was
+    -- 815 MB. The constraint is only ever asked "have I seen this exact row
+    -- before", never "give me the rows whose text starts with", so a hash
+    -- answers it in 40 bytes instead of 364 on average. Querying by cluster
+    -- is what idx_src_cluster is for.
+    --
+    -- AND IT DEDUPLICATES MORE THAN THE OLD ONE DID, which is the part worth
+    -- knowing. In SQLite a NULL never equals another NULL, so the old UNIQUE
+    -- let through every duplicate that had a NULL url -- 2,564 rows across
+    -- 1,288 groups, all county_attr and county_pdf, a county page reaching
+    -- the same cluster through two different matches. Those went to the model
+    -- TWICE. The hash coalesces the nullable fields, so NULL equals NULL and
+    -- they collapse. 1,070 clusters lose a duplicate source and 199 of them
+    -- have a generated description, which will read as stale and regenerate:
+    -- correct, since the payload it was built from really did change.
+    row_sha     TEXT NOT NULL,
+    UNIQUE (row_sha)
 );
 CREATE INDEX IF NOT EXISTS idx_src_cluster ON sources(cluster_id);
 CREATE INDEX IF NOT EXISTS idx_src_kind    ON sources(kind);
@@ -175,6 +196,123 @@ CC0 = ("CC0 1.0", "https://creativecommons.org/publicdomain/zero/1.0/")
 BYSA4 = ("CC BY-SA 4.0", "https://creativecommons.org/licenses/by-sa/4.0/")
 
 
+def row_sha(cluster_id, kind, lang, url, text):
+    """The identity of a source row, as the UNIQUE above defines it.
+
+    NUL as the separator because it cannot occur in any of these fields, so
+    no combination of contents can imitate a different combination -- a plain
+    "|" would let a url ending in "|" collide with the next field.
+
+    The nullable fields are coalesced to "", which is deliberate and is the
+    behaviour change: see the schema comment.
+    """
+    joined = "\x00".join((cluster_id, kind, lang or "", url or "", text))
+    return hashlib.sha1(joined.encode("utf-8")).hexdigest()
+
+
+def migrate_row_sha(out):
+    """Move an existing corpus onto the hashed constraint. Once.
+
+    A rebuild from scratch would be simpler and is wrong: `first_seen_at`
+    says when a row ENTERED the corpus, which is what decides whether a
+    description could have seen it, and rebuilding resets all 336,391 of
+    them to now. That column is why 679 places are known to have
+    descriptions written before their `tradition` was ever parsed.
+
+    So the table is rebuilt in place, keeping MIN(first_seen_at) per group:
+    when two rows collapse into one, the earliest arrival is the honest
+    answer to when the corpus first held that text.
+    """
+    cols = {r[1] for r in out.execute("PRAGMA table_info(sources)")}
+    if "row_sha" in cols or not cols:
+        return
+    n_before, = out.execute("SELECT count(*) FROM sources").fetchone()
+    print(f"  migrating {n_before:,} source rows onto the hashed constraint")
+    out.create_function("row_sha", 5, row_sha)
+    # One transaction: a half-migrated corpus is worse than a failed one,
+    # and the whole thing is a few seconds.
+    out.executescript("""
+        BEGIN;
+        CREATE TABLE sources_new (
+            source_id   INTEGER PRIMARY KEY,
+            cluster_id  TEXT NOT NULL,
+            uuid        TEXT,
+            kind        TEXT NOT NULL,
+            lang        TEXT,
+            title       TEXT,
+            text        TEXT NOT NULL,
+            author      TEXT,
+            publisher   TEXT,
+            licence     TEXT,
+            licence_url TEXT,
+            url         TEXT,
+            trust       REAL DEFAULT 0.5,
+            usable      INTEGER DEFAULT 1,
+            fetched_at    TEXT,
+            first_seen_at TEXT,
+            row_sha     TEXT NOT NULL,
+            UNIQUE (row_sha)
+        );
+        INSERT INTO sources_new
+          (cluster_id, uuid, kind, lang, title, text, author, publisher,
+           licence, licence_url, url, trust, usable, fetched_at,
+           first_seen_at, row_sha)
+        SELECT cluster_id, uuid, kind, lang, title, text, author, publisher,
+               licence, licence_url, url, trust, usable,
+               MIN(fetched_at), MIN(first_seen_at),
+               row_sha(cluster_id, kind, lang, url, text)
+          FROM sources
+         GROUP BY row_sha(cluster_id, kind, lang, url, text);
+        DROP TABLE sources;
+        ALTER TABLE sources_new RENAME TO sources;
+        CREATE INDEX idx_src_cluster ON sources(cluster_id);
+        CREATE INDEX idx_src_kind    ON sources(kind);
+        COMMIT;
+    """)
+    n_after, = out.execute("SELECT count(*) FROM sources").fetchone()
+    print(f"  {n_after:,} rows kept, {n_before - n_after:,} duplicates "
+          "collapsed that the NULL-url constraint had let through")
+    # VACUUM has never run on this file, so the pages the old 298 MB index
+    # occupied would otherwise stay in it as free space.
+    print("  vacuuming", flush=True)
+    out.execute("VACUUM")
+
+
+def prune(out, sites_db):
+    """Drop source rows about clusters that no longer exist.
+
+    This script only ever INSERTs OR IGNOREs, so before this a cluster that
+    disappeared from work.sqlite -- because re-clustering split it, or
+    because the register struck its records -- kept its sources for ever.
+    25,777 of 333,827 rows were about clusters that are gone.
+
+    They were not harmful, because load_sources asks per EXISTING cluster and
+    never sees them. They were weight, and worse, they made every count in
+    --status a count of two different cluster sets at once.
+
+    generation_sources IS DELIBERATELY NOT PRUNED. Its rows say which sources
+    produced a description that may still exist in generated.sqlite -- 95
+    descriptions are currently orphaned from their cluster and 39 of those
+    are recoverable by uuid. Deleting their attribution would keep the
+    expensive half and throw away the half that says where it came from.
+    """
+    out.execute("ATTACH ? AS w", (sites_db,))
+    try:
+        n, = out.execute("""
+            SELECT count(*) FROM sources s
+             WHERE NOT EXISTS (SELECT 1 FROM w.clusters c
+                                WHERE c.cluster_id = s.cluster_id)""").fetchone()
+        if n:
+            out.execute("""
+                DELETE FROM sources
+                 WHERE NOT EXISTS (SELECT 1 FROM w.clusters c
+                                    WHERE c.cluster_id = sources.cluster_id)""")
+            out.commit()
+            print(f"  pruned:      {n:,} rows about clusters that no longer exist")
+    finally:
+        out.execute("DETACH w")
+
+
 def add(out, cluster_id, kind, text, **kw):
     """One source row. `fetched_at` is WHEN THE CONTENT WAS OBTAINED.
 
@@ -191,17 +329,19 @@ def add(out, cluster_id, kind, text, **kw):
     """
     if not cluster_id or not text or not str(text).strip():
         return 0
+    clean = " ".join(str(text).split())
     out.execute("""
         INSERT OR IGNORE INTO sources
           (cluster_id, uuid, kind, lang, title, text, author, publisher,
            licence, licence_url, url, trust, usable, fetched_at,
-           first_seen_at)
+           first_seen_at, row_sha)
         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,
-                COALESCE(?, datetime('now')), datetime('now'))
+                COALESCE(?, datetime('now')), datetime('now'), ?)
     """, (cluster_id, kw.get("uuid"), kind, kw.get("lang"), kw.get("title"),
-          " ".join(str(text).split()), kw.get("author"), kw.get("publisher"),
+          clean, kw.get("author"), kw.get("publisher"),
           kw.get("licence"), kw.get("licence_url"), kw.get("url"),
-          TRUST.get(kind, 0.5), kw.get("usable", 1), kw.get("fetched_at")))
+          TRUST.get(kind, 0.5), kw.get("usable", 1), kw.get("fetched_at"),
+          row_sha(cluster_id, kind, kw.get("lang"), kw.get("url"), clean)))
     return 1
 
 
@@ -533,6 +673,9 @@ def main():
     args = p.parse_args()
 
     out = sqlite3.connect(args.out)
+    # Before the schema, because the schema's CREATE TABLE IF NOT EXISTS is a
+    # no-op on the old table and would leave the old constraint in place.
+    migrate_row_sha(out)
     out.executescript(SCHEMA)
     out.commit()
 
@@ -566,6 +709,7 @@ def main():
     n = from_plans(out)
     out.commit()
     print(f"  county_plan: {n:,} rows offered")
+    prune(out, os.path.abspath(args.sites_db))
     print()
     status(out)
 
