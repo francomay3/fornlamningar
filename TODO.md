@@ -712,6 +712,37 @@ escritas:
 
 Lo que hace falta para eso:
 
+### Hecho el 2026-09-17: el servidor ya conoce los lugares
+
+Postgres local en Docker (`franco-may/docker-compose.yml`, puerto **15432** y
+no 5432, porque ese puerto lo resetean algunas redes y el sintoma parece base
+muerta). `apply-fl-schema.cjs` elige transporte por el hostname: SQL sobre
+HTTPS para Neon, protocolo Postgres para el contenedor — antes no podia correr
+contra local, y dos scripts de migracion son dos esquemas que se desfasan.
+
+- [x] `fl_places` — 163.701 filas (todo lo no `excluded_hard`), **49 MB**
+      (37 heap + 12 de indice). Los soft-excluded estan adentro a proposito:
+      37.626 lugares que el score dejo afuera del mapa, y son casi todo el
+      valor de esto
+- [x] `upload_places.py --local|--remote` — drop y recarga via `psql \copy`,
+      **5,3 s**. Todo en una transaccion y la generacion la pone un DEFAULT de
+      columna: la primera version la estampaba con un UPDATE posterior, que en
+      Postgres reescribe cada fila y dejaba la tabla de 37 MB como 96 MB
+- [x] `POST /api/fornlamningar/places/near` — POST y no GET para que la
+      posicion de la persona no quede en los access logs. Anillos de 2/10/50/
+      200 km hasta encontrar algo; **0,4 ms** en Kungsbacka, 19 ms en Abisko
+      donde el mas cercano esta a 7,4 km
+- [ ] **falta subirlo a Neon** (`--remote`, escrito y sin usar): son 49 MB, el
+      10% del tier gratis. Decision de Franco
+- [ ] el `ORDER BY` de `upload_places.py` es **una copia** del de
+      `build_tiles.py`, porque `in_tiles` significa exactamente "paso ese
+      corte". Si aparece una tercera copia, ese es el momento de moverlo a un
+      modulo que los dos importen
+- [ ] `features` tiene 251.029 filas para 251.029 clusters actuales, pero
+      incluye filas de clusterings viejos; el `title` se busca por id asi que
+      las viejas no matchean. Vale revisar si alguna coincide por id con un
+      cluster cuya membresia cambio — seria un titulo de otro lugar
+
 - [ ] **el backend tiene que tener los 129k clusters con posición y tipo.**
       Hoy no tiene ninguno: Postgres sólo tiene `fl_events`. Es la misma
       necesidad que la sección 11 (snapshots servidos desde el backend) y la
