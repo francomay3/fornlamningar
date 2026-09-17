@@ -25,7 +25,7 @@ Two scores are emitted per cluster:
 
 Filters are applied as flags, never as deletions, so thresholds stay tunable.
 
-Reads / writes: src/data/sites.sqlite  (table `scores`)
+Reads / writes: src/data/work.sqlite  (table `scores`)
 
 Usage:
     python build_scores.py

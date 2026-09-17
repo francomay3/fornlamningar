@@ -180,6 +180,8 @@ def parse_dims(text, head=260):
 if __name__ == "__main__":
     import sqlite3
     import sys
+
+    import paths
     tests = [
         ("Stensättning, 10 m diam och 0.3 m h. Övertorvad med i ytan talrika, "
          "synliga stenar, 0.3-0.6 m st, till största delen rundade.",
@@ -199,7 +201,7 @@ if __name__ == "__main__":
         print(f"  len={str(l):>6}  h={str(h):>5}  "
               f"area={str(round(a)) if a else '-':>6}  <- {why}")
     if len(sys.argv) > 1:
-        c = sqlite3.connect("file:src/data/sites.sqlite?mode=ro", uri=True)
+        c = sqlite3.connect(paths.ro(paths.WORK), uri=True)
         print("\n=== sitios etiquetados a mano ===")
         for lamn, lab, b in c.execute(
                 "select s.lamningsnummer, l.label, s.beskrivning from labels l "

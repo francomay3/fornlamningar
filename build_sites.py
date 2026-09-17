@@ -4,11 +4,11 @@ Stage 1 + 2: turn the raw K-samsok JSON cache and the GeoPackage into one
 structured `sites` table, one row per UUID.
 
 Reads (both read-only, safe to run while the crawler is still working):
-    src/data/ksamsok_raw.sqlite      parsed for descriptions and metadata
-    src/data/fornlamningar_full.gpkg parsed for geometry across all three layers
+    src/data/raa_api.sqlite      parsed for descriptions and metadata
+    src/data/raa_export.gpkg parsed for geometry across all three layers
 
 Writes:
-    src/data/sites.sqlite
+    src/data/work.sqlite
 
 This is a full rebuild rather than an incremental job: parsing is cheap because
 the expensive network stage is already cached, so correctness beats resumability

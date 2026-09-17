@@ -17,7 +17,7 @@ when debugging.
 One feature per CLUSTER, not per site: a gravfalt of 40 stensattningar is one
 place a visitor drives to, and should be one pin.
 
-Reads:  src/data/sites.sqlite
+Reads:  src/data/work.sqlite
 Writes: the --out directory (defaults to the frontend repo)
 
 Usage:
@@ -43,12 +43,11 @@ from periods import period_for
 import paths
 
 DB = paths.WORK
-DEFAULT_OUT = os.path.expanduser("~/projects/franco-may/public/tiles")
-DEFAULT_DESC_OUT = os.path.expanduser("~/projects/franco-may/public/descriptions")
-DEFAULT_GROUPS_OUT = os.path.expanduser(
-    "~/projects/franco-may/app/fornlamningar/filterFamilies.ts")
+DEFAULT_OUT = paths.TILES
+DEFAULT_DESC_OUT = paths.DESCRIPTIONS
+DEFAULT_GROUPS_OUT = paths.FILTER_FAMILIES
 AI_DB = paths.GENERATED
-GEOJSON = "src/data/tiles_input.geojsonl"
+GEOJSON = paths.GEOJSON
 LAYER = "archaeological_sites"
 
 # Matches the options recorded in the frontend's existing metadata.json, so the
@@ -262,7 +261,7 @@ def load_ai_descriptions(path):
     """Read the generated visitor descriptions, if any exist yet.
 
     Optional by design. The file is built by build_descriptions.py over hours
-    of local model time and lives outside sites.sqlite precisely so the
+    of local model time and lives outside work.sqlite precisely so the
     pipeline can be rebuilt without it; so this stage has to work whether it
     is there, half-finished, or absent. Whatever is missing falls back to the
     raw register text.

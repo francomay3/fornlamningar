@@ -26,7 +26,7 @@ own condition assessments are the one source of real negatives available
 without asking a human, and they are loaded at the end of `main`.
 
 Reads:  Wikidata Query Service, plus `sites` for the register's assessments
-Writes: src/data/sites.sqlite  (tables `wikidata`, `labels`)
+Writes: src/data/work.sqlite  (tables `wikidata`, `labels`)
 Cache:  src/data/wikidata_cache/*.json  (delete to force a refetch)
 
 Usage:

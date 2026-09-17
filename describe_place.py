@@ -17,7 +17,7 @@ enforced by Ollama, an explicit instruction to use only what is present, and
 afterwards a check that every number in the output can be traced back to the
 input.
 
-Reads:  src/data/sites.sqlite   (read-only)
+Reads:  src/data/work.sqlite   (read-only)
 Writes: nothing -- this is the single-place generator. build_descriptions.py
         is the batch runner that persists.
 
@@ -274,8 +274,16 @@ def load_sources(cluster_id, places_db=None):
     """
     import paths
     places_db = places_db or paths.PLACES
+    # NOT an empty list, which is what this returned and is the reason for
+    # the noise. An absent corpus is indistinguishable from a place nobody
+    # has written about, so the generator would produce a register-only
+    # description and `source_hash` would record that degraded payload as
+    # the real one -- and never regenerate it, because the hash matches
+    # whatever it was built from. A missing file is an operator error and
+    # has to read like one.
     if not os.path.exists(places_db):
-        return []
+        sys.exit(f"missing {places_db} - run ./run_pipeline.sh "
+                 "(stages sources and places build it)")
     db = sqlite3.connect(f"file:{places_db}?mode=ro", uri=True)
     try:
         rows = db.execute("""

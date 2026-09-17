@@ -21,10 +21,10 @@ Spatial signals come from the OSM extract. Two measurements matter:
 All distance maths is in SWEREF99 TM (EPSG:3006) where coordinates are already
 metres -- no haversine, no cosine-latitude correction.
 
-Reads:  src/data/sites.sqlite            (sites, clusters, site_clusters, wikidata)
+Reads:  src/data/work.sqlite            (sites, clusters, site_clusters, wikidata)
         src/data/osm/sweden_ways.gpkg    (highway lines, SWEREF99)
         src/data/osm/boards.gpkg         (tourism=information nodes, SWEREF99)
-Writes: src/data/sites.sqlite            (table `signals`)
+Writes: src/data/work.sqlite            (table `signals`)
 
 Usage:
     python build_signals.py
@@ -467,7 +467,7 @@ def main():
         members.setdefault(cid, set()).add(cls)
 
     sig, _base = class_significance(conn)
-    print(f"  significancia medida para {len(sig):,} clases")
+    print(f"  significance measured for {len(sig):,} classes")
 
     # Second pass over NON-blacklisted members only. Cluster attributes are
     # aggregated with MAX() across members, so without this a charcoal pit
@@ -491,7 +491,7 @@ def main():
         WHERE s.class_sv IS NULL OR s.class_sv NOT IN ({holes})
         GROUP BY sc.cluster_id
     """, tuple(CLASS_BLACKLIST))}
-    print(f"  {len(worthy_agg):,} clusters con al menos un miembro no blacklisteado")
+    print(f"  {len(worthy_agg):,} clusters with at least one non-blacklisted member")
 
     way_grid = board_grid = arch_grid = road_grid = bldg_grid = None
     park_grid = dig_grid = None

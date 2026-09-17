@@ -20,8 +20,8 @@ Grouping strategy, in order of authority:
    restricted to the same class, so a charcoal pit is never merged into a
    burial mound.
 
-Reads:  src/data/sites.sqlite
-Writes: src/data/sites.sqlite  (tables `clusters` and `site_clusters`)
+Reads:  src/data/work.sqlite
+Writes: src/data/work.sqlite  (tables `clusters` and `site_clusters`)
 
 Usage:
     python build_clusters.py

@@ -43,6 +43,11 @@ GENERATED = os.path.join(DATA, "generated.sqlite")      # model output
 WORK = os.path.join(DATA, "work.sqlite")                # sites, clusters,
                                                         # signals, scores
 
+# What build_tiles.py hands to tippecanoe. Cheap and derived, but named here
+# because the app's sync-assets.sh REQUIRES it to still be on disk after an
+# export -- see run_pipeline.sh, which passes --keep-geojson for that reason.
+GEOJSON = os.path.join(DATA, "tiles_input.geojsonl")
+
 # --- PRODUCT ---------------------------------------------------------------
 # features, images, sources, generation_sources. The corpus is not a side
 # table: one place's rows are the reason its description reads the way it
@@ -50,8 +55,15 @@ WORK = os.path.join(DATA, "work.sqlite")                # sites, clusters,
 PLACES = os.path.join(DATA, "places.sqlite")
 
 # --- PAYLOAD ---------------------------------------------------------------
-TILES = os.path.expanduser("~/projects/franco-may/public/tiles")
-APP_DATA = os.path.expanduser("~/projects/fornlamningar-app/assets/data")
+WEB = os.path.expanduser("~/projects/franco-may")
+TILES = os.path.join(WEB, "public/tiles")
+DESCRIPTIONS = os.path.join(WEB, "public/descriptions")
+FILTER_FAMILIES = os.path.join(WEB, "app/fornlamningar/filterFamilies.ts")
+
+# There is no constant for the app's assets/data on purpose. The only thing
+# that writes there is the app repo's own sync-assets.sh, which is bash and
+# cannot read this file; a Python name for it would be a second copy of a
+# path with nothing importing it -- which is what the deleted APP_DATA was.
 
 
 def ro(path):

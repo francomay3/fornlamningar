@@ -8,14 +8,14 @@ flight, and starting again picks up exactly where it stopped. Nothing is
 checkpointed: the pending set is derived by asking which eligible clusters have
 no current row yet, the same approach that made the K-samsok crawl restartable.
 
-Deliberately a SEPARATE database from sites.sqlite.
+Deliberately a SEPARATE database from work.sqlite.
 `build_sites.py` drops and recreates that file from the raw crawl on every
 `run_pipeline.sh --from 1`. Hours of local generation stored there would
 evaporate the first time you rebuilt the pipeline. This file is never touched
 by any other stage.
 
-Reads:  src/data/sites.sqlite       (read-only)
-Writes: src/data/descriptions.sqlite
+Reads:  src/data/work.sqlite       (read-only)
+Writes: src/data/generated.sqlite
 
 Usage:
     python3 build_descriptions.py --limit 200          # try it on the best 200
@@ -174,6 +174,31 @@ def open_out(path):
         conn.execute("ALTER TABLE ai_descriptions ADD COLUMN payload_version INTEGER")
     conn.commit()
     return conn
+
+
+def stranded_wal(path):
+    """Bytes sitting in a -wal file that the database file does not have.
+
+    WHY THIS IS WORTH A CHECK AT ALL. generated.sqlite is thirteen hours of
+    local model time and it is tracked in git LFS, so what matters is what
+    `git add` can see -- and with journal_mode=WAL the newest rows live in a
+    `-wal` beside it that is gitignored. On 2026-09-16 that file was a
+    megabyte newer than the database and committing looked like it had
+    worked.
+
+    AND THE OBVIOUS FIX IS NOT THE FIX. Checkpointing on the way out does
+    nothing, because sqlite3 already does it: measured, a clean close()
+    truncates the WAL and removes the file. What strands a WAL is an exit
+    that never reached close() -- a SIGKILL, a crash, a laptop that slept.
+    No code in this process runs at that moment, so the only thing that
+    helps is NOTICING afterwards, which is what this is for.
+
+    Recovering it is just opening and closing the database: any reader
+    folds the WAL back in. The danger was never losing the rows, it was
+    committing a file that did not have them yet.
+    """
+    wal = path + "-wal"
+    return os.path.getsize(wal) if os.path.exists(wal) else 0
 
 
 def eligible(sites, limit, include_empty, near=None, top=None):
@@ -622,9 +647,18 @@ def main():
         lat, lon = (float(x) for x in a.near.split(","))
         near = (lat, lon)
 
+    # Asked BEFORE open_out, because opening the database is exactly what
+    # folds the WAL back in: ask afterwards and the answer is always zero.
+    stranded = stranded_wal(a.out)
+
     sites = sqlite3.connect(f"file:{a.db}?mode=ro", uri=True)
     sites.row_factory = sqlite3.Row
     out = open_out(a.out)
+
+    if stranded:
+        print(f"  ! {stranded:,} bytes were stranded in {a.out}-wal from an "
+              "unclean exit, and are now folded back in. If you committed "
+              "this database since then, commit it again.", file=sys.stderr)
 
     if a.status:
         n, = out.execute("SELECT count(*) FROM ai_descriptions").fetchone()
