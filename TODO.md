@@ -1096,7 +1096,7 @@ uno que no.
 
 ### Pipeline
 
-- [ ] **`run_pipeline.sh` no construye el producto.** Corre stages 1–6 pero
+- [x] **`run_pipeline.sh` no construye el producto.** Corre stages 1–6 pero
       no `build_sources.py`, `build_places.py`, `crawl_lansstyrelsen.py
       --join` ni `crawl_wikimedia.py`. `places.sqlite` — "lo que estamos
       construyendo" según `paths.py` — no lo genera nada del runner. Y
@@ -1108,33 +1108,37 @@ uno que no.
       después de `5:score` los stages `build_sources.py` y `build_places.py`.
       Los crawls (`crawl_wikimedia.py`, `crawl_lansstyrelsen.py` sin `--join`)
       quedan afuera como el de K-samsök: son RAW, se corren a mano
-- [ ] **`describe_place.load_sources` devuelve `[]` en silencio si
+- [x] **`describe_place.load_sources` devuelve `[]` en silencio si
       `places.sqlite` no existe**, y hashea ese payload degradado como válido.
       Tiene que fallar. Con el runner arreglado el archivo siempre está, pero
       un `sys.exit("places.sqlite missing: run build_sources.py first")` es
       lo que convierte un dato silenciosamente peor en un error
-- [ ] **`generated.sqlite` en LFS con WAL abierto.** Está en `journal_mode=
-      WAL` (`build_descriptions.open_out`), así que después de una sesión de
-      generación el `-wal` tiene filas que el archivo principal no tiene, y
-      `git add` commitea sólo el principal. Hoy el `-wal` (1 MB) es más nuevo
-      que el `.sqlite`. **Fix fácil:** al salir de `build_descriptions.py`
-      (incluido el SIGINT) ejecutar `PRAGMA wal_checkpoint(TRUNCATE)`. Y un
-      check en `--status` que avise si el `-wal` tiene tamaño > 0
-- [ ] **archivos muertos en `src/data/`**, de bases que ya no existen:
+- [x] **`generated.sqlite` en LFS con WAL abierto.** El fix propuesto acá
+      (checkpoint al salir) era innecesario: medido, el `close()` de sqlite3
+      ya trunca el WAL y borra el archivo. Lo que deja un WAL huérfano es una
+      salida que nunca llega al `close()` — un SIGKILL, la laptop que se
+      duerme — y ahí no corre código nuestro. Asi que el fix es **avisar**:
+      `build_descriptions.py --status` reporta un `-wal` no vacío antes de
+      abrir la base, porque abrirla es lo que lo reabsorbe. Verificado
+      matando un writer con SIGKILL: 5.191.232 bytes reportados y 20.000
+      filas recuperadas
+- [ ] **archivos muertos en `src/data/`** — *bloqueado: el clasificador de
+      permisos no me deja borrar archivos. Es un comando de una linea, esta
+      en el mensaje del 2026-09-17.* De bases que ya no existen:
       `sites.sqlite-wal` (48 MB) y `-shm`, `descriptions.sqlite-wal`/`-shm`,
       `ksamsok_raw.sqlite-wal`/`-shm`. Y la tabla `scores_old` en
       `work.sqlite` (245.860 filas, nada la lee). Borrar. No hay nada que
       recuperar: un WAL sin su base principal es basura
-- [ ] **`dims.py:202` abre `src/data/sites.sqlite`**, que no existe. Usar
+- [x] **`dims.py:202` abre `src/data/sites.sqlite`**, que no existe. Usar
       `paths.WORK`. Nueve docstrings más nombran `sites.sqlite`,
       `ksamsok_raw.sqlite`, `fornlamningar_full.gpkg` o `descriptions.sqlite`
       (`build_sites.py`, `build_clusters.py`, `build_labels.py`,
       `build_signals.py`, `build_scores.py`, `build_descriptions.py`,
       `describe_place.py`, `build_tiles.py`). Buscar y reemplazar por los
       nombres de `paths.py`
-- [ ] `paths.TILES` y `paths.APP_DATA` **no los usa nadie**; `build_tiles.py`
+- [x] `paths.TILES` y `paths.APP_DATA` **no los usa nadie**; `build_tiles.py`
       duplica la ruta como `DEFAULT_OUT`. Usar `paths` o borrarlos
-- [ ] `run_pipeline.sh` nunca pasa `--keep-geojson`, pero `sync-assets.sh`
+- [x] `run_pipeline.sh` nunca pasa `--keep-geojson`, pero `sync-assets.sh`
       de la app **exige** `tiles_input.geojsonl`. Una corrida limpia borra el
       archivo que el build de la app necesita. Que el runner lo pase siempre
 - [ ] **`dominant_class` con dos reglas.** `build_clusters.py` elige el
@@ -1187,7 +1191,7 @@ uno que no.
 - [ ] `build_labels.py` joinea `hand_labels.csv` por `lamningsnummer`, que
       **no es único** en `sites`. Una etiqueta puede abrirse en varios uuids
       y `n_hand` cuenta el abanico. Joinear por uuid, o dedup por cluster
-- [ ] `build_signals.py` y `build_scores.py` tienen `print()` en castellano
+- [x] `build_signals.py` y `build_scores.py` tienen `print()` en castellano
       en medio de código en inglés. Cosmético, pero delata pegado de otra
       sesión
 - [ ] **README.md y PIPELINE.md describen otro proyecto.** README dice que la
