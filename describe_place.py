@@ -256,8 +256,8 @@ stays "Äggastenarna", not "the Egg Stones"; "Ales stenar" stays "Ales stenar". 
 Translating a name makes it impossible to find the place on a sign or a map."""
 
 
-def load_sources(cluster_id, places_db=None):
-    """Everything anybody has written about this place, from the corpus.
+def load_sources(cluster_id, places_db=None, lang="sv"):
+    """Everything anybody has written about this place, IN ONE LANGUAGE.
 
     THIS IS THE FUNCTION THAT WAS MISSING. Until now `payload` handed the
     model one field -- the register's own survey text -- and nothing else,
@@ -271,6 +271,24 @@ def load_sources(cluster_id, places_db=None):
     prompt can weigh a county visitor page differently from a survey note.
     `tradition` is relabelled `folklore` on the way out: it is trustworthy AS
     folklore and the model has to know not to state it as archaeology.
+
+    ONE LANGUAGE, WHICH THIS DID NOT FILTER BY. `sources.lang` has existed
+    since the corpus did, and every row was handed to a prompt that asks for
+    Swedish -- so 178 places were generated from an English Wikipedia lead
+    mixed in with Swedish survey text. The generation is canonical Swedish
+    and English is a SECOND PASS over its output, so an English source is not
+    a source for this step; at most it is context for the translation, which
+    is translating the Swedish text rather than regenerating from scratch.
+
+    It costs almost nothing to fix, which is the part worth recording: all
+    208 English rows are `wikipedia`, and 201 of the 202 clusters holding one
+    also have the SWEDISH article about the same place. None of them ends up
+    with no sources at all. The English row was a second copy of information
+    already there, in the wrong language.
+
+    NULL is kept alongside the asked-for language: a row with no language is
+    not a row in the wrong one. There are none today, and the column allows
+    it, so the query should not depend on that staying true.
     """
     import paths
     places_db = places_db or paths.PLACES
@@ -289,6 +307,7 @@ def load_sources(cluster_id, places_db=None):
         rows = db.execute("""
             SELECT source_id, kind, publisher, title, text FROM sources
              WHERE cluster_id = ? AND usable = 1 AND text <> ''
+               AND (lang = ? OR lang IS NULL)
              -- The tail of this ORDER BY is a TIEBREAKER, and it is load
              -- bearing. trust and length alone leave 25,723 groups of tied
              -- rows across the corpus, and SQLite is free to return a tie in
@@ -304,7 +323,7 @@ def load_sources(cluster_id, places_db=None):
              -- across a rebuild -- the only case that matters.
              ORDER BY trust DESC, LENGTH(text) DESC, kind,
                       COALESCE(publisher, ''), COALESCE(title, ''), text""",
-                          (cluster_id,)).fetchall()
+                          (cluster_id, lang)).fetchall()
     except sqlite3.OperationalError:
         return []
     finally:
