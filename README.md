@@ -2,8 +2,13 @@
 
 Data pipeline for **Fornkoll**, a free app for finding and visiting Swedish
 archaeological sites. It turns Riksantikvarieämbetet's register of ~312,000
-recorded remains into ~10,000 ranked, clustered map pins with generated
-visitor descriptions in Swedish and English.
+recorded remains into 251,029 clustered places, ranks them, and exports the
+best 10,000 as map pins.
+
+7,111 of those 10,000 carry a generated visitor description and 5,388 of
+those are also in English; the rest show the register's own survey text,
+which is often a single line ("Kyrkoruin."). That gap is a long local-model
+run away, not a missing feature.
 
 Three repos, and it is worth being precise about which is which, because this
 file used to get it wrong:
