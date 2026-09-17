@@ -308,21 +308,46 @@ Hecho:
       `deleted_by` existe para un único lector: el autor, que si no ve
       desaparecer sus palabras de su propio teléfono sin explicación
 
+Hecho también el 2026-09-17, la mitad de la app y las piezas legales:
+
+- [x] **el composer y la lista de comentarios** en la ficha del lugar
+      (`PlaceComments.tsx`), su propia sección debajo de las preguntas: lo
+      del queue se pregunta porque el pipeline necesita la etiqueta, y un
+      comentario no responde nada — es un visitante avisándole al siguiente
+      que el portón suele estar cerrado
+- [x] **nunca se renderiza el `author` propio.** Un comentario bajado trae
+      pseudónimo, pero el propio está archivado bajo el device id — la
+      credencial de escritura de esta app. Dice "Du"
+- [x] `POST /api/fornlamningar/report` + `fl_reports`. **Es la pieza
+      obligatoria** (DSA art. 16): sin cuenta, porque exigir registro para
+      avisar de contenido ilegal anula el deber. No auto-oculta: con reportes
+      anónimos "tres personas" es una persona tres veces
+- [x] el botón **Rapportera** en cada comentario ajeno, dos toques y sin
+      modal. No va al outbox: el outbox existe para que una valoración
+      escrita sin señal sobreviva, y quien reporta quiere saber que llegó
+- [x] **`keep` además de `hide`** en moderación: marca los reportes
+      atendidos sin tocar el comentario. Una cola donde "esto está bien" no
+      se puede expresar te empuja a borrar
+- [x] **página de reglas** (`/fornlamningar/regler`) y **aviso de
+      privacidad** (`/fornlamningar/integritet`), en sueco e inglés,
+      linkeadas desde el About de la app. HTML plano y sin librería de
+      componentes. **No las revisó un abogado**
+- [x] y el POST de eventos ahora valida que un `comment_delete` apunte a un
+      comentario **del que llama**. Antes eso lo chequeaban sólo los
+      teléfonos, así que la protección entera vivía en los clientes
+
 Falta:
 
-- [ ] **la app no puede escribir un comentario todavía.** No hay composer ni
-      lista en la ficha del lugar; existen la tabla, el lector y la aplicación
-      de eventos. O sea que hoy el servidor los acepta y nadie los manda
-- [ ] `FL_ADMIN_UIDS` en Vercel, después del primer login (Franco)
-- [ ] **página de reglas** (DSA art. 14) y **aviso de privacidad** (GDPR).
-      Son las dos piezas legales que faltan, y son texto
-- [ ] **botón de reportar y un mail de contacto** (DSA art. 16,
-      notice-and-action). Aplica a todos los hosting, sin excepción por
-      tamaño — es la pieza obligatoria que todavía no está
-- [ ] N reportes de usuarios distintos **ocultan** un comentario hasta que
-      Franco lo mire. Te convierte de único filtro en último recurso
-- [ ] post-moderación para autores probados (5 aprobados → publican directo).
-      No antes de tener volumen, porque sin volumen no significa nada
+- [ ] `FL_ADMIN_UIDS` **ya no hace falta**: el uid de Franco está cableado en
+      `lib/admin.ts`. La variable sigue existiendo y suma
+- [ ] **instalar el APK** (53,7 MB, construido) — bajó de 56,3 porque
+      `build:android` ahora limpia los recursos generados viejos
+- [ ] N reportes de usuarios distintos ocultan un comentario. Espera a que
+      reportar exija cuenta, o a que haya tráfico suficiente para que el
+      brigading sea un riesgo menor que la demora
+- [ ] post-moderación para autores probados (5 aprobados → publican directo)
+- [ ] **fotos**: siguen en `UNMODERATED_KINDS` y no hay storage. Cuando
+      existan van **pre-moderadas**, con `fl_pending`
 
 ---
 
