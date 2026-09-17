@@ -266,6 +266,66 @@ de eventos es una tabla sola.
       que se mantiene *localmente*: el uuid sigue siendo el autor, la cuenta
       sigue heredándolo; lo único que cambia es que el POST exige que el
       uuid esté linkeado. **Decidido por Franco el 2026-09-16: opción 1.**
+## 3b. Moderación — decidido e implementado el 2026-09-17
+
+Franco: *"hagamos lo mínimo legal y nada más... y puedo moderar todo"*.
+
+**Post-moderación para texto, pre-moderación para imágenes.** La ley europea
+de hosting **no** exige revisar antes de publicar: el safe harbour del DSA
+(art. 6) depende de actuar con diligencia **una vez que sabés**, y el art. 7
+existe justamente para que mirar por tu cuenta no te lo quite. Siendo
+micro-empresa, el art. 19 te exime del resto de las obligaciones de
+plataforma.
+
+Las fotos son la excepción y la asimetría es el punto: una imagen carga una
+obligación que el texto no tiene — material de abuso infantil no es un régimen
+de "lo saco cuando me avisan" — así que ahí la ventana entre publicar y
+revisar es exactamente lo que no puede existir.
+
+Hecho:
+
+- [x] `comment` y `comment_delete` salen de `UNMODERATED_KINDS`; quedan
+      `photo` y `photo_delete`
+- [x] `comment_removed`, en `SERVER_KINDS` así ningún cliente lo puede
+      forjar. **Una decisión de moderación tiene que ser un evento**: el log
+      es append-only y cada teléfono lo lee desde un cursor, así que un
+      comentario que llegó en el seq 500 ya lo replicaron todos los que
+      pasaron el 500 — poner un flag en esa fila no le llega a nadie
+- [x] y va bajo un **autor centinela** y no el del comentario: el GET
+      descarta los eventos propios del que pregunta, así que si lo firmara el
+      comentarista, ése sería el único teléfono del mundo que nunca se
+      entera, y el comentario le seguiría apareciendo para siempre
+- [x] `lib/admin.ts` — allowlist por `uid` y no por mail (el mail es lo que
+      dijo el proveedor esta vez, el uid es estable de por vida).
+      `FL_ADMIN_UIDS` ausente significa que **nadie** es admin
+- [x] la página en `/fornlamningar/admin`, con login de Google sobre el mismo
+      proyecto Firebase que usa la app — cero sistema de identidad nuevo, cero
+      contraseña que guardar. SDK con import dinámico, así queda en su propio
+      chunk y quien entra al mapa no lo baja
+- [x] los endpoints responden **404 y no 403** a desconocidos
+- [x] el teléfono aplica el `comment_removed` **sin chequear autor** (al
+      revés que `comment_delete`, y tiene que ser así), y la columna
+      `deleted_by` existe para un único lector: el autor, que si no ve
+      desaparecer sus palabras de su propio teléfono sin explicación
+
+Falta:
+
+- [ ] **la app no puede escribir un comentario todavía.** No hay composer ni
+      lista en la ficha del lugar; existen la tabla, el lector y la aplicación
+      de eventos. O sea que hoy el servidor los acepta y nadie los manda
+- [ ] `FL_ADMIN_UIDS` en Vercel, después del primer login (Franco)
+- [ ] **página de reglas** (DSA art. 14) y **aviso de privacidad** (GDPR).
+      Son las dos piezas legales que faltan, y son texto
+- [ ] **botón de reportar y un mail de contacto** (DSA art. 16,
+      notice-and-action). Aplica a todos los hosting, sin excepción por
+      tamaño — es la pieza obligatoria que todavía no está
+- [ ] N reportes de usuarios distintos **ocultan** un comentario hasta que
+      Franco lo mire. Te convierte de único filtro en último recurso
+- [ ] post-moderación para autores probados (5 aprobados → publican directo).
+      No antes de tener volumen, porque sin volumen no significa nada
+
+---
+
 ## 3. Fotos
 
 ### El prompt de contribución (decidido 2026-09-15)
