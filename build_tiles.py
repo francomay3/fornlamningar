@@ -531,9 +531,20 @@ def main():
     p.add_argument("--db", default=DB)
     p.add_argument("--out", default=DEFAULT_OUT, help="tile output directory")
     p.add_argument("--geojson", default=GEOJSON)
-    p.add_argument("--score", choices=("intrinsic", "full"), default="intrinsic",
-                   help="intrinsic = discovery (ignores existing documentation); "
-                        "full = also credits Wikipedia/photos")
+    # FULL BY DEFAULT since 2026-09-18. It used to be intrinsic, on the
+    # argument that crediting documentation cannot find the undocumented --
+    # which is true and was answered by measuring rather than by choosing:
+    # against `county excluding wikidata`, the one label set with no overlap
+    # with those fields, full beats intrinsic 0.7781 to 0.7343. That number
+    # only became trustworthy once score_full stopped being a naive sum of
+    # correlated log-lifts; see the long note in build_scores.py.
+    #
+    # intrinsic is still emitted and is still the honest discovery score. Pass
+    # --score intrinsic to export it.
+    p.add_argument("--score", choices=("intrinsic", "full"), default="full",
+                   help="full = credits Wikipedia, photos, OSM and visitor "
+                        "confirmation, decorrelated (default); "
+                        "intrinsic = discovery only, ignores documentation")
     p.add_argument("--max-desc", type=int, default=0,
                    help="truncate descriptions; 0 keeps the full RAA text. "
                         "These now ship OUTSIDE the tiles, so there is no "

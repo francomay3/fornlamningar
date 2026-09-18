@@ -214,6 +214,11 @@ def eligible(sites, limit, include_empty, near=None, top=None):
     than SQL because sqlite3 ships without trigonometric functions on some
     builds, and 100k rows sort instantly anyway.
 
+    BY score_full, which has to be the same score build_tiles.py exports by
+    or this generates text for pins nobody can click and skips pins that have
+    none. They disagreed for one afternoon on 2026-09-18, when the shipped
+    score changed and this did not.
+
     `top` restricts the pool to the N best-scoring places -- pass the same N
     the tile export uses. Without it the pool is every eligible place in the
     country, 104k of them, and only a tenth of those ever reach a tile. That
@@ -250,14 +255,14 @@ def eligible(sites, limit, include_empty, near=None, top=None):
               JOIN scores s2 ON s2.cluster_id = c2.cluster_id
              WHERE c2.lon IS NOT NULL AND s2.excluded_hard = 0
                AND s2.excluded_soft = 0
-             ORDER BY s2.score_intrinsic DESC LIMIT {int(top)})"""
+             ORDER BY s2.score_full DESC LIMIT {int(top)})"""
 
     if near is None:
         rows = sites.execute(f"""
             SELECT c.cluster_id FROM clusters c
               JOIN scores sc ON sc.cluster_id = c.cluster_id
              WHERE {' AND '.join(where)} {pool}
-             ORDER BY sc.score_intrinsic DESC
+             ORDER BY sc.score_full DESC
              {f'LIMIT {int(limit)}' if limit else ''}""").fetchall()
         return [r["cluster_id"] for r in rows]
 

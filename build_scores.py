@@ -783,6 +783,41 @@ def main():
     auc_full(by_src.get("county", set()) - wd, "county, excluding wikidata")
     auc_full(by_src.get("hand", set()) - wd, "hand, excluding wikidata")
 
+    # --- the one clean validation left ------------------------------------ #
+    #
+    # Promoting a confirmed visit to a feature bought a better score and cost
+    # the only label set in this project that measures "worth going to"
+    # independently of "somebody wrote about it". Wikidata is documentation by
+    # construction; a county recommendation is a county having published a
+    # document; the hand labels are 23. Franco's own visits were the exception,
+    # and as a feature they can no longer validate anything -- which is why
+    # the AUC against them reads 0.9993 above.
+    #
+    # So: fit the same model WITHOUT the visitor features and score it against
+    # his ratings. The model now has no idea which places he went to, and the
+    # ratings are held-out positives, so the number means what it says: how
+    # well does this ranking find places a person judged worth the trip?
+    #
+    # This is a measurement only. It is not the shipped model -- discarding a
+    # good predictor to keep a clean test set would be paying for the
+    # measurement with the product.
+    feats_nv = {k: v for k, v in feats_full.items() if k not in VISITOR_FEATURES}
+    lr_nv = fit_logistic(fit_rows, feats_nv, cw, kw, desc,
+                         pos_all, neg_all, train, seed=args.seed, cont=cont)
+    w_nv, b_nv, mu_nv, sd_nv, _names_nv = lr_nv
+    Xen, _ = build_matrix(eval_rows, feats_nv, cw, kw, desc, cont)
+    pen = LR.predict((Xen - mu_nv) / sd_nv, w_nv, b_nv)
+    user_sets = {k: v for k, v in by_src.items() if k.startswith("user:")}
+    print("\n  clean validation -- same model with NO visitor features, scored "
+          "against\n  the places Franco rated (held-out, and the model cannot "
+          "see that he went):")
+    for src, subset in user_sets.items():
+        if len(subset) < 20:
+            continue
+        sc = [(float(pen[i]), int(r["cluster_id"] in subset))
+              for i, r in enumerate(eval_rows)]
+        print(f"    {src:<34} n={len(subset):>5}   AUC {auc(sc):.4f}")
+
     # --- write scores ------------------------------------------------------ #
     conn.execute("DROP TABLE IF EXISTS scores")
     conn.execute("""
