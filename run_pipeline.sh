@@ -44,13 +44,21 @@ JSON=""
 # The tiles stage only. Ranking always runs over every cluster; TOP just
 # decides how many of the best ones get exported as tiles.
 #
-# 10,000 BY DEFAULT, because `build_tiles.py --top` defaults to None -- the
-# whole country -- and this runner passed nothing. So a plain
+# 6,000 SINCE 2026-09-18, down from 10,000. Measured on the cumulative
+# capture curve: by rank 3,548 the export already holds 100% of the places
+# with a Wikipedia article and 100% of those with a photograph, and by 5,000
+# it holds 99.7% of everything Franco has verified. Past that only OSM keeps
+# accruing, so the second half of a 10,000 export was almost entirely
+# uncorroborated intrinsic guesses. Franco's call.
+#
+# NOT DEFAULTED IN build_tiles.py, because `--top` there defaults to None -- the
+# -- the whole country -- and this runner passed nothing. So a plain
 # `./run_pipeline.sh` overwrote the export with 126,087 clusters and 99,536
-# shard entries where the app expects 10,000, in the OTHER repo, silently.
+# shard entries where the app expects a bounded set, in the OTHER repo,
+# silently.
 # It happened on 2026-09-17. The number the app ships is the number the
 # runner should default to; pass --top to override it deliberately.
-TOP="--top 10000"
+TOP="--top 6000"
 # Descriptions ship outside the tiles now, so there is nothing to truncate.
 TILE_ARGS="${TILE_ARGS:-}"
 # Parallel requests to Ollama. 1 by default because raising it past

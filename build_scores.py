@@ -229,6 +229,98 @@ LABEL_DERIVED = {
     "doc_3plus":        lambda r: (r["doc_sources_n"] or 0) > 2,
 }
 
+# Documentation, measured against what is NORMAL FOR ITS CLASS.
+#
+# THE PROBLEM, measured on 2026-09-18. 66.0% of runestones have a Wikipedia
+# sitelink; the figure for Gravfalt is 1.0%, for Roese 0.3%. So inside
+# Runristning `has_sitelinks` is not a mark of distinction, it is very nearly
+# a synonym for the class -- and the model, which fits ONE global weight per
+# feature, was handing every runestone the credit that feature earned by
+# being rare and informative everywhere else. The result: Runristning is 1.13%
+# of the eligible pool and was 12.32% of the export, 10.9x over-represented,
+# with 88.4% of the whole class admitted and 62.3% of it tied at the ceiling.
+#
+# Confirmed against Franco's own verified visits, which is the closest thing
+# here to a measurement of "worth going to". A Wikipedia article multiplies
+# the chance he verified a place by 35.8x for a Gravfalt, 64.0x for a
+# Hallristning, 11.0x for a Stenkammargrav -- and 2.3x for a runestone. The
+# same test on has_image gives 26.7x, 63.4x, 16.3x against 2.5x. Documentation
+# says almost nothing inside this class and a great deal outside it.
+#
+# THE FIX. The feature becomes the deviation from its class's base rate:
+#
+#     wiki_vs_class = has_sitelinks - P(has_sitelinks | class)
+#
+# A gravfalt with an article scores +0.99 -- extraordinary. A runestone with
+# one scores +0.34 -- ordinary. And a runestone WITHOUT one scores -0.66,
+# which is real information the old encoding threw away: in a class where two
+# thirds are catalogued, not being catalogued means something.
+#
+# WHY CENTRING AND NOT A PER-CLASS WEIGHT. Franco proposed fitting the lift
+# per class, which is the same idea; this is the estimable version of it.
+# A per-class weight needs LABELS per class and there are 153 classes -- the
+# lifts above rest on 33 to 920 documented examples each, and most classes
+# have none at all. A class base rate needs no labels: it is an average over
+# all 123,263 eligible rows, so it is stable exactly where the lifts are not.
+# It is also one number per class instead of one per class per feature.
+#
+# NOT DERIVED FROM THE VISIT DATA, deliberately, even though that is what
+# revealed the problem. `visitors_n` is already a feature; using visits to set
+# the weight of other features as well would feed one signal in twice by two
+# routes, and nothing downstream could tell them apart.
+DOC_CENTERED = {
+    "wiki_vs_class":    lambda r: 1.0 if (r["sitelinks"] or 0) > 0 else 0.0,
+    "img_vs_class":     lambda r: 1.0 if r["has_image"] else 0.0,
+    "commons_vs_class": lambda r: 1.0 if r["has_commons"] else 0.0,
+    "views_vs_class":   lambda r: 1.0 if (r["wiki_views_12m"] or 0) > 100 else 0.0,
+    "osm_vs_class":     lambda r: 1.0 if (r["dist_to_osm_arch_m"] is not None
+                                          and r["dist_to_osm_arch_m"] <= 100) else 0.0,
+    "docs_vs_class":    lambda r: 1.0 if (r["doc_sources_n"] or 0) > 1 else 0.0,
+}
+
+# Pseudo-observations pulling a small class's rate toward the global one. Same
+# device as PSEUDO_COUNT below and for the same reason: a class with three
+# members of which one has an article yields 33%, which is noise wearing a
+# number. At 40, a class needs roughly that many members before its own rate
+# outweighs the country's.
+CLASS_RATE_PRIOR = 40.0
+
+
+def class_rates(rows):
+    """{feature: {class: smoothed rate}}, plus a "" key holding the global rate."""
+    out = {}
+    for name, f in DOC_CENTERED.items():
+        hits, seen = {}, {}
+        total = 0.0
+        for r in rows:
+            cls = r["dominant_class"] or "?"
+            v = f(r)
+            hits[cls] = hits.get(cls, 0.0) + v
+            seen[cls] = seen.get(cls, 0) + 1
+            total += v
+        g = total / max(len(rows), 1)
+        tbl = {"": g}
+        for cls, n in seen.items():
+            tbl[cls] = (hits[cls] + CLASS_RATE_PRIOR * g) / (n + CLASS_RATE_PRIOR)
+        out[name] = tbl
+    return out
+
+
+def centered_features(rates):
+    """The centred features as CONTINUOUS entries.
+
+    Continuous and not boolean because build_matrix coerces everything in
+    `feats` to 0/1 -- a centred value put there would be silently rounded back
+    into the encoding this is meant to replace.
+    """
+    out = []
+    for name, f in DOC_CENTERED.items():
+        tbl = rates[name]
+        out.append((name, lambda r, f=f, tbl=tbl: f(r) - tbl.get(
+            r["dominant_class"] or "?", tbl[""])))
+    return out
+
+
 # Per-class weight smoothing. A class with few clusters cannot support a strong
 # weight, so its rate is shrunk toward the global base rate by PSEUDO_COUNT
 # pseudo-observations. Prevents a 3-cluster class from scoring +3.
@@ -576,6 +668,14 @@ def main():
                                if n not in drop]
     if drop:
         print(f"  (excluded: {', '.join(sorted(drop))})")
+
+    rates = class_rates(rows)
+    cont_full = list(cont) + centered_features(rates)
+    wiki = rates["wiki_vs_class"]
+    print("  documentation base rate by class (what centring subtracts):")
+    for cls in sorted(wiki, key=lambda c: -wiki[c])[:6]:
+        if cls:
+            print(f"    {cls[:26]:28}{100 * wiki[cls]:5.1f}% have a sitelink")
     weights, stats = measure_weights(fit_rows, feats, train)
     for name in {**ACCESS_FEATURES, **ACCESS2_FEATURES}:
         if name in weights:
@@ -665,16 +765,16 @@ def main():
     # the per-source AUCs below matter more than the headline one, and why the
     # two to read are the label sets NOT drawn from these fields -- "county,
     # excluding wikidata" and "hand".
-    feats_full = {**feats, **LABEL_DERIVED}
+    feats_full = dict(feats)
     print("\nfitting logistic regression (score_full, with documentation)...")
     lr_full = fit_logistic(fit_rows, feats_full, cw, kw, desc,
-                           pos_all, neg_all, train, seed=args.seed, cont=cont)
+                           pos_all, neg_all, train, seed=args.seed, cont=cont_full)
     w_full, b_full, mu_full, sd_full, names_full = lr_full
     doc_w = sorted(((n, v) for n, v in zip(names_full, w_full)
-                    if n in LABEL_DERIVED), key=lambda x: -abs(x[1]))
+                    if n in DOC_CENTERED), key=lambda x: -abs(x[1]))
     print("  documentation weights, marginal (compare with the lifts above):")
     for n_, v in doc_w:
-        print(f"    {n_:<18}{v:+.3f}   (lift weight was {lw.get(n_, 0.0):+.2f})")
+        print(f"    {n_:<18}{v:+.3f}")
 
     def full_score(r):
         return (score_of(r, feats, weights)
@@ -762,7 +862,7 @@ def main():
     # the model does. "county, excluding wikidata" and "hand" are the two
     # sources with no overlap with these fields, so they are the two that can
     # tell an improvement from an echo.
-    Xef, _ = build_matrix(eval_rows, feats_full, cw, kw, desc, cont)
+    Xef, _ = build_matrix(eval_rows, feats_full, cw, kw, desc, cont_full)
     pef = LR.predict((Xef - mu_full) / sd_full, w_full, b_full)
     print("\n  score_full, the same definitions (read the last two):")
 
@@ -803,9 +903,9 @@ def main():
     # measurement with the product.
     feats_nv = {k: v for k, v in feats_full.items() if k not in VISITOR_FEATURES}
     lr_nv = fit_logistic(fit_rows, feats_nv, cw, kw, desc,
-                         pos_all, neg_all, train, seed=args.seed, cont=cont)
+                         pos_all, neg_all, train, seed=args.seed, cont=cont_full)
     w_nv, b_nv, mu_nv, sd_nv, _names_nv = lr_nv
-    Xen, _ = build_matrix(eval_rows, feats_nv, cw, kw, desc, cont)
+    Xen, _ = build_matrix(eval_rows, feats_nv, cw, kw, desc, cont_full)
     pen = LR.predict((Xen - mu_nv) / sd_nv, w_nv, b_nv)
     user_sets = {k: v for k, v in by_src.items() if k.startswith("user:")}
     print("\n  clean validation -- same model with NO visitor features, scored "
@@ -884,9 +984,9 @@ def main():
               f"(mis-registered or merged; excluded outright)")
 
     Xa, _ = build_matrix(rows, feats, cw, kw, desc, cont)
-    lr_all = LR.predict((Xa - mu) / sd, w_lr, b_lr)
-    Xaf, _ = build_matrix(rows, feats_full, cw, kw, desc, cont)
-    lr_full_all = LR.predict((Xaf - mu_full) / sd_full, w_full, b_full)
+    lr_all = LR.logit((Xa - mu) / sd, w_lr, b_lr)
+    Xaf, _ = build_matrix(rows, feats_full, cw, kw, desc, cont_full)
+    lr_full_all = LR.logit((Xaf - mu_full) / sd_full, w_full, b_full)
 
     out = []
     for i, r in enumerate(rows):
@@ -896,10 +996,15 @@ def main():
         nob = (score_of(r, NOTABILITY_FEATURES, weights)
                + score_of(r, SIZE_FEATURES, weights)
                + cw.get(r["dominant_class"] or "?", 0.0) + kb)
-        # x10 only to put the probability on a readable 0-10 scale. Nothing
-        # downstream depends on the magnitude, only on the ordering.
-        intrinsic = float(lr_all[i]) * 10.0
-        full = float(lr_full_all[i]) * 10.0
+        # LOG-ODDS, not the probability. The sigmoid saturates and ties
+        # everything it is confident about: 2,000 places shared the top score
+        # and 62.3% of runestones sat on the ceiling, so inside that block
+        # there was no ranking at all -- and `stars` is a percentile of this,
+        # so a fifth of the export was drawing its rating from a coin toss.
+        # Monotone in the probability, so nothing about the ordering changes
+        # where the probability still had resolution. See logistic.logit.
+        intrinsic = float(lr_all[i])
+        full = float(lr_full_all[i])
         # ONE exclusion rule now, not two.
         #
         # The hard blacklist used to be an unconditional veto on 16 classes
