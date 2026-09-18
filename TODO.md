@@ -1450,6 +1450,175 @@ Resultado exportado: Stadslager 3, Gränsbestämt område 0, 10.000 pines.
 
 ---
 
+## 15. El pipeline lee Neon, los assets versionados y el basemap (2026-09-18)
+
+Tres cosas que salieron de la misma conversación. La primera ya está hecha
+(Franco la implementó), y lo que queda de ella son sus dos consecuencias; las
+otras dos son trabajo.
+
+### 15a. El pipeline ahora pullea Neon antes de correr
+
+`crawl_contributions.py` trae los cambios del log antes de scorear, así que si
+alguien puntúa o verifica un sitio, eso pesa en el score y en los tiles. Es lo
+que se quería. Tiene dos consecuencias que conviene anotar ahora y no
+descubrir en seis meses:
+
+- [ ] **el score dejó de ser reproducible, y hay que volverlo auditable.**
+      Antes, mismos inputs → mismo output; ahora depende de un estado remoto
+      que cambia solo, así que dos corridas del mismo commit dan resultados
+      distintos y *"¿por qué este sitio bajó?"* no tiene respuesta. Se arregla
+      guardando **con el export el `seq` del log con el que se generó** — y
+      ese número es además el que las secciones 11 y 12 ya piden como número
+      de generación, así que no es trabajo extra sino el mismo trabajo
+- [ ] **medir el lazo de retroalimentación.** Un sitio bien puntuado sube,
+      entra en los 10.000, se vuelve visible, lo visita más gente, lo puntúa
+      más gente. Los que quedaron afuera no reciben nunca una valoración, no
+      por ser peores sino porque nadie los vio. Con un solo usuario no se
+      nota; con tráfico, el ranking se congela alrededor de lo que ya estaba
+      arriba. Lo accionable es chico: que el export imprima **cuántos de los
+      10.000 se movieron por datos de usuario** y cuántos entraron o salieron
+      por eso. Si ese número crece, el problema es el score, no la red
+
+### 15b. Las descripciones no son una etapa del pipeline
+
+Franco propuso que `run_pipeline.sh` corra también generación y traducción,
+para correr una cosa por semana. **No.** El pipeline corre en cuatro minutos;
+la generación son 10 a 14 horas de modelo local. Meterla como etapa 10 no la
+automatiza: convierte "correr el pipeline" en algo que nadie corre casualmente,
+y eso —que sea barato correrlo entero— es lo mejor que tiene hoy. `paths.py` ya
+lo dice: `generated.sqlite` es `EXPENSIVE`, "derivado en principio, caché en
+práctica". El pipeline lo **consume**.
+
+Lo que falta es el lazo que hoy no existe:
+
+- [ ] **que el pipeline avise de lo que le falta.** Al terminar, cuántos de
+      los 10.000 exportados no tienen descripción (hoy son ~2.873, y ese
+      número lo sabemos porque se midió a mano) y cuál es el comando para
+      cerrarlos. Un pipeline que no avisa es uno que te deja publicar un
+      export peor que el anterior sin que nadie se entere
+- [ ] cuando haya una máquina que corra esto sola: la generación es **un job
+      aparte con su propio horario**, que al terminar deja un `generated.sqlite`
+      nuevo y recién entonces dispara un export. Semanal el pipeline, mensual
+      la generación
+
+### 15c. Qué hay en el teléfono, medido (corrige lo que se dijo antes)
+
+**En el teléfono no hay vector tiles en absoluto.** MapLibre tilea el GeoJSON
+él mismo, así que los puntos funcionan offline gratis y es el cliente —no un
+build step— el que decide qué se dibuja en cada zoom. Los 17.985 `.pbf` de
+`franco-may/public/tiles` son del mapa web y no tienen nada que ver con la app.
+Lo que está en SQLite son las descripciones. Son cuatro archivos, 14,6 MB:
+
+| archivo | tamaño | qué es |
+|---|---|---|
+| `descriptions.en.db` | 6,10 MB | SQLite |
+| `descriptions.sv.db` | 6,07 MB | SQLite |
+| `points.geojson` | 2,63 MB | los 10.000 puntos |
+| `basemap-style.json` | 43 KB | el estilo del mapa |
+
+Tres archivos independientes, cada uno versionable por separado — que es mejor
+punto de partida que una pirámide de tiles. El mecanismo está casi entero:
+`ASSET_VERSION` es un hash de los datos y `descriptions.{lang}.version` es el
+stamp con el que la app decide si recopia. Mover a storage es **cambiar de
+dónde viene el archivo, no inventar el mecanismo**. Dos cosas que hay que
+romper o definir en el camino, y que se suman a las cuatro tareas del final de
+la sección 12:
+
+- [ ] **versionar por archivo y no con un hash global.** Hoy `ASSET_VERSION`
+      es un hash para todo: si regenerás descripciones y el score no se movió,
+      el teléfono igual recopia los 12 MB de las dos bases *y* el GeoJSON.
+      (Es el mismo item que la sección 12 pide como número monótono, visto
+      desde el otro lado: no alcanza con que sea monótono, tiene que ser uno
+      por archivo)
+- [ ] **los archivos son inmutables y el manifiesto es lo único mutable.**
+      `datasets/2026-09-18/descriptions.sv.db` + un `manifest.json` de 200 B
+      que apunta a la versión vigente con su tamaño y su hash. Si se
+      sobreescribe un archivo en su lugar, un teléfono que estaba bajando la
+      versión vieja cuando subiste la nueva se queda con **la primera mitad de
+      una y la segunda de otra**: un SQLite cosido que no falla al abrir, falla
+      al leer una fila, tres días después, sin señal. Con nombres versionados
+      eso es imposible por construcción, y además se vuelve atrás cambiando
+      una línea
+
+Y el orden por valor, cuando se haga: **las descripciones primero**, y no por
+tamaño sino porque hoy **cada instalación se lleva los dos idiomas** — 12,2 MB
+de los 14,6, y la mitad no se usa nunca. Bajando sólo el idioma de la interfaz
+son ~12 MB menos de APK, y son además el archivo que más cambia: hoy corregir
+una descripción mal generada exige publicar en Play Store y esperar la
+revisión, para un dato que se regenera en cuatro minutos. `points.geojson` se
+queda bundleado igual: 2,6 MB, es lo que el mapa necesita en el primer frame, y
+es la diferencia entre abrir la app en el auto sin señal y ver pines o ver nada.
+
+Sobre **dónde** (la decisión de plata que la sección 12 ya deja abierta): el
+egress es el costo entero acá, porque cada instalación baja decenas de MB.
+R2 no cobra egress; Vercel Blob sí. Eso es lo que hay que comparar, no el
+precio por GB guardado.
+
+### 15d. El basemap
+
+**`basemap-style.json` ya vive en el build, y tiene que seguir ahí.**
+`sync-assets.sh` lo baja con `curl` en cada build por una razón medida, no por
+optimización: si `mapStyle` apunta a una URL, sin red MapLibre no tiene estilo,
+así que no tiene dónde colgar nuestras capas y **los 10.000 puntos tampoco
+renderizan** — probado en un emulador sin DNS, pantalla en blanco. Es el único
+de los cuatro archivos que **no** es candidato a storage.
+
+**Sí se puede tematizar, y tener el estilo local es exactamente lo que lo
+permite.** Son 111 capas (67 `line`, 25 `symbol`, 16 `fill`, `background`,
+`raster`, `fill-extrusion`). Dos restricciones antes de tocar nada:
+
+- **editarlo a mano no sirve.** `sync-assets.sh` lo vuelve a bajar con `curl`
+  en cada build y `assets/data` no está en git, así que cualquier cambio a mano
+  se pierde sin aviso. Tiene que ser un **transform determinístico aplicado
+  después del `curl`**, en el mismo script, junto a los asserts que ya están
+- **el basemap tiene que ir hacia MÁS neutro, no hacia más marca.** El tema ya
+  dice la regla: *"el mapa es la interfaz, las superficies se retiran y el
+  color se gasta sólo donde significa algo"*. `accent` (#B4451F, röd ockra) es
+  el color de los pines y del estado seleccionado; si el basemap se vuelve
+  cálido u ocre, los pines dejan de destacar y se pierde lo único que importa.
+  Un basemap tematizado es uno desaturado
+
+- [ ] **el transform del estilo**, en `sync-assets.sh`. Lo concreto que
+      choca hoy: `water` es `rgb(158,189,255)`, un azul saturado que no está en
+      la paleta (iría a un `active`/bronspatina apagado), y `park`/
+      `landcover_wood`/`landcover_grass` son verdes saturados que quieren ser
+      `lichen`/`chip`. `background` ya es `#f8f4f0`, a un pelo de `paper`
+      (#FAF6EF)
+- [ ] **`background` a `paper` es la mejor relación de todas y va primero.**
+      Es el color que se ve **offline**, cuando no hay tiles: hoy el mapa vacío
+      es un gris que parece un error, y con `paper` el offline se ve
+      deliberado. Una línea, y es el único cambio de estilo que se nota en el
+      caso que la app promete
+- el `sprite` y los `glyphs` del estilo son URLs remotas
+      (`tiles.openfreemap.org`), así que offline las etiquetas están en blanco
+      igual. El transform no debe depender de nada remoto nuevo
+
+### 15e. El agujero real de "funciona offline"
+
+**El basemap viene de OpenFreeMap por red.** Offline tenés tus puntos y tus
+descripciones flotando sobre un fondo plano: sin caminos, sin costa, sin lagos.
+Para una app cuyo caso de uso es estar parado en un campo sin señal, eso es más
+grave que los 12 MB de las descripciones. No es para ahora —un basemap regional
+offline son cientos de MB y es otra decisión de plata— pero mientras no esté,
+"funciona offline" quiere decir *los puntos* funcionan offline, y el texto de la
+app no debería prometer más que eso.
+
+### 15f. El pull incremental del móvil: ya existe
+
+Anotado porque se preguntó. `sync.ts` pushea la cola y pullea con **cursor por
+`seq` del servidor** (no por timestamp: el reloj lo controla el usuario, y uno
+adelantado se saltea eventos para siempre). Corre al abrir la app y cada vez que
+vuelve al foreground, con un piso de 24 h entre pulls, y **no hay background
+task a propósito** — la app se abre justo antes de visitar un lugar, que es
+cuando el dato fresco importa y cuando hay señal.
+
+Lo que sincroniza es **el log de eventos, no los assets**. Son dos canales
+distintos y está bien que lo sean: un delta de eventos y un snapshot versionado
+son cosas diferentes. Hoy los assets llegan por Play Store, y eso es lo que las
+secciones 11, 12 y 15c cambian.
+
+---
+
 ## Decisiones tomadas, que no viven en ningún archivo
 
 Lo de acá NO es trabajo pendiente: son las decisiones y los hallazgos de datos
