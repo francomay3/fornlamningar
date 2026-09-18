@@ -1709,6 +1709,27 @@ documentación, sólo de otra clase.
       más valioso que este proyecto puede recibir, y sólo sirve si no se
       gastó en entrenar
 
+### El tope por clase: diferido hasta ver el mapa (2026-09-18)
+
+Franco: *"por ahora sin tope por clase... vemos como queda en el mapa cuando
+todo termine"*. Correcto en el orden — es un juicio visual y todavía no hay
+mapa que mirar. Los números, para no re-derivarlos:
+
+Con la documentación centrada por clase y el corte en 6.000, `Runristning`
+queda en **13,33% del export (800 pines)**. A igual corte de 10.000 el
+centrado la había bajado de 12,32% a 8,22%; el corte más chico la vuelve a
+concentrar, porque las rúnicas están arriba del ranking. Los dos cambios
+tiran para lados opuestos en esto.
+
+- [ ] **si al mirarlo hay demasiadas rúnicas, un tope por clase en
+      `build_tiles.py`** — "ninguna clase más del X% del export". Con 8% las
+      rúnicas pasarían de 800 a 480 y entrarían ~320 lugares de otras clases.
+      Va **afuera del score** a propósito: es una restricción de producto
+      (variedad), no una afirmación sobre si el lugar es bueno, y metida
+      adentro daría un número que significa dos cosas y que nadie podría
+      depurar cuando algo salga raro. Se aplica con un `--from tiles`, que son
+      minutos y no re-genera texto
+
 ### La decisión que queda, ahora con números
 
 - [ ] **¿se publica `intrinsic` o `full`?** Con el arreglo del double-counting,
