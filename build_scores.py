@@ -633,6 +633,49 @@ def main():
     for n_, v in top:
         print(f"    {n_:<18}{v:+.3f}")
 
+    # score_full: ONE fit over every feature, not the intrinsic fit plus a
+    # sum of log-lifts on top.
+    #
+    # The comment above says lift double-counts correlated features and that
+    # it is therefore no longer shippable. That reasoning was applied to
+    # score_intrinsic and then not to score_full, which kept being computed as
+    # `intrinsic + score_of(LABEL_DERIVED, lw)` -- a naive-Bayes sum over six
+    # features that are largely one latent variable. Measured over all 251,029
+    # clusters on 2026-09-18: has_sitelinks correlates 0.79 with has_commons,
+    # 0.72 with has_image and 0.66 with views_gt_100, and views_gt_100/1000 are
+    # nested inside has_sitelinks by construction. Adding their lifts credits
+    # "this place is documented" about four times.
+    #
+    # THE ANSWER IS NOT TO DROP THEM. Franco's point, and he is right: these
+    # are good predictors and non-independence is a thing to MODEL, not a
+    # reason to throw information away. A logistic fit is exactly the estimator
+    # that handles it -- with L2 it partials out the shared variance and gives
+    # each feature its marginal contribution given the others, so a block of
+    # five near-copies gets one block's worth of weight instead of five.
+    #
+    # And the correlation matrix says not all of them are the same block:
+    # osm_arch_le_100 correlates only 0.10 with has_sitelinks, so OSM mappers
+    # and Wikipedia editors are largely marking DIFFERENT places. That is real
+    # independent evidence, and the old formula was drowning it in four copies
+    # of Wikipedia.
+    #
+    # What this does NOT fix is leakage: the positives are largely
+    # Wikidata-derived, so any model holding has_sitelinks will predict them
+    # well without having learned anything about visit-worthiness. That is why
+    # the per-source AUCs below matter more than the headline one, and why the
+    # two to read are the label sets NOT drawn from these fields -- "county,
+    # excluding wikidata" and "hand".
+    feats_full = {**feats, **LABEL_DERIVED}
+    print("\nfitting logistic regression (score_full, with documentation)...")
+    lr_full = fit_logistic(fit_rows, feats_full, cw, kw, desc,
+                           pos_all, neg_all, train, seed=args.seed, cont=cont)
+    w_full, b_full, mu_full, sd_full, names_full = lr_full
+    doc_w = sorted(((n, v) for n, v in zip(names_full, w_full)
+                    if n in LABEL_DERIVED), key=lambda x: -abs(x[1]))
+    print("  documentation weights, marginal (compare with the lifts above):")
+    for n_, v in doc_w:
+        print(f"    {n_:<18}{v:+.3f}   (lift weight was {lw.get(n_, 0.0):+.2f})")
+
     def full_score(r):
         return (score_of(r, feats, weights)
                 + cw.get(r["dominant_class"] or "?", 0.0)
@@ -710,6 +753,36 @@ def main():
     auc_for(by_src.get("county", set()) - wd, "county, excluding wikidata")
     auc_for(by_src.get("hand", set()) - wd, "hand, excluding wikidata")
 
+    # The same table for score_full, which is the only way to answer "does
+    # crediting documentation actually help?" honestly.
+    #
+    # Read the LAST TWO ROWS and not the first. A label set drawn from
+    # Wikidata cannot say whether has_sitelinks is a good feature -- it is the
+    # label wearing a different hat, and the number will be near 1 whatever
+    # the model does. "county, excluding wikidata" and "hand" are the two
+    # sources with no overlap with these fields, so they are the two that can
+    # tell an improvement from an echo.
+    Xef, _ = build_matrix(eval_rows, feats_full, cw, kw, desc, cont)
+    pef = LR.predict((Xef - mu_full) / sd_full, w_full, b_full)
+    print("\n  score_full, the same definitions (read the last two):")
+
+    def auc_full(subset, label):
+        if len(subset) < 20:
+            return
+        sc = [(float(pef[i]), int(r["cluster_id"] in subset))
+              for i, r in enumerate(eval_rows)]
+        base = [(float(pe[i]), int(r["cluster_id"] in subset))
+                for i, r in enumerate(eval_rows)]
+        a_f, a_i = auc(sc), auc(base)
+        print(f"    {label:<34} n={len(subset):>5}   AUC {a_f:.4f}   "
+              f"intrinsic {a_i:.4f}   {a_f - a_i:+.4f}")
+
+    auc_full(test, "held-out positives (all sources)")
+    for src, subset in sorted(by_src.items(), key=lambda x: -len(x[1])):
+        auc_full(subset, src)
+    auc_full(by_src.get("county", set()) - wd, "county, excluding wikidata")
+    auc_full(by_src.get("hand", set()) - wd, "hand, excluding wikidata")
+
     # --- write scores ------------------------------------------------------ #
     conn.execute("DROP TABLE IF EXISTS scores")
     conn.execute("""
@@ -777,6 +850,8 @@ def main():
 
     Xa, _ = build_matrix(rows, feats, cw, kw, desc, cont)
     lr_all = LR.predict((Xa - mu) / sd, w_lr, b_lr)
+    Xaf, _ = build_matrix(rows, feats_full, cw, kw, desc, cont)
+    lr_full_all = LR.predict((Xaf - mu_full) / sd_full, w_full, b_full)
 
     out = []
     for i, r in enumerate(rows):
@@ -789,7 +864,7 @@ def main():
         # x10 only to put the probability on a readable 0-10 scale. Nothing
         # downstream depends on the magnitude, only on the ordering.
         intrinsic = float(lr_all[i]) * 10.0
-        full = intrinsic + score_of(r, LABEL_DERIVED, lw)
+        full = float(lr_full_all[i]) * 10.0
         # ONE exclusion rule now, not two.
         #
         # The hard blacklist used to be an unconditional veto on 16 classes
