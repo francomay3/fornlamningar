@@ -642,6 +642,77 @@ def from_plans(out):
     return n
 
 
+def from_contributions(out, cl):
+    """Visitor text from the app's own log, as a source the model can read.
+
+    This is the only source in the corpus written by a person who STOOD there.
+    Everything else -- the register, Wikipedia, a county plan -- is somebody
+    writing about the place from a desk, which is what makes a description
+    generated from them read like a catalogue entry. "The gate is usually
+    locked, park by the church" is not in any document and is the most useful
+    sentence a visitor can be told.
+
+    It needs no staleness machinery of its own. `build_descriptions.py` keys a
+    description on `source_hash`, a hash of exactly what the model was shown,
+    and a place's sources are part of that payload -- so a new comment changes
+    the hash, the row goes stale, and the next generation run rewrites it. The
+    English column is a second pass over the Swedish text, so it follows. That
+    is the whole mechanism, and it already existed; this function is the only
+    new part.
+
+    ROWS CARRYING AN EXPLICIT `source` ARE SKIPPED. A comment written in the
+    app has no `source` field; anything bulk-loaded from somewhere else is
+    expected to say where it came from, and does not get read to the model.
+    The reason is licensing and not provenance-for-its-own-sake: every other
+    kind in this table has a licence in the row beside it -- CC0, CC BY-SA,
+    CC BY -- and text we cannot licence is text we cannot republish. A
+    generated description is not a quote either, so passing unlicensed prose
+    to the model is worse than quoting it: the attribution cannot survive the
+    paraphrase, and what ships carries our name.
+
+    Decided with Franco on 2026-09-18, after this filter had excluded all
+    1,461 comments then in the log: he re-tagged them as his own
+    contributions, which is his call to make about his own text, and they are
+    read from here now. The filter stays for the next bulk import, which is
+    the case it was written for.
+
+    MODERATION IS THE OPEN EDGE, and it is worth knowing before this carries
+    real traffic. Hiding a comment emits `comment_removed`, which stops it
+    being SERVED -- but a description already generated from it keeps the
+    sentence. Removing text from the corpus does not unwrite the paragraph it
+    fed. Today that is theoretical: there are no organic comments. Before
+    there are many, generation has to either wait for a comment to be
+    moderated or be re-run when one is removed.
+    """
+    if not os.path.exists(paths.CONTRIBUTIONS):
+        return 0
+    src = sqlite3.connect(paths.ro(paths.CONTRIBUTIONS), uri=True)
+    src.row_factory = sqlite3.Row
+    rows = src.execute("""
+        SELECT place_uuid, author, payload, server_ts
+          FROM events
+         WHERE kind = 'comment'
+           AND json_extract(payload, '$.source') IS NULL
+         ORDER BY seq
+    """).fetchall()
+    src.close()
+
+    n = 0
+    for r in rows:
+        cid = cl.get(r["place_uuid"])
+        if not cid:
+            continue
+        body = " ".join(json.loads(r["payload"]).get("body", "").split())
+        if not body:
+            continue
+        # No author, no url. The device id is a write credential and must not
+        # be stored beside text that gets exported; the salted public id is
+        # not useful to a reader either. A visitor comment is anonymous here.
+        n += add(out, cid, "user_comment", body, lang="sv",
+                 publisher="Fornkoll", fetched_at=r["server_ts"])
+    return n
+
+
 def status(out):
     print("sources by kind:")
     for kind, n, cl, use in out.execute("""
@@ -709,6 +780,9 @@ def main():
     n = from_plans(out)
     out.commit()
     print(f"  county_plan: {n:,} rows offered")
+    n = from_contributions(out, cl)
+    out.commit()
+    print(f"  user_comment:{n:,} rows offered")
     prune(out, os.path.abspath(args.sites_db))
     print()
     status(out)

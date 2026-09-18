@@ -160,6 +160,30 @@ CANDIDATE_FEATURES = {
                                and r["dist_to_dig_m"] <= 500),
 }
 
+# Somebody has been there and said so.
+#
+# IN score_intrinsic, deliberately, and it is the only "this place is known"
+# evidence that belongs there. The exclusion argued for in LABEL_DERIVED below
+# rests on circularity -- Wikipedia and OSM credit the same famous places the
+# labels are drawn from -- and a visitor is not an editor. The observation is
+# independent of the documentation, so it can raise a place's score without
+# teaching the model to rank documentation.
+#
+# It is also the first feature here that MOVES A SPECIFIC PLACE for a reason
+# that came from a person. Everything else is measured off the register and
+# OSM; this is the only input a user can change by going somewhere.
+#
+# Two thresholds because agreement is worth more than a single report, and
+# because the weights are measured: if the second visitor adds nothing, the
+# fit will say so rather than us assuming it.
+VISITOR_FEATURES = {
+    "visited":         lambda r: (r["visitors_n"] or 0) > 0,
+    "visited_2plus":   lambda r: (r["visitors_n"] or 0) > 1,
+    # Someone wrote something about it standing there, which is a stronger
+    # claim than having ticked a box.
+    "visitor_text":    lambda r: bool(r["visitor_text"]),
+}
+
 NOTABILITY_FEATURES = {
     "has_name":        lambda r: bool(r["has_name"]),
     "desc_gt_300":     lambda r: (r["best_description_len"] or 0) > 300,
@@ -191,6 +215,18 @@ LABEL_DERIVED = {
     "has_commons":      lambda r: bool(r["has_commons"]),
     "osm_arch_le_100":  lambda r: (r["dist_to_osm_arch_m"] is not None
                                    and r["dist_to_osm_arch_m"] <= 100),
+    # "A source mentions this place", which could not be a feature at all
+    # until build_sources.py was moved ahead of build_signals.py: the corpus
+    # was built after the scoring that wanted to read it.
+    #
+    # HERE and not in the intrinsic set, for the reason this whole dict
+    # exists. A county plan or a Wikipedia article is somebody having written
+    # about a place, so crediting it ranks the documented above the
+    # undocumented -- which is true, useful, and exactly the circularity
+    # score_intrinsic exists to avoid. Both scores are emitted; which one
+    # ships is a product decision, not this file's.
+    "doc_2plus":        lambda r: (r["doc_sources_n"] or 0) > 1,
+    "doc_3plus":        lambda r: (r["doc_sources_n"] or 0) > 2,
 }
 
 # Per-class weight smoothing. A class with few clusters cannot support a strong
@@ -526,7 +562,7 @@ def main():
     print(f"  train positives {len(train):,}   test positives {len(test):,}\n")
 
     feats = {**ACCESS_FEATURES, **ACCESS2_FEATURES,
-             **SIZE_FEATURES, **NOTABILITY_FEATURES}
+             **SIZE_FEATURES, **NOTABILITY_FEATURES, **VISITOR_FEATURES}
     drop = set()
     for g in args.without:
         if g == "candidates":
@@ -658,7 +694,17 @@ def main():
             return
         sc = [(float(pe[i]), int(r["cluster_id"] in subset))
               for i, r in enumerate(eval_rows)]
-        print(f"    {label:<34} n={len(subset):>5}   AUC {auc(sc):.4f}")
+        # A label source drawn from the SAME places a feature marks cannot
+        # validate that feature, and the number it produces is not a weak
+        # result -- it is a meaningless one that looks like an excellent one.
+        # Measured on 2026-09-18, the first run with VISITOR_FEATURES: the
+        # contribution labels scored AUC 0.9993, because every place Franco
+        # rated is a place he had also confirmed a visit to, so `visited` and
+        # `visitor_text` hand the model the answer. Said out loud here rather
+        # than left for somebody to celebrate.
+        echo = " <- reads its own feature, not a validation" if (
+            label.startswith("user:")) else ""
+        print(f"    {label:<34} n={len(subset):>5}   AUC {auc(sc):.4f}{echo}")
     for src, subset in sorted(by_src.items(), key=lambda x: -len(x[1])):
         auc_for(subset, src)
     auc_for(by_src.get("county", set()) - wd, "county, excluding wikidata")

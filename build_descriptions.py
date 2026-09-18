@@ -226,9 +226,21 @@ def eligible(sites, limit, include_empty, near=None, top=None):
         # A place whose only text is the register's generic disclaimer has
         # nothing to rewrite. Asking anyway wastes seconds per place and
         # invites the model to fill the silence.
-        where += ["c.best_description IS NOT NULL",
-                  "length(c.best_description) > 40",
-                  "COALESCE(c.all_boilerplate, 0) = 0"]
+        #
+        # UNLESS A VISITOR WROTE SOMETHING, which is the exception and not a
+        # detail: measured on 2026-09-18, 89 places in the exported ten
+        # thousand had a visitor comment and were skipped here because their
+        # REGISTER text was boilerplate. Those are precisely the places where
+        # the comment is the only thing anyone has ever written -- the case
+        # where it carries the most and the only case where this test got it
+        # exactly backwards. The silence the comment fills is real text.
+        where += ["""(
+            (c.best_description IS NOT NULL
+             AND length(c.best_description) > 40
+             AND COALESCE(c.all_boilerplate, 0) = 0)
+            OR c.cluster_id IN (SELECT cluster_id FROM signals
+                                 WHERE visitor_text = 1)
+        )"""]
     # Applied as a subquery so `near` sorts within the exported set rather
     # than the whole country.
     pool = ""

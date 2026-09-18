@@ -177,6 +177,132 @@ CREATE INDEX idx_lab_label    ON labels(label);
 """
 
 
+
+def load_contributions(conn):
+    """Turn the app's contribution log into labels.
+
+    The log is the only input to this pipeline that is not documentation. Every
+    other positive here -- Wikidata sitelinks, a Commons photograph, a county
+    plan -- exists because somebody WROTE about a place, which is why the note
+    at the top of this file calls the 1:832 ratio the model's central flaw:
+    with nothing else to contrast against, "worth visiting" can only be learned
+    as "documented". A person standing at the place and answering is a
+    different kind of evidence, and it is the kind this fit has never had.
+
+    ONE ROW PER (place, author). The primary key of `labels` is (uuid, source)
+    and the source here is the account, so two people who answer about the same
+    place produce two rows rather than overwriting each other. That is
+    deliberate: "two independent visitors agree" is a rule the app wants to be
+    able to count, and collapsing them to one row would make it uncountable.
+
+    THE LATEST EVENT WINS, per (place, author, kind). `rating`, `presence` and
+    `sign` are coalescing kinds in the app -- a second answer replaces the
+    first -- so reading all of them and taking the newest is what reproduces
+    what the phone shows. Reading them all and summing would count one person
+    changing their mind as two observations.
+
+    HOW A RATING BECOMES A LABEL. `label` is interest and `weight` is
+    confidence in the observation, as everywhere else in this table:
+
+      stars 1..5   ->  label (stars-1)/4, so 1* is 0.0 and 5* is 1.0. The same
+                       scale the hand labels use, which is what makes them
+                       comparable.
+      not_found    ->  label 0.0. This is the strongest negative any source in
+                       this pipeline produces: somebody went and there was
+                       nothing to see. The register's `Förstörd` is a document
+                       saying so; this is a person saying so.
+      presence only -> label 0.5, weight 0.33. Being there says the place can
+                       be found, which is half of what this pipeline ranks for,
+                       and says nothing at all about whether it was worth it.
+                       A neutral interest at the lowest confidence says exactly
+                       that and no more.
+      been=false with a recorded visit -> label 0.0. The app's own schema calls
+                       this the strongest negative it can collect: somebody
+                       walked within fifty metres and never saw the place.
+
+    WEIGHT IS 1.0 FOR EVERY ANSWER. The account holder's own contributions
+    are the most authoritative thing in this table and are weighted as such;
+    there is no discount for how they were entered. The one exception is
+    below and is not about provenance: a `presence` with no rating beside it
+    carries no opinion to weight, so it goes in at the lowest confidence.
+    """
+    if not os.path.exists(paths.CONTRIBUTIONS):
+        return
+    src = sqlite3.connect(paths.ro(paths.CONTRIBUTIONS), uri=True)
+    # Latest event per (place, author, kind). seq is the server's commit order,
+    # so it is the only ordering that is the same for every reader.
+    rows = src.execute("""
+        SELECT e.place_uuid, e.author, e.kind, e.payload
+        FROM events e
+        JOIN (SELECT place_uuid, author, kind, MAX(seq) AS seq
+              FROM events WHERE kind IN ('rating','presence')
+              GROUP BY place_uuid, author, kind) m
+          ON m.place_uuid = e.place_uuid AND m.author = e.author
+         AND m.kind = e.kind AND m.seq = e.seq
+    """).fetchall()
+    src.close()
+    if not rows:
+        return
+
+    per = {}
+    for place, author, kind, payload in rows:
+        try:
+            p = json.loads(payload)
+        except json.JSONDecodeError:
+            continue
+        per.setdefault((place, author), {})[kind] = p
+
+    out = []
+    for (place, author), ev in per.items():
+        r, pres = ev.get("rating"), ev.get("presence")
+        # The app's place id is the representative site's uuid, which is also
+        # the key of this table -- see build_places.py's `features.uuid`. A
+        # place that is not in `sites` is one this pipeline has never seen,
+        # which happens if the register moved under us; skip rather than
+        # invent a row that nothing will ever join to.
+        if not conn.execute("SELECT 1 FROM sites WHERE uuid=?",
+                            (place,)).fetchone():
+            continue
+        w = 1.0
+        label = note = None
+        if r and r.get("not_found"):
+            label, note = 0.0, "not_found"
+        elif r and r.get("stars") is not None:
+            label = (float(r["stars"]) - 1.0) / 4.0
+            note = f"{r['stars']}*"
+        elif pres and pres.get("been") is False and pres.get("had_visit"):
+            label, note = 0.0, "been=false with a visit"
+        # A CONFIRMED VISIT IS NO LONGER A LABEL. It used to come in here as
+        # interest 0.5 at confidence 0.33, and that was the wrong place for
+        # it: a label shapes the fitted weights globally and does nothing to
+        # the score of the place visited, so confirming that a site exists
+        # moved it not at all. It is now a FEATURE -- see
+        # build_signals.visitor_signals and build_scores.VISITOR_FEATURES --
+        # which is what makes going somewhere change that place's ranking.
+        #
+        # It also has to leave from here to go there. With presence as both a
+        # feature and a label, the fit would be learning that presence
+        # predicts presence: a higher reported AUC measuring nothing.
+        #
+        # The NEGATIVE above stays a label, and the asymmetry is deliberate.
+        # "I stood within fifty metres and saw nothing" is a judgement about
+        # whether the place is worth anyone's time, which is what labels
+        # measure -- not a confirmation of existence, which is what the
+        # feature measures. It is also the scarcest evidence in this fit.
+        if label is None:
+            continue
+        out.append((place, f"user:{author}", label, w, "contribution", note))
+    if out:
+        with conn:
+            conn.executemany(
+                "INSERT OR REPLACE INTO labels "
+                "(uuid,source,label,weight,confidence,note) VALUES (?,?,?,?,?,?)",
+                out)
+        pos = sum(1 for o in out if o[2] > 0)
+        print(f"contributions loaded: {len(out):,} labels "
+              f"({pos:,} positive, {len(out) - pos:,} negative)")
+
+
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--db", default=DB)
@@ -460,6 +586,8 @@ def main():
                 "VALUES (?,?,?,?,?,?)", rows)
         print(f"register negatives loaded: {len(rows):,} sites "
               f"destroyed or never confirmed in the field")
+
+    load_contributions(conn)
 
     conn.executescript(INDEXES)
     conn.commit()

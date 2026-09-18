@@ -284,3 +284,27 @@ src/data/images/
 # one pass. NOT under franco-may/public: the web build reads the Swedish
 # shards over HTTP, and putting these there would deploy 61 MB nobody fetches.
 src/data/shards/
+
+# The app's contribution log, mirrored by crawl_contributions.py. NOT a public
+# dataset -- it is what people who used the app told us, keyed by device id --
+# so unlike every other RAW input here it must never be committed. It was
+# untracked-but-not-ignored until 2026-09-18, which is one `git add .` away
+# from publishing it.
+src/data/contributions.sqlite
+
+# Natural Earth land and lakes, for the app's offline basemap. RAW: downloaded,
+# never edited, and re-fetched by scripts/build_offline_basemap.py when absent.
+src/data/ne/
+
+# Progress bookkeeping for a run in flight; see pipeline_progress.py.
+src/data/pipeline_state.json
+src/data/pipeline_state.json.tmp
+src/data/pipeline_samples.jsonl
+src/data/pipeline_run.log
+
+# Frozen payloads, one directory per generation. Tens of megabytes each and
+# reproducible from the run that made them. `src/data/generation` -- the
+# counter -- IS tracked, deliberately: it has to stay monotonic across a
+# machine rebuild, and a reissued generation number is a phone refusing an
+# upgrade it should have taken. See make_release.py.
+src/data/releases/

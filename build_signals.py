@@ -378,7 +378,13 @@ CREATE TABLE signals (
     wiki_views_12m INTEGER,
     neighbors_1km INTEGER,
     spatial_checked_at TEXT,
-    wikidata_checked_at TEXT
+    wikidata_checked_at TEXT,
+    -- Evidence from people, not from documents. See visitor_signals().
+    visitors_n INTEGER,
+    visitor_text INTEGER,
+    -- Count of DOCUMENTARY source kinds, from places.sqlite. See
+    -- doc_source_counts(); consumed only by score_full.
+    doc_sources_n INTEGER
 );
 """
 INDEXES = """
@@ -388,6 +394,99 @@ CREATE INDEX idx_sig_board ON signals(dist_to_board_m);
 CREATE INDEX idx_sig_name  ON signals(has_name);
 CREATE INDEX idx_sig_views ON signals(wiki_views_12m DESC);
 """
+
+
+# Source kinds that are somebody having WRITTEN about a place. `register` is
+# excluded because every cluster has one by definition, so counting it would
+# produce a constant. `user_comment` is excluded for the opposite reason: it is
+# not documentation, and it is counted separately as visitor_text.
+DOC_KINDS = ("wikipedia", "county_page", "county_pdf", "county_plan",
+             "county_programme", "county_attr", "tradition",
+             "register_parts", "sign_ocr")
+
+
+def visitor_signals(conn):
+    """Who has actually been there, from the app's contribution log.
+
+    WHY THIS IS A SIGNAL AND NOT A LABEL, which is the whole point of it.
+    Until now a visit entered through build_labels.py as a training label, so
+    it taught the model what visit-worthiness correlates with GLOBALLY and did
+    nothing at all to the score of the place visited. Franco's own note in
+    build_labels.py had already identified why that matters -- "a person
+    standing at the place and answering is a different kind of evidence, and
+    it is the kind this fit has never had" -- and then the evidence was spent
+    on the weights instead of on the place.
+
+    It also belongs in score_intrinsic, unlike everything else that credits a
+    place for being known. The argument in build_scores.LABEL_DERIVED is that
+    Wikipedia and OSM presence "reflects OSM mappers and Wikipedia editors
+    documenting the same famous places, which is the same circularity as the
+    labels themselves". A visitor is not an editor: the observation is
+    independent of the documentation the labels are drawn from, so it is the
+    one confirmation that can raise a score without closing the loop.
+
+    DISTINCT AUTHORS, not events. One person tapping "been here" on three
+    phones is one person, and the count exists so that "two independent people
+    found this" can be a stronger feature than one.
+
+    `been` FALSE IS NOT COUNTED. It is the opposite claim -- somebody stood
+    within fifty metres and saw nothing -- and it stays where it is, as a
+    verified negative label.
+    """
+    if not os.path.exists(paths.CONTRIBUTIONS):
+        return {}, {}
+    # The app's place id is the representative site's uuid, so it has to come
+    # back through site_clusters to be a cluster. A uuid with no cluster is a
+    # place this pipeline has never seen and is skipped, not invented.
+    cl = dict(conn.execute("SELECT uuid, cluster_id FROM site_clusters"))
+    src = sqlite3.connect(paths.ro(paths.CONTRIBUTIONS), uri=True)
+    seen, texts = {}, {}
+    for uuid, author, kind, payload in src.execute(
+            "SELECT place_uuid, author, kind, payload FROM events "
+            "WHERE kind IN ('presence', 'visit', 'comment')"):
+        cid = cl.get(uuid)
+        if cid is None:
+            continue
+        try:
+            d = json.loads(payload)
+        except json.JSONDecodeError:
+            continue
+        if kind == "comment":
+            if (d.get("body") or "").strip():
+                texts[cid] = 1
+        elif kind == "visit" or d.get("been") is True:
+            seen.setdefault(cid, set()).add(author)
+    src.close()
+    return {k: len(v) for k, v in seen.items()}, texts
+
+
+def doc_source_counts():
+    """How many INDEPENDENT documentary kinds mention each cluster.
+
+    Read from places.sqlite, which means build_sources.py has to run before
+    this stage -- it used to run after, which is why "a source mentions this
+    place" could not be a feature at all no matter how obviously it should be.
+
+    Kinds and not rows. Four paragraphs of the same county PDF is one source
+    having an opinion; a Wikipedia article AND a county plan AND a recorded
+    tradition is three. Counting rows would let one verbose document outweigh
+    three independent ones.
+
+    Returns empty when places.sqlite is absent, which is not an error: the
+    feature simply carries no information on that run, and build_scores reads
+    the column as 0.
+    """
+    if not os.path.exists(paths.PLACES):
+        return {}
+    src = sqlite3.connect(paths.ro(paths.PLACES), uri=True)
+    try:
+        q = ",".join("?" * len(DOC_KINDS))
+        return dict(src.execute(
+            f"SELECT cluster_id, COUNT(DISTINCT kind) FROM sources "
+            f"WHERE usable = 1 AND text <> '' AND kind IN ({q}) "
+            f"GROUP BY cluster_id", DOC_KINDS))
+    finally:
+        src.close()
 
 
 def main():
@@ -554,6 +653,20 @@ def main():
         print(f"  {len(views):,} places have a Wikipedia article "
               f"({nz:,} with any readership)")
 
+    visitors, texts = visitor_signals(conn)
+    if visitors or texts:
+        repeat = sum(1 for v in visitors.values() if v > 1)
+        print(f"  {len(visitors):,} places confirmed by a visitor "
+              f"({repeat:,} by more than one), {len(texts):,} with visitor text")
+    docs = doc_source_counts()
+    if docs:
+        multi = sum(1 for v in docs.values() if v > 1)
+        print(f"  {len(docs):,} places mentioned by a documentary source "
+              f"({multi:,} by two or more kinds)")
+    else:
+        print("  ! no places.sqlite -- doc_sources_n is 0 for every cluster, "
+              "so score_full loses that feature this run")
+
     now = time.strftime("%Y-%m-%dT%H:%M:%S")
     out = []
     t0 = time.time()
@@ -642,6 +755,9 @@ def main():
             dw, db, da, dr, dbl, dpk, ddig, dug, views.get(r["cluster_id"]),
             nb,
             now if not args.skip_spatial else None, now,
+            visitors.get(r["cluster_id"], 0),
+            texts.get(r["cluster_id"], 0),
+            docs.get(r["cluster_id"], 0),
         ))
         if i and i % 20000 == 0:
             print(f"  {i:,}/{len(rows):,}  {i/(time.time()-t0):.0f}/s")
@@ -649,7 +765,7 @@ def main():
     conn.executescript(SCHEMA)
     with conn:
         conn.executemany(
-            f"INSERT INTO signals VALUES ({','.join('?'*31)})", out)
+            f"INSERT INTO signals VALUES ({','.join('?'*34)})", out)
     conn.executescript(INDEXES)
     conn.commit()
     print(f"Wrote {len(out):,} signal rows in {time.time()-t0:.0f}s")

@@ -34,6 +34,12 @@ DATA = "src/data"
 RAA_EXPORT = os.path.join(DATA, "raa_export.gpkg")      # the RAA export
 RAA_API = os.path.join(DATA, "raa_api.sqlite")          # 311,845 API responses
 LANSSTYRELSEN = os.path.join(DATA, "lansstyrelsen.sqlite")
+
+# The app's contribution log, mirrored by crawl_contributions.py. RAW because
+# it comes from somewhere else and we never edit it -- but unlike the others
+# it is not a public dataset, so re-fetching it is only possible while the
+# service is up. It is pulled by cursor and re-readable from seq 0.
+CONTRIBUTIONS = os.path.join(DATA, "contributions.sqlite")
 WIKIMEDIA = os.path.join(DATA, "wikimedia.sqlite")
 
 # --- EXPENSIVE -------------------------------------------------------------
