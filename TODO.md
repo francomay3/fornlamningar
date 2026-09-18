@@ -1678,6 +1678,56 @@ esa tarde. Esto es lo que NO entró en ella y hay que mirar después.
 
 ---
 
+## 17. El problema de fondo: no queda un label set independiente
+
+Salió de la discusión del 2026-09-18 sobre correlación, y es el hallazgo que
+importa más que cualquiera de los arreglos de esa tarde.
+
+**Ninguna de las definiciones de "bueno" que usa este fit es independiente de
+"está documentado".** Wikidata lo es por construcción. `county` también: un
+lugar que una länsstyrelse recomienda es un lugar sobre el que alguien
+escribió. Y las 23 hand labels son pocas para validar nada.
+
+La única fuente que medía *"vale la pena ir"* con independencia de la
+documentación eran **las visitas de Franco** — y el 2026-09-18 pasaron a ser
+feature. Así que se gastó el único conjunto que podía validar, y el AUC contra
+sus labels pasó a dar 0.9993, que es la feature devolviendo la respuesta.
+
+Por eso `county excluyendo wikidata` (+0.0438 con `score_full`) es la mejor
+medición disponible **y sigue no siendo limpia**: es documentación validando
+documentación, sólo de otra clase.
+
+- [ ] **reservar una fracción de las visitas como test set.** Tomar, digamos,
+      el 20% de los lugares confirmados, poner `visitors_n`/`visitor_text` en
+      0 para ellos en la matriz de features, y usarlos sólo para validar. Es
+      barato y devuelve la capacidad de contestar "¿esto rankea bien lugares
+      que valen la pena?" sin circularidad. Hoy esa pregunta no tiene
+      respuesta medible
+- [ ] **y las visitas nuevas tienen que entrar al test set, no al train.**
+      Cuando haya usuarios, la tentación va a ser usar todo como feature. La
+      primera confirmación de un lugar que el modelo rankeó BAJO es el dato
+      más valioso que este proyecto puede recibir, y sólo sirve si no se
+      gastó en entrenar
+
+### La decisión que queda, ahora con números
+
+- [ ] **¿se publica `intrinsic` o `full`?** Con el arreglo del double-counting,
+      `full` gana en todos los label sets y **+0.0438 en el menos circular**.
+      Eso es un argumento real a favor, no el que había antes. Pero sigue en
+      pie la medición de `LABEL_DERIVED`: en los seis sitios verificados a
+      mano, el `archaeological_site` de OSM más cercano estaba a 1,2-7,4 km —
+      o sea que estas features rankean bien lo conocido y no encuentran nada.
+      Mi recomendación es **`full`**, porque con los pesos marginales ya no
+      ahoga a las features intrínsecas (la documentación entera suma ~+3.1
+      donde antes sumaba ~+30), y porque descartar información que predice no
+      se justifica por miedo a la circularidad: se justifica midiéndola aparte,
+      que es lo que el item de arriba propone. No lo cambié yo porque mueve el
+      mapa publicado y es de Franco; aplicarlo es `--score full` en
+      `build_tiles.py` y `score_full` en el `ORDER BY` de
+      `build_descriptions.eligible()`, más un `--from score` de dos minutos
+
+---
+
 ## Decisiones tomadas, que no viven en ningún archivo
 
 Lo de acá NO es trabajo pendiente: son las decisiones y los hallazgos de datos
