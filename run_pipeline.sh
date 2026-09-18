@@ -106,7 +106,6 @@ STAGES=(
   "6:signals:build_signals.py"
   "7:score:build_scores.py"
   "8:places:build_places.py"
-  "9:tiles:build_tiles.py"
   # --- the long tail. Everything above is ~4 minutes; these two are hours.
   #
   # They are here because Franco asked for "running the pipeline" to mean
@@ -117,8 +116,16 @@ STAGES=(
   #
   # Both are RESTARTABLE and skip what is already done, so an interrupted run
   # costs the place it was on and nothing else.
-  "10:descriptions:build_descriptions.py"
-  "11:translate:build_descriptions.py --translate"
+  "9:descriptions:build_descriptions.py"
+  "10:translate:build_descriptions.py --translate"
+  # THE EXPORT COMES AFTER THE TEXT, and it did not on the first attempt.
+  # build_tiles.py writes the per-shard description JSON that both the web map
+  # and -- through sync-assets.sh -- the app's SQLite bases are built from. Run
+  # before generation, as stage 9, it exported the PREVIOUS generation's text:
+  # a full run would spend fourteen hours writing descriptions and then ship
+  # the old ones, in both repos, with nothing failing. Caught by looking at
+  # what franco-may actually had in its working tree.
+  "11:tiles:build_tiles.py"
   # Assets live in the app repo, styles and all. Runs there.
   "12:assets:sync-assets.sh"
   "13:release:make_release.py"
