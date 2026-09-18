@@ -1619,6 +1619,65 @@ secciones 11, 12 y 15c cambian.
 
 ---
 
+## 16. Lo que queda de la corrida del 2026-09-18
+
+La corrida completa (etapas 1-13, con generación y traducción) quedó andando
+esa tarde. Esto es lo que NO entró en ella y hay que mirar después.
+
+- [ ] **decidir si se publica `score_intrinsic` o `score_full`.** Es de
+      Franco, porque cambia qué mapa es la app: uno que lleva a lo que ya es
+      conocido, u otro que apuesta a lo que nadie documentó. Los dos se
+      calculan y están en `scores` con su índice; `build_tiles.py --score
+      full` es una bandera. Medido el 2026-09-18: con `full` entran 83
+      lugares más de los que tienen comentario, y `doc_2plus` cubre 1.248
+      clusters. El argumento en contra sigue estando medido en
+      `LABEL_DERIVED`: en los seis sitios verificados a mano, el
+      `archaeological_site` de OSM más cercano estaba a 1,2-7,4 km
+- [ ] **`visited` puede estar midiendo popularidad de Google, no visitas.**
+      Los 1.925 lugares confirmados no son una muestra de campo: salieron de
+      un import de Google Maps, o sea que están sesgados a lo popular, que
+      correlaciona con lo documentado. Por eso la feature pesa tanto (1.907
+      de 1.925 entraron al top-10k, el 19% del mapa publicado). No está mal
+      —una confirmación es una confirmación— pero el peso medido hoy no es el
+      que va a tener cuando haya confirmaciones de lugares al azar. Vale
+      re-medirlo cuando entren las primeras cien de usuarios reales
+- [ ] **`visited_2plus` no informa nada todavía**: hay un solo autor, así que
+      la columna es 0 en los 246.842 clusters. Queda puesta a propósito, para
+      que "dos personas independientes coinciden" ya tenga dónde vivir
+- [ ] **el AUC contra los labels de contribución dejó de validar.** Da 0.9993
+      porque `visited` y `visitor_text` le entregan la respuesta: todo lugar
+      que Franco puntuó es un lugar que también confirmó. `build_scores.py` lo
+      imprime diciéndolo, pero lo correcto sería **excluir las features de
+      visitante al scorear contra ese label set**, y no está hecho
+- [ ] **los comentarios ya no dicen de dónde vienen.** Los 1.461 llevaban
+      `source: "google-import"`; el 2026-09-18 Franco los re-etiquetó como
+      contribuciones propias y sacó también la distinción de peso que
+      `build_labels.py` les hacía (eran 0.5 contra 1.0). Así que hoy esos
+      1.606 ratings cuentan como observaciones de campo de confianza plena.
+      Fue su decisión sobre su propio texto; queda anotado porque no se puede
+      deducir de los datos, que ya no lo dicen
+- [ ] **una moderación no deshace una descripción.** Ocultar un comentario
+      emite `comment_removed` y deja de servirse, pero el párrafo que se
+      generó a partir de él sigue ahí. Hoy es teórico —no hay comentarios
+      orgánicos— y hay que resolverlo antes de que haya muchos: o la
+      generación espera a que un comentario esté moderado, o se re-corre
+      cuando uno se elimina
+- [ ] **subir el release a un storage.** `make_release.py` congela el payload
+      por generación con manifiesto y sha256 y no sube nada, porque dónde se
+      hostea cuesta plata. Es la primera tarea de la sección 12 y sigue
+      abierta: R2 contra Vercel Blob, y el número que decide es el egress
+- [ ] **el basemap offline no tiene etiquetas.** Los glyphs se piden por red,
+      así que sin señal los nombres salen en blanco pase lo que pase. Costa,
+      lagos y rutas principales sí están (2,8 MB / 558 KB en el APK)
+- [ ] **dark mode del chrome de la app.** Hoy sólo el mapa tiene claro y
+      oscuro, con el selector en el menú. El tema no tiene paleta oscura y
+      `theme` se importa como constante en 20 archivos, así que hacerlo es
+      convertirlo en contexto y tocar los 20. `OfflineBasemap` tiene tres
+      colores oscuros escritos a mano por eso mismo, y son el único lugar del
+      código que no sale de `theme.ts`
+
+---
+
 ## Decisiones tomadas, que no viven en ningún archivo
 
 Lo de acá NO es trabajo pendiente: son las decisiones y los hallazgos de datos
