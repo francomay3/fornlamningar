@@ -337,16 +337,27 @@ def run_translate(sites, out, a):
                     OR translated_at < created_at)
              ORDER BY rowid""")
     }
+    # `--top` MEANS THE SAME THING HERE AS IT DOES IN GENERATION: only the
+    # places that actually ship. It used to apply on the --near path and
+    # nowhere else, so a default run translated every Swedish description in
+    # the database -- including the thousands left over from earlier exports
+    # that no longer reach a tile. Measured on 2026-09-19 with --top 6000:
+    # 5,056 rows queued, of which only 3,328 were in the export, and of the
+    # first ten translated exactly one was. Hours of model time for text
+    # nobody could open.
+    #
+    # Ordered by score within that set, for the same reason generation is:
+    # interrupt it whenever and what got done is the part of the map people
+    # are most likely to look at.
+    lat_lon = None
     if a.near:
         lat, lon = (float(x) for x in a.near.split(","))
-        order = [
-            cid
-            for cid in eligible(sites, None, a.include_empty, (lat, lon),
-                                a.top or None)
-            if cid in pending
-        ]
-    else:
-        order = list(pending)
+        lat_lon = (lat, lon)
+    order = [
+        cid
+        for cid in eligible(sites, None, a.include_empty, lat_lon, a.top or None)
+        if cid in pending
+    ]
     if a.limit:
         order = order[: int(a.limit)]
     rows = [(cid, *pending[cid]) for cid in order]
@@ -357,12 +368,23 @@ def run_translate(sites, out, a):
     print(f"{len(rows):,} to translate with {model}")
     signal.signal(signal.SIGINT, lambda *_: (stop.set(), print("\n  stopping...")))
     n, t0 = 0, time.time()
+    failed, by_err = 0, {}
     for cid, title, content in rows:
         if stop.is_set():
             break
         en, elapsed, err = dp.translate({"title": title, "content": content},
                                         model=model, host=a.host)
         if err:
+            # COUNTED AND PRINTED, not just skipped. This loop swallowed every
+            # failure in silence, so a run that was quietly failing half its
+            # requests looked exactly like a run that was slow -- which is how
+            # a dead pipeline went unnoticed for eleven hours on 2026-09-18.
+            # A skipped row is a hole in the output; it has to be visible.
+            failed += 1
+            by_err[err.split(":")[0]] = by_err.get(err.split(":")[0], 0) + 1
+            if failed <= 5 or failed % 25 == 0:
+                print(f"  ! {failed} failed so far ({err}) -- last: {cid}",
+                      flush=True)
             continue
         out.execute("""UPDATE ai_descriptions SET title_en=?, content_en=?,
                        translated_by=?, translated_at=CURRENT_TIMESTAMP
@@ -375,6 +397,11 @@ def run_translate(sites, out, a):
             print(f"  {n:,}/{len(rows):,}  {rate*60:.0f}/min  "
                   f"eta {(len(rows)-n)/rate/3600:.1f} h", flush=True)
     print(f"\n{n:,} translated in {(time.time()-t0)/60:.1f} min")
+    if failed:
+        detail = ", ".join(f"{k}: {v}" for k, v in sorted(
+            by_err.items(), key=lambda x: -x[1]))
+        print(f"{failed:,} failed and were skipped ({detail}). "
+              f"Re-run the stage to retry them.")
 
 
 def run_resolve_titles(sites, out, a):
