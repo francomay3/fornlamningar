@@ -207,11 +207,45 @@ def rate_per_s(samples: list[dict]) -> float | None:
     return grew / span
 
 
+# How long without a sample before a run is presumed dead. The sampler writes
+# every 60s for as long as run_pipeline.sh lives, whatever stage it is in, so
+# silence means the run is gone -- not that it is busy.
+STALE_S = 5 * 60
+
+
+def last_activity() -> float | None:
+    """When this run last proved it was alive."""
+    try:
+        return os.path.getmtime(SAMPLES)
+    except OSError:
+        return None
+
+
 def report() -> int:
     state = read_state()
     if not state:
         print("no run recorded. start one with ./run_pipeline.sh")
         return 1
+
+    # THE RUN IS CHECKED FOR A PULSE BEFORE ANYTHING IS REPORTED ABOUT IT.
+    #
+    # Without this the tool reads a dead run's last state and presents it as
+    # live, rate and ETA and all. That is not a cosmetic failure: on
+    # 2026-09-18 the pipeline died at 21:23 on an unhandled HTTP 500, and this
+    # command went on reporting "5.3/min, finishes around 18:39" from samples
+    # that had stopped eleven hours earlier. Franco read that and reasonably
+    # concluded the stage was slow. A monitor that cannot say "this is dead"
+    # is worse than no monitor, because it manufactures confidence.
+    seen = last_activity()
+    if seen is not None and not state.get("finished_at"):
+        silent = time.time() - seen
+        if silent > STALE_S:
+            cur = (state.get("current") or {}).get("name", "?")
+            print("!! THE RUN IS NOT ALIVE")
+            print(f"   no sign of life for {dur(silent)}, stage '{cur}'")
+            print(f"   last error, if any: tail {os.path.join(paths.DATA, 'pipeline_run.log')}")
+            print(f"   resume with: ./run_pipeline.sh --from {cur}")
+            print()
 
     now = time.time()
     started = state.get("started_at", now)

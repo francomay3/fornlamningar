@@ -464,6 +464,43 @@ def messages(model_input):
     return msgs
 
 
+def _chat(req, timeout, attempts=4):
+    """POST to the model server, returning (data, elapsed, err) and never raising.
+
+    EVERY CALLER ALREADY HANDLED `err` AND NONE OF THEM COULD RECEIVE ONE for
+    a transport failure: the urlopen sat outside the try, so only a malformed
+    JSON body produced an error string and anything else propagated. On
+    2026-09-18 a single `HTTP Error 500` from Ollama -- one request, in a run
+    of 5,635 translations -- killed the process at 21:23 and the machine sat
+    idle until morning. `run_translate` was already written to skip a failed
+    row; it simply never got the chance.
+
+    Retried with a backoff rather than skipped on the first failure, because
+    of what these errors are: a local model server returning 500 is usually
+    reloading a model or recovering from memory pressure, and it is serving
+    again seconds later. Skipping would silently leave holes in the output for
+    something that fixes itself.
+
+    A run that cannot afford to lose ten hours cannot afford to trust any
+    single request.
+    """
+    err = None
+    t0 = time.time()
+    for attempt in range(attempts):
+        try:
+            with urllib.request.urlopen(req, timeout=timeout) as resp:
+                return json.load(resp), time.time() - t0, None
+        except urllib.error.HTTPError as e:
+            err = f"HTTP {e.code}"
+        except urllib.error.URLError as e:
+            err = f"unreachable: {e.reason}"
+        except (TimeoutError, json.JSONDecodeError, OSError) as e:
+            err = f"{type(e).__name__}: {e}"
+        if attempt < attempts - 1:
+            time.sleep(2 ** attempt)
+    return None, time.time() - t0, err
+
+
 def generate(model_input, model=DEFAULT_MODEL, host=HOST, timeout=180):
     body = {
         "model": model,
@@ -482,10 +519,9 @@ def generate(model_input, model=DEFAULT_MODEL, host=HOST, timeout=180):
     req = urllib.request.Request(
         f"{host}/api/chat", data=json.dumps(body).encode(),
         headers={"Content-Type": "application/json"})
-    t0 = time.time()
-    with urllib.request.urlopen(req, timeout=timeout) as resp:
-        data = json.load(resp)
-    elapsed = time.time() - t0
+    data, elapsed, err = _chat(req, timeout)
+    if err:
+        return None, elapsed, err
     text = data.get("message", {}).get("content", "")
     try:
         parsed = json.loads(text)
@@ -523,10 +559,9 @@ def translate(sv, model=None, host=HOST, timeout=180):
     req = urllib.request.Request(
         f"{host}/api/chat", data=json.dumps(body).encode(),
         headers={"Content-Type": "application/json"})
-    t0 = time.time()
-    with urllib.request.urlopen(req, timeout=timeout) as resp:
-        data = json.load(resp)
-    elapsed = time.time() - t0
+    data, elapsed, err = _chat(req, timeout)
+    if err:
+        return None, elapsed, err
     try:
         parsed = json.loads(data.get("message", {}).get("content", ""))
     except json.JSONDecodeError:
@@ -603,10 +638,9 @@ def retitle(model_input, content_sv, model=DEFAULT_MODEL, host=HOST,
     req = urllib.request.Request(
         f"{host}/api/chat", data=json.dumps(body).encode(),
         headers={"Content-Type": "application/json"})
-    t0 = time.time()
-    with urllib.request.urlopen(req, timeout=timeout) as resp:
-        data = json.load(resp)
-    elapsed = time.time() - t0
+    data, elapsed, err = _chat(req, timeout)
+    if err:
+        return None, elapsed, err
     try:
         parsed = json.loads(data.get("message", {}).get("content", ""))
     except json.JSONDecodeError:
@@ -631,10 +665,9 @@ def translate_title(title_sv, model=None, host=HOST, timeout=120):
     req = urllib.request.Request(
         f"{host}/api/chat", data=json.dumps(body).encode(),
         headers={"Content-Type": "application/json"})
-    t0 = time.time()
-    with urllib.request.urlopen(req, timeout=timeout) as resp:
-        data = json.load(resp)
-    elapsed = time.time() - t0
+    data, elapsed, err = _chat(req, timeout)
+    if err:
+        return None, elapsed, err
     try:
         parsed = json.loads(data.get("message", {}).get("content", ""))
     except json.JSONDecodeError:
