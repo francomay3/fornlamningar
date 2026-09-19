@@ -1709,6 +1709,34 @@ documentación, sólo de otra clase.
       más valioso que este proyecto puede recibir, y sólo sirve si no se
       gastó en entrenar
 
+### generated.sqlite sale de LFS (decidido 2026-09-19)
+
+Franco: *"eso debería estar versionado... no debería ser algo que mandamos a
+git"*. De acuerdo. La regla que queda: **LFS es para lo inmutable que hace
+falta para arrancar; storage versionado para lo que se regenera.**
+
+Medido el 2026-09-19 sobre este repo:
+
+| archivo | tamaño | veces que cambió |
+|---|---|---|
+| `raa_export.gpkg` | 183 MB | **1** |
+| `generated.sqlite` | 9,1 MB | **12** |
+
+`.git/lfs` local pesa ya **996 MB**. Cada corrida que commitea
+`generated.sqlite` suma ~9 MB al historial para siempre.
+
+- [ ] **`generated.sqlite` a storage versionado y a `.gitignore`.** No como
+      parte del payload —ningún teléfono lo descarga— sino como snapshot: son
+      13 h de modelo local que no se reproducen de forma determinística, así
+      que necesita respaldo durable, no historial. Misma decisión de storage
+      que la sección 12; se hace junto
+- [ ] **`raa_export.gpkg` se queda en LFS.** Es el caso opuesto: cambió una
+      sola vez, y `run_pipeline.sh` lo exige como input diciendo "try `git lfs
+      pull`". Es lo que hace que un clone limpio pueda construir algo
+- [ ] sacar las versiones viejas de `generated.sqlite` del historial remoto es
+      reescribirlo (`git lfs prune` sólo limpia lo local). Decidir si vale la
+      pena o si se deja el historial como está y simplemente deja de crecer
+
 ### El tope por clase: diferido hasta ver el mapa (2026-09-18)
 
 Franco: *"por ahora sin tope por clase... vemos como queda en el mapa cuando
