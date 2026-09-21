@@ -399,6 +399,34 @@ mirando cuando llegue?".
       en `places.features` y están en `None` para 250.911 de 251.014
 
 
+### Hecho 2026-09-21: las fotos de Commons ya se ven en el sheet
+
+Carousel de scroll libre + visor a pantalla completa, alimentados por
+`images` en `places.sqlite`. 3.902 fotos en 3.402 lugares, 2.635 dentro del
+export. Sólo viaja el nombre del archivo (~80 bytes); el teléfono arma la
+URL con `Special:FilePath/<archivo>?width=N`.
+
+Lo que queda pendiente de esto, y por qué:
+
+- [ ] **rellenar `distance_m` para las 11.718 fotos de geosearch.** Hoy
+      están excluidas del export entero, porque sin distancia no hay manera
+      de ordenarlas ni cortarlas y la adivinanza falla feo: el lugar con
+      más fotos del set es una piedra rúnica en Uppsala cuyas fotos por
+      geosearch incluyen un busto de museo. El crawler tenía la distancia en
+      la respuesta de la API y la tiró (`found[t] = ("geosearch", None)`).
+      Recuperarla son ~234 requests. Con eso entran con un radio sensato y
+      la cobertura sube de 2.880 a 2.947 lugares... que es poco: la razón
+      real para hacerlo es que dentro de un lugar que YA tiene foto, las de
+      geosearch son las que le darían un carousel de verdad en vez de una
+      sola imagen.
+- [ ] **el visor no tiene pinch zoom.** react-native-awesome-gallery declara
+      `react-native-reanimated: ^3.2.0` y la app está en **4.5.1**, una
+      versión mayor que no dice soportar. Hoy es paginado + fit contain, sin
+      dependencia nueva. Decidir: probar la librería igual, buscar otra, o
+      escribir los gestos (que es lo que el análisis de abajo desaconseja).
+- [ ] el frame de "sacá una foto" al final del carousel sigue sin existir:
+      necesita login y storage, que no están.
+
 **Carousel:** fotos una al lado de la otra, scroll libre sin snap. Eso es un
 `ScrollView` horizontal y sale bien solo.
 

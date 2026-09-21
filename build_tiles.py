@@ -257,6 +257,79 @@ def load_resolved_names(work_db, wiki_db):
     return out
 
 
+# Photographs, per place, for the carousel in the app's sheet.
+MAX_PHOTOS = 6
+
+
+def load_images(places_db):
+    """{cluster_id: [{f, by, lic, url}]} -- Commons files we are sure about.
+
+    GEOSEARCH IS DELIBERATELY EXCLUDED, and it is 11,718 of the 15,650 rows.
+    Those are files whose own coordinates fall within a radius of the site,
+    which the crawler's own comment already calls "a good guess, still a
+    guess". It is a worse guess than that reads: the busiest place in the
+    set is a runestone in Uppsala whose geosearch photos include "Portrait
+    bust of a woman (1st century AD)" -- a museum object a few hundred
+    metres away. On a phone, under a heading with the place's name, that is
+    not a near miss, it is a wrong caption.
+
+    The cost of leaving them out is small and was measured before deciding:
+    of the 6,000 places that ship, 2,880 have a photograph we are sure of
+    and only 67 more would be added by trusting the radius. Sixty-seven
+    places against a museum bust on a grave field is not a trade.
+
+    They are not deleted, only unshipped. `distance_m` is NULL on every row
+    -- the crawler had it from the API and dropped it -- so there is
+    currently no way to rank or cut them. Backfilling that is what would
+    let them in, and it is in the TODO.
+
+    ONLY THE FILE NAME TRAVELS. The stored URLs average 409 bytes a row,
+    which is 4.5 MB of payload for a field the phone can rebuild: Commons
+    serves Special:FilePath/<file>?width=N and redirects to the real upload
+    URL. Storing the name costs ~80 bytes and works for any width the UI
+    asks for later.
+    """
+    if not os.path.exists(places_db):
+        return {}
+    c = sqlite3.connect(f"file:{places_db}?mode=ro", uri=True)
+    out = {}
+    q = """SELECT cluster_id, file, author, licence, licence_url, page_url, source
+           FROM images
+           WHERE usable = 1 AND source <> 'commons_geosearch'
+             AND file IS NOT NULL AND file <> ''
+           -- Wikidata's own designation first, then a county folder, then
+           -- an editor's list entry. All three are somebody asserting THIS
+           -- picture is THIS place; the order is how directly.
+           ORDER BY cluster_id,
+                    CASE source WHEN 'commons_wikidata' THEN 0
+                                WHEN 'county_pdf' THEN 1
+                                WHEN 'county_page' THEN 2
+                                ELSE 3 END, image_id"""
+    for cid, f, author, lic, lic_url, page_url, _src in c.execute(q):
+        got = out.setdefault(cid, [])
+        if len(got) >= MAX_PHOTOS:
+            continue
+        name = f[5:] if f.lower().startswith("file:") else f
+        e = {"f": name}
+        # A licence that nobody stated is a licence we cannot honour, so the
+        # row travels without one and the UI shows the file name as credit.
+        # Same discipline as `sources`: stored, and shown only when known.
+        if author:
+            e["by"] = author[:120]
+        if lic:
+            e["lic"] = lic
+        if lic_url:
+            e["licurl"] = lic_url
+        if page_url:
+            e["page"] = page_url
+        got.append(e)
+    c.close()
+    n = sum(len(v) for v in out.values())
+    print(f"  {n:,} photographs across {len(out):,} places "
+          f"(geosearch excluded; see load_images)")
+    return out
+
+
 def load_ai_descriptions(path):
     """Read the generated visitor descriptions, if any exist yet.
 
@@ -308,7 +381,7 @@ def load_ai_descriptions(path):
 
 
 def write_descriptions(rows, out_dir, shard_chars, max_desc, ai=None,
-                       lang="en", dims=None, resolved=None):
+                       lang="en", dims=None, resolved=None, images=None):
     """Write descriptions as uuid-sharded JSON, outside the tiles.
 
     Description text was 60% of every tile's bytes: the same export weighs
@@ -390,6 +463,10 @@ def write_descriptions(rows, out_dir, shard_chars, max_desc, ai=None,
         # in under 4% of entries. It comes from the reviewed table in
         # periods.py, and `basis` says whether the register stated it or the
         # class implies it, so the UI can hedge accordingly.
+        pics = (images or {}).get(r["cluster_id"])
+        if pics:
+            entry["images"] = pics
+
         per = period_for(r["dominant_class"], r["best_description"])
         if per:
             entry["period"] = {"text": per[0] if lang == "sv" else per[1],
@@ -693,7 +770,8 @@ def main():
     ai = {} if args.no_ai_desc else load_ai_descriptions(args.ai_db)
     write_descriptions(rows, args.desc_out, args.desc_shard_chars,
                        args.max_desc, ai, args.lang, load_dims(args.db, rows),
-                       load_resolved_names(args.db, paths.WIKIMEDIA))
+                       load_resolved_names(args.db, paths.WIKIMEDIA),
+                       load_images(paths.PLACES))
     write_families(rows, args.groups_out)
 
     if args.skip_tippecanoe:
