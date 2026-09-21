@@ -366,6 +366,20 @@ CREATE TABLE signals (
     any_visible INTEGER,
     sitelinks INTEGER,
     has_image INTEGER,
+    -- A photograph from the Swedish Wikipedia's per-socken lists, which is
+    -- NOT the same population as `has_image` above. That one is the picture
+    -- a Wikidata item designates; this one is a file an editor typed next to
+    -- an RAA number for Wiki Loves Monuments, and a monument can have the
+    -- second without anybody ever making it an item.
+    --
+    -- Kept apart rather than OR-ed into has_image because the separation is
+    -- the measurement. Adjusted for building density: the Wikidata photo
+    -- lifts P(Franco went) 29.7x and the list photo 27.6x, which on its own
+    -- would suggest they are the same fact twice. Restricted to the list
+    -- photos that are NOT in Wikidata, the lift is still 12.0x over 746
+    -- clusters -- so it carries information the other does not, and OR-ing
+    -- them would have hidden exactly that.
+    has_wl_image INTEGER,
     has_commons INTEGER,
     dist_to_way_m REAL,
     dist_to_board_m REAL,
@@ -548,6 +562,16 @@ def main():
     args = p.parse_args()
 
     conn = sqlite3.connect(args.db)
+    # The socken lists are optional: the crawl is a separate job and the
+    # pipeline has to run without it. ATTACH an empty in-memory table of the
+    # right shape when the file is absent, so the query below is one query
+    # rather than two that can drift apart.
+    if os.path.exists(paths.WIKILISTS):
+        conn.execute("ATTACH DATABASE ? AS wl", (paths.WIKILISTS,))
+    else:
+        print(f"  ! {paths.WIKILISTS} missing; has_wl_image will be 0")
+        conn.execute("ATTACH DATABASE ':memory:' AS wl")
+        conn.execute("CREATE TABLE wl.monuments (uuid TEXT PRIMARY KEY, bild TEXT)")
     conn.row_factory = sqlite3.Row
 
     print("Aggregating per-cluster attributes...")
@@ -562,11 +586,14 @@ def main():
                MAX(s.dim_area_m2)     AS dim_area,
                MAX(COALESCE(w.sitelinks,0)) AS sitelinks,
                MAX(CASE WHEN w.image IS NOT NULL THEN 1 ELSE 0 END) AS has_image,
+               MAX(CASE WHEN wl.bild IS NOT NULL AND wl.bild <> ''
+                        THEN 1 ELSE 0 END) AS has_wl_image,
                MAX(CASE WHEN w.commons_category IS NOT NULL THEN 1 ELSE 0 END) AS has_commons
         FROM clusters c
         JOIN site_clusters sc ON sc.cluster_id = c.cluster_id
         JOIN sites s          ON s.uuid = sc.uuid
         LEFT JOIN wikidata w  ON w.uuid = s.uuid
+        LEFT JOIN wl.monuments wl ON wl.uuid = s.uuid
         GROUP BY c.cluster_id
     """).fetchall()
     print(f"  {len(rows):,} clusters")
@@ -823,7 +850,7 @@ def main():
             r["dim_len"], r["dim_h"], r["dim_area"],
             r["best_description_len"], r["all_boilerplate"],
             r["any_measurements"], r["any_visible"],
-            r["sitelinks"], r["has_image"], r["has_commons"],
+            r["sitelinks"], r["has_image"], r["has_wl_image"], r["has_commons"],
             dw, db, da,
             poi["monument"], poi["nature"], poi["viewpoint"], poi["amenity"],
             dr, dbl, dpk, ddig, dug, views.get(r["cluster_id"]),
@@ -839,7 +866,7 @@ def main():
     conn.executescript(SCHEMA)
     with conn:
         conn.executemany(
-            f"INSERT INTO signals VALUES ({','.join('?'*38)})", out)
+            f"INSERT INTO signals VALUES ({','.join('?'*39)})", out)
     conn.executescript(INDEXES)
     conn.commit()
     print(f"Wrote {len(out):,} signal rows in {time.time()-t0:.0f}s")

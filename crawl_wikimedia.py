@@ -210,7 +210,34 @@ def articles(sites):
             out.append((uuid, "sv", sv))
         if en:
             out.append((uuid, "en", en))
+
+    # And the articles the Wikipedia LISTS point at, which Wikidata does not
+    # know about. A monument can have a Swedish article and no Wikidata item
+    # -- nobody has to create one -- so this population is not a subset of
+    # the query above. Measured 2026-09-21: 181 sites, 72 of them inside the
+    # 6,000 that ship. See crawl_wikilists.py.
+    #
+    # Added AFTER the Wikidata rows and deduplicated by (uuid, lang) with
+    # Wikidata winning, because a sitelink is the article the item itself
+    # designates while a list entry is an editor's hand-typed page title.
+    seen = {(u, l) for u, l, _ in out}
+    for uuid, title in wikilist_articles():
+        if (uuid, "sv") not in seen:
+            out.append((uuid, "sv", title))
+            seen.add((uuid, "sv"))
     return out
+
+
+def wikilist_articles(path=None):
+    """(uuid, sv title) from the per-socken lists. Empty if not crawled."""
+    path = path or paths.WIKILISTS
+    if not os.path.exists(path):
+        return []
+    c = sqlite3.connect(paths.ro(path), uri=True)
+    rows = c.execute("SELECT uuid, artikel FROM monuments "
+                     "WHERE artikel IS NOT NULL AND artikel <> ''").fetchall()
+    c.close()
+    return [(u, t.split("|")[0].strip(" []")) for u, t in rows if t.strip(" []")]
 
 
 def fetch_extracts(sites, out, limit=None):
@@ -329,6 +356,19 @@ def commons_meta(j):
     return val("LicenseShortName"), val("LicenseUrl"), val("Artist"), val("Credit")
 
 
+
+def wikilist_photos(path=None):
+    """{uuid: Commons file name} from the per-socken lists."""
+    path = path or paths.WIKILISTS
+    if not os.path.exists(path):
+        return {}
+    c = sqlite3.connect(paths.ro(path), uri=True)
+    out = dict(c.execute("SELECT uuid, bild FROM monuments "
+                         "WHERE bild IS NOT NULL AND bild <> ''"))
+    c.close()
+    return out
+
+
 def fetch_photos(sites, out, limit=None):
     rows = sites.execute("""
         SELECT w.uuid, w.image, s.lon, s.lat
@@ -337,11 +377,27 @@ def fetch_photos(sites, out, limit=None):
           AND ((w.image IS NOT NULL AND w.image <> '')
                OR (w.sitelinks IS NOT NULL AND w.sitelinks > 0))
     """).fetchall()
+
+    # Sites the Wikipedia LISTS photographed and Wikidata never heard of.
+    # Somebody carried a camera to these for Wiki Loves Monuments without
+    # anyone making an item, so the query above cannot see them: 859 new
+    # photographs, 190 of them on places that ship. See crawl_wikilists.py.
+    wl = wikilist_photos()
+    known = {r[0] for r in rows}
+    if wl:
+        coords = dict(sites.execute(
+            "SELECT uuid, lon || '|' || lat FROM sites WHERE lon IS NOT NULL"))
+        extra = [(u, f, *map(float, coords[u].split("|")))
+                 for u, f in wl.items() if u in coords and u not in known]
+        print(f"  +{len(extra):,} sites photographed only by a Wikipedia list")
+        rows += extra
     todo = [r for r in rows
             if not out.execute("SELECT 1 FROM photos WHERE uuid=?",
                                (r[0],)).fetchone()]
     if limit:
         todo = todo[:limit]
+    wl_by_uuid = {u: (f if f.lower().startswith("file:") else f"File:{f}")
+                  for u, f in (wl or {}).items()}
     print(f"photos: {len(todo):,} sites to look up")
     n_files = 0
     for i, (uuid, image, lon, lat) in enumerate(todo, 1):
@@ -352,6 +408,15 @@ def fetch_photos(sites, out, limit=None):
         wd_file = image_title(image)
         if wd_file:
             found[wd_file] = ("wikidata", None)
+
+        # 1b. The file the socken list names. Provenance is its own value,
+        #     not folded into 'wikidata': an editor typed this filename next
+        #     to this RAA number, which is a different kind of claim from
+        #     an item designating its own image, and a different one again
+        #     from a coordinate falling inside a radius.
+        wl_file = wl_by_uuid.get(uuid)
+        if wl_file and wl_file not in found:
+            found[wl_file] = ("wikilist", None)
 
         # 2. Whatever Commons has within GEO_RADIUS_M of the site.
         j = get("https://commons.wikimedia.org/w/api.php", {

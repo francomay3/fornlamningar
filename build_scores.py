@@ -249,6 +249,13 @@ LABEL_DERIVED = {
     "views_gt_1000":    lambda r: (r["wiki_views_12m"] or 0) > 1000,
     "has_sitelinks":    lambda r: (r["sitelinks"] or 0) > 0,
     "has_image":        lambda r: bool(r["has_image"]),
+    # A Wiki Loves Monuments photograph, kept apart from has_image because
+    # the two populations only half overlap -- see the schema note in
+    # build_signals. Label-derived like its neighbour: the photographer and
+    # the article writer are the same wiki editors crediting the same
+    # already-known places, which is the circularity this dict exists to
+    # quarantine out of score_intrinsic.
+    "has_wl_image":     lambda r: bool(r["has_wl_image"]),
     "has_commons":      lambda r: bool(r["has_commons"]),
     "osm_arch_le_100":  lambda r: (r["dist_to_osm_arch_m"] is not None
                                    and r["dist_to_osm_arch_m"] <= 100),
@@ -319,6 +326,7 @@ LABEL_DERIVED = {
 DOC_CENTERED = {
     "wiki_vs_class":    lambda r: 1.0 if (r["sitelinks"] or 0) > 0 else 0.0,
     "img_vs_class":     lambda r: 1.0 if r["has_image"] else 0.0,
+    "wlimg_vs_class":   lambda r: 1.0 if r["has_wl_image"] else 0.0,
     "commons_vs_class": lambda r: 1.0 if r["has_commons"] else 0.0,
     "views_vs_class":   lambda r: 1.0 if (r["wiki_views_12m"] or 0) > 100 else 0.0,
     "osm_vs_class":     lambda r: 1.0 if (r["dist_to_osm_arch_m"] is not None

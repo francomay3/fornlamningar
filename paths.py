@@ -42,6 +42,11 @@ LANSSTYRELSEN = os.path.join(DATA, "lansstyrelsen.sqlite")
 CONTRIBUTIONS = os.path.join(DATA, "contributions.sqlite")
 WIKIMEDIA = os.path.join(DATA, "wikimedia.sqlite")
 
+# The Swedish Wikipedia's per-socken lists of fornlamningar (the Wiki Loves
+# Monuments tables). Folk names, article links and Commons photographs, keyed
+# on the old FMIS id. See crawl_wikilists.py.
+WIKILISTS = os.path.join(DATA, "wikilists.sqlite")
+
 # --- EXPENSIVE -------------------------------------------------------------
 GENERATED = os.path.join(DATA, "generated.sqlite")      # model output
 

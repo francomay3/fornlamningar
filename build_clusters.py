@@ -32,6 +32,7 @@ import argparse
 import collections
 import json
 import math
+import os
 import sqlite3
 import sys
 import time
@@ -41,6 +42,7 @@ from families import CLASS_BLACKLIST, representative_order
 import paths
 
 DB = paths.WORK
+WIKILISTS = paths.WIKILISTS
 
 
 class UnionFind:
@@ -60,6 +62,35 @@ class UnionFind:
         ra, rb = self.find(a), self.find(b)
         if ra != rb:
             self.parent[rb] = ra
+
+
+def wikilist_names(path=None):
+    """Folk names from the Swedish Wikipedia's per-socken lists.
+
+    A FALLBACK, never an override. The register's own `title` wins whenever
+    it has one: it is the surveyor's record and it is what every other field
+    on the row describes. This only fills in where the register is silent.
+
+    It is worth having because the register is silent a lot. Of the 6,000
+    places that ship, 4,976 have no name at all -- they are called
+    "Stensattning" or "Gravfalt", which is the class the reader is already
+    being shown -- and these lists name 1,190 of them. Fifteen years of
+    Wikipedia editors putting a local name on a monument RAA only ever gave
+    a number.
+
+    Returns {} when the file is missing, which is not an error: the crawl is
+    optional and every cluster keeps the name it had.
+    """
+    path = path or WIKILISTS
+    if not os.path.exists(path):
+        print("  (no wikilists.sqlite; folk names come from the register only)")
+        return {}
+    c = sqlite3.connect(paths.ro(path), uri=True)
+    out = dict(c.execute(
+        "SELECT uuid, namn FROM monuments WHERE namn IS NOT NULL AND namn <> ''"))
+    c.close()
+    print(f"  {len(out):,} folk names available from the Wikipedia lists")
+    return out
 
 
 def single_link(items, radius):
@@ -242,6 +273,7 @@ def main():
     )
     conn.commit()
 
+    wl_names = wikilist_names()
     conn.execute("CREATE INDEX idx_sc_tmp ON site_clusters(cluster_id)")
     agg = conn.execute("""
         SELECT sc.cluster_id,
@@ -341,7 +373,15 @@ def main():
             rep_uuid.get(cid),
             r["n_classes"],
             "; ".join(f"{k}×{v}" for k, v in c.most_common(4)),
-            r["name"], r["has_name"], r["raa_group"],
+            # The register's name wins; the Wikipedia lists fill the gaps.
+            # Keyed on the REPRESENTATIVE site, not on any member: the name
+            # has to belong to the thing the pin, the icon and the text are
+            # about, and a cluster of six mounds where the fourth has a folk
+            # name would otherwise wear a name for a stone it is not
+            # standing on.
+            r["name"] or wl_names.get(rep_uuid.get(cid)),
+            1 if (r["has_name"] or wl_names.get(rep_uuid.get(cid))) else 0,
+            r["raa_group"],
             r["parish"], r["parish_code"], r["municipality"],
             r["municipality_code"], r["county"], r["province"],
             # centroid_e/n stay the MEAN of the members, because that is what
