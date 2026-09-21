@@ -102,8 +102,28 @@ def target_ids(top: int) -> list[str]:
         sites.close()
 
 
-def measure(stage: str, top: int) -> tuple[int, int] | None:
-    """(done, total) for a counted stage, or None if it cannot be counted."""
+def measure(stage: str, top: int, since: float | None = None) -> tuple[int, int] | None:
+    """(done, total) for a counted stage, or None if it cannot be counted.
+
+    `since` is set for a --force run and changes what "done" MEANS, which
+    is the whole reason it exists. Normally a place is done if it has a
+    current description at all -- the incremental gate skips it, so it is
+    finished by definition. Under --force every row is rewritten, so the
+    rows left over from previous runs are pending, not done, even though
+    they look identical.
+
+    Without this the bar read 98.5% one minute into a fourteen-hour run:
+    5,533 of 5,617 "done" when 84 had actually been written. Franco asked
+    how long was left and the honest answer was twelve hours. That is the
+    same failure as the dead run on 2026-09-18 wearing different clothes --
+    a monitor that cannot distinguish "finished" from "was already there"
+    does not report progress, it manufactures confidence.
+
+    `created_at` is the signal because the write is an INSERT OR REPLACE
+    and the column defaults to CURRENT_TIMESTAMP, so a regenerated row
+    carries this run's timestamp. Verified against the log rather than
+    assumed: 3,365 rows inside the window against 3,350 reported.
+    """
     if stage not in COUNTED or not os.path.exists(paths.GENERATED):
         return None
     import describe_place as dp
@@ -118,10 +138,20 @@ def measure(stage: str, top: int) -> tuple[int, int] | None:
         out.execute("CREATE TEMP TABLE want(cluster_id TEXT PRIMARY KEY)")
         out.executemany("INSERT OR IGNORE INTO want VALUES (?)", ((i,) for i in ids))
         if stage == "descriptions":
-            done, = out.execute(
-                "SELECT count(*) FROM ai_descriptions a JOIN want w USING (cluster_id) "
-                "WHERE a.content <> '' AND a.prompt_version = ?",
-                (dp.PROMPT_VERSION,)).fetchone()
+            if since is None:
+                done, = out.execute(
+                    "SELECT count(*) FROM ai_descriptions a "
+                    "JOIN want w USING (cluster_id) "
+                    "WHERE a.content <> '' AND a.prompt_version = ?",
+                    (dp.PROMPT_VERSION,)).fetchone()
+            else:
+                stamp = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime(since))
+                done, = out.execute(
+                    "SELECT count(*) FROM ai_descriptions a "
+                    "JOIN want w USING (cluster_id) "
+                    "WHERE a.content <> '' AND a.prompt_version = ? "
+                    "AND a.created_at >= ?",
+                    (dp.PROMPT_VERSION, stamp)).fetchone()
             total = len(ids)
         else:
             # Translation's denominator is what Swedish text EXISTS, not the
@@ -145,7 +175,9 @@ def sample() -> None:
     stage = cur.get("name")
     if not stage:
         return
-    got = measure(stage, int(state.get("top") or 0))
+    # A --force stage counts only what IT wrote; see measure().
+    since = cur.get("started_at") if cur.get("force") else None
+    got = measure(stage, int(state.get("top") or 0), since)
     row = {"ts": time.time(), "stage": stage}
     if got:
         row["done"], row["total"] = got
@@ -329,9 +361,9 @@ def begin_run(stages: list[str], top: int) -> None:
     })
 
 
-def begin_stage(name: str) -> None:
+def begin_stage(name: str, force: bool = False) -> None:
     state = read_state()
-    state["current"] = {"name": name, "started_at": time.time()}
+    state["current"] = {"name": name, "started_at": time.time(), "force": force}
     write_state(state)
 
 
@@ -355,6 +387,9 @@ def main() -> int:
     ap.add_argument("--begin-run", metavar="S1,S2,...")
     ap.add_argument("--top", type=int, default=0)
     ap.add_argument("--begin-stage", metavar="NAME")
+    ap.add_argument("--force", action="store_true",
+                    help="with --begin-stage: this stage rewrites everything, "
+                         "so rows from earlier runs are pending and not done")
     ap.add_argument("--end-stage", nargs=2, metavar=("NAME", "SECONDS"))
     ap.add_argument("--end-run", action="store_true")
     ap.add_argument("--watch", action="store_true")
@@ -368,7 +403,7 @@ def main() -> int:
         begin_run([s for s in a.begin_run.split(",") if s], a.top)
         return 0
     if a.begin_stage:
-        begin_stage(a.begin_stage)
+        begin_stage(a.begin_stage, a.force)
         return 0
     if a.end_stage:
         end_stage(a.end_stage[0], float(a.end_stage[1]))

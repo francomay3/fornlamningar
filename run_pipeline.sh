@@ -61,6 +61,13 @@ JSON=""
 TOP="--top 6000"
 # Descriptions ship outside the tiles now, so there is nothing to truncate.
 TILE_ARGS="${TILE_ARGS:-}"
+# Extra flags for the generation stage. Exists for --force, which is the
+# only way to requeue the 9,069 rows written before `payload_version` was
+# stored: their hash cannot be compared with one built today, so the
+# incremental gate leaves them alone forever. See the long comment in
+# build_descriptions.eligible(). It is a fourteen-hour decision and the
+# flag is how it gets made on purpose rather than by accident.
+DESC_ARGS="${DESC_ARGS:-}"
 # Parallel requests to Ollama. 1 by default because raising it past
 # OLLAMA_NUM_PARALLEL makes the server queue rather than parallelise, which
 # looks like a speed-up in the request count and is not one.
@@ -79,6 +86,7 @@ while [[ $# -gt 0 ]]; do
     --top) TOP="--top $2"; shift 2 ;;
     --all-clusters) TOP=""; shift ;;
     --tile-args) TILE_ARGS="$2"; shift 2 ;;
+    --desc-args) DESC_ARGS="$2"; shift 2 ;;
     --concurrency) CONCURRENCY="$2"; shift 2 ;;
     --skip-long) SKIP_LONG=1; shift ;;
     --no-pull) PULL=0; shift ;;
@@ -315,11 +323,15 @@ for entry in "${STAGES[@]}"; do
   (( num < FROM )) && continue
   echo "── stage $num: $name ($script)"
   t0=$SECONDS
-  python3 pipeline_progress.py --begin-stage "$name"
+  # El monitor necesita saber si la etapa reescribe todo: con --force, las
+  # filas de corridas anteriores estan pendientes y no hechas.
+  force_flag=""
+  case "$name:$DESC_ARGS" in descriptions:*--force*) force_flag="--force" ;; esac
+  python3 pipeline_progress.py --begin-stage "$name" $force_flag
   # build_scores has no --progress-json; pass the flag only where supported.
   if [[ "$name" == "descriptions" ]]; then
     # shellcheck disable=SC2086
-    python3 build_descriptions.py $TOP --concurrency "$CONCURRENCY"
+    python3 build_descriptions.py $TOP --concurrency "$CONCURRENCY" $DESC_ARGS
   elif [[ "$name" == "translate" ]]; then
     # shellcheck disable=SC2086
     python3 build_descriptions.py --translate $TOP --concurrency "$CONCURRENCY"
