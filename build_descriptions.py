@@ -369,6 +369,7 @@ def run_translate(sites, out, a):
     signal.signal(signal.SIGINT, lambda *_: (stop.set(), print("\n  stopping...")))
     n, t0 = 0, time.time()
     failed, by_err = 0, {}
+    failed_ids = []
     for cid, title, content in rows:
         if stop.is_set():
             break
@@ -381,6 +382,7 @@ def run_translate(sites, out, a):
             # a dead pipeline went unnoticed for eleven hours on 2026-09-18.
             # A skipped row is a hole in the output; it has to be visible.
             failed += 1
+            failed_ids.append(cid)
             by_err[err.split(":")[0]] = by_err.get(err.split(":")[0], 0) + 1
             if failed <= 5 or failed % 25 == 0:
                 print(f"  ! {failed} failed so far ({err}) -- last: {cid}",
@@ -400,8 +402,16 @@ def run_translate(sites, out, a):
     if failed:
         detail = ", ".join(f"{k}: {v}" for k, v in sorted(
             by_err.items(), key=lambda x: -x[1]))
-        print(f"{failed:,} failed and were skipped ({detail}). "
-              f"Re-run the stage to retry them.")
+        # NOT "re-run to retry them", which is what this said for three
+        # runs while the same eight places failed every time. A translation
+        # failure here has already exhausted the retries inside _chat AND
+        # the unconstrained fallback, so a re-run repeats it exactly. If
+        # this number is not zero, it is a bug to look at, not weather.
+        print(f"{failed:,} failed and were skipped ({detail}).")
+        print(f"  These already used every retry and the unconstrained "
+              f"fallback, so re-running reproduces them. Investigate.")
+        for cid in sorted(failed_ids)[:10]:
+            print(f"    {cid}")
 
 
 def run_resolve_titles(sites, out, a):

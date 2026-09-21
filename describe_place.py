@@ -532,6 +532,94 @@ def generate(model_input, model=DEFAULT_MODEL, host=HOST, timeout=180):
     return {"title": title, "content": content}, elapsed, None
 
 
+# Typographic quotes, normalised ONLY on the way into the model.
+#
+# MEASURED 2026-09-21. Eight descriptions failed to translate with HTTP 500
+# on every run, and the runner told us to "re-run the stage to retry them" --
+# advice that was simply false, because the failure is deterministic. All
+# eight are runestones whose text quotes the inscription, and all eight use
+# Swedish's own quotation mark U+201D:
+#
+#     Runstenen ... bar inskriptionen ”Kope reste stenen efter Svene”
+#
+# With that character the request 500s after ~40 s. With a straight quote,
+# the same sentence translates in 4 s. Reproduced four times on two
+# different places, and tested against three replacements -- straight, none
+# and single -- all of which succeed. The grammar-constrained decode
+# (`format: SCHEMA`) has to emit the character inside a JSON string and
+# apparently cannot, so it runs to the token limit and ollama returns 500.
+#
+# It is NOT a banned character, and it is worth being exact about that
+# because the obvious fix is wrong. Deleting the ellipsis from
+# `...ladbron\u2026` leaves a request that still 500s; replacing it with three
+# dots succeeds in 4 s. So the trigger is a decoding pathology that these
+# characters provoke, not a byte the server rejects -- which is why the fix
+# is to normalise them to their ASCII equivalents rather than to strip them.
+#
+# The SOURCE keeps its typography: curly quotes are correct Swedish and this
+# is a transport problem, not a content one. Only the copy handed to the
+# model is normalised, and the English that comes back uses the straight
+# quote that English wants anyway.
+TYPOGRAPHIC = {
+    "\u201c": '"', "\u201d": '"', "\u201e": '"', "\u00ab": '"', "\u00bb": '"',
+    "\u2018": "'", "\u2019": "'", "\u201a": "'",
+    "\u2026": "...",          # ellipsis
+    "\u2013": "-", "\u2014": "-",
+    "\u00a0": " ", "\u2009": " ", "\u202f": " ",
+}
+
+
+def _plain_quotes(text):
+    if not isinstance(text, str):
+        return text
+    for a, b in TYPOGRAPHIC.items():
+        text = text.replace(a, b)
+    return text
+
+
+PLAIN_TRANSLATE = """\
+Translate the Swedish text to English. Reply with the translation and \
+nothing else -- no preamble, no quotes around it, no explanation."""
+
+
+def _translate_plain(text, model, host, timeout):
+    """One field, unconstrained, plain text back.
+
+    THE FALLBACK FOR A DECODE THAT RUNS AWAY. `translate()` asks ollama for
+    grammar-constrained JSON (`format: SCHEMA`), and on a handful of inputs
+    that decode never terminates: it runs to num_predict and the server
+    answers HTTP 500 after ~40 s, deterministically, on every retry. Eight
+    descriptions sat untranslated across three full pipeline runs because of
+    it, while the runner told us to "re-run the stage to retry them".
+
+    Normalising the typography they all share (curly quotes, ellipsis) fixed
+    three of the five reproducible cases, which is enough to show the
+    trigger is the constrained decode itself rather than any one character.
+    So the real fallback is to drop the constraint. Unconstrained, the same
+    model on the same prompt answers in under 4 s -- but it answers in prose
+    rather than JSON, so each field is asked for on its own and the reply
+    IS the value. Nothing to parse means nothing to parse wrongly.
+    """
+    body = {
+        "model": model or TRANSLATE_MODEL,
+        "messages": [
+            {"role": "system", "content": PLAIN_TRANSLATE},
+            {"role": "user", "content": _plain_quotes(text)},
+        ],
+        "stream": False,
+        "options": {"temperature": 0, "num_predict": 400},
+        "think": False,
+    }
+    req = urllib.request.Request(
+        f"{host}/api/chat", data=json.dumps(body).encode(),
+        headers={"Content-Type": "application/json"})
+    data, elapsed, err = _chat(req, timeout, attempts=2)
+    if err:
+        return None, elapsed, err
+    out = " ".join(str(data.get("message", {}).get("content", "")).split())
+    return (out.strip('"') or None), elapsed, (None if out else "empty reply")
+
+
 def translate(sv, model=None, host=HOST, timeout=180):
     """Second pass: the simplified Swedish into English.
 
@@ -548,7 +636,8 @@ def translate(sv, model=None, host=HOST, timeout=180):
         "messages": [
             {"role": "system", "content": TRANSLATE_SYSTEM},
             {"role": "user", "content": json.dumps(
-                {"title": sv["title"], "content": sv["content"]},
+                {"title": _plain_quotes(sv["title"]),
+                 "content": _plain_quotes(sv["content"])},
                 ensure_ascii=False)},
         ],
         "stream": False,
@@ -561,7 +650,16 @@ def translate(sv, model=None, host=HOST, timeout=180):
         headers={"Content-Type": "application/json"})
     data, elapsed, err = _chat(req, timeout)
     if err:
-        return None, elapsed, err
+        # See _translate_plain: the constrained decode is the fragile part,
+        # so the retry drops the constraint instead of repeating the same
+        # request and hoping.
+        ct, e1, err1 = _translate_plain(sv["content"], model, host, timeout)
+        tt, e2, _ = _translate_plain(sv["title"], model, host, timeout)
+        if ct:
+            return ({"title": " ".join((tt or sv["title"]).split()),
+                     "content": " ".join(ct.split())},
+                    elapsed + e1 + e2, None)
+        return None, elapsed + e1 + e2, f"{err}; unconstrained: {err1}"
     try:
         parsed = json.loads(data.get("message", {}).get("content", ""))
     except json.JSONDecodeError:
@@ -640,7 +738,16 @@ def retitle(model_input, content_sv, model=DEFAULT_MODEL, host=HOST,
         headers={"Content-Type": "application/json"})
     data, elapsed, err = _chat(req, timeout)
     if err:
-        return None, elapsed, err
+        # See _translate_plain: the constrained decode is the fragile part,
+        # so the retry drops the constraint instead of repeating the same
+        # request and hoping.
+        ct, e1, err1 = _translate_plain(sv["content"], model, host, timeout)
+        tt, e2, _ = _translate_plain(sv["title"], model, host, timeout)
+        if ct:
+            return ({"title": " ".join((tt or sv["title"]).split()),
+                     "content": " ".join(ct.split())},
+                    elapsed + e1 + e2, None)
+        return None, elapsed + e1 + e2, f"{err}; unconstrained: {err1}"
     try:
         parsed = json.loads(data.get("message", {}).get("content", ""))
     except json.JSONDecodeError:
@@ -655,7 +762,8 @@ def translate_title(title_sv, model=None, host=HOST, timeout=120):
         "messages": [
             {"role": "system", "content": TRANSLATE_SYSTEM},
             {"role": "user",
-             "content": json.dumps({"title": title_sv}, ensure_ascii=False)},
+             "content": json.dumps({"title": _plain_quotes(title_sv)},
+                                   ensure_ascii=False)},
         ],
         "stream": False,
         "format": TITLE_SCHEMA,
@@ -667,7 +775,16 @@ def translate_title(title_sv, model=None, host=HOST, timeout=120):
         headers={"Content-Type": "application/json"})
     data, elapsed, err = _chat(req, timeout)
     if err:
-        return None, elapsed, err
+        # See _translate_plain: the constrained decode is the fragile part,
+        # so the retry drops the constraint instead of repeating the same
+        # request and hoping.
+        ct, e1, err1 = _translate_plain(sv["content"], model, host, timeout)
+        tt, e2, _ = _translate_plain(sv["title"], model, host, timeout)
+        if ct:
+            return ({"title": " ".join((tt or sv["title"]).split()),
+                     "content": " ".join(ct.split())},
+                    elapsed + e1 + e2, None)
+        return None, elapsed + e1 + e2, f"{err}; unconstrained: {err1}"
     try:
         parsed = json.loads(data.get("message", {}).get("content", ""))
     except json.JSONDecodeError:
