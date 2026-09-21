@@ -60,7 +60,7 @@ UUID_RE = re.compile(
 Q_LABELS = """
 SELECT ?v ?item ?sitelinks ?sv ?en ?commons WHERE {
   ?item wdt:P1260 ?v .
-  FILTER(STRSTARTS(STR(?v), "raa/lamning/"))
+  FILTER(STRSTARTS(STR(?v), "raa/lamning/") || STRSTARTS(STR(?v), "raa/fmi/"))
   ?item wikibase:sitelinks ?sitelinks .
   FILTER(?sitelinks > 0)
   OPTIONAL { ?sv   schema:about ?item ; schema:isPartOf <https://sv.wikipedia.org/> }
@@ -75,7 +75,7 @@ SELECT ?v ?item ?sitelinks ?sv ?en ?commons WHERE {
 Q_IMAGES = """
 SELECT ?v ?item ?sitelinks ?img WHERE {
   ?item wdt:P1260 ?v .
-  FILTER(STRSTARTS(STR(?v), "raa/lamning/"))
+  FILTER(STRSTARTS(STR(?v), "raa/lamning/") || STRSTARTS(STR(?v), "raa/fmi/"))
   ?item wdt:P18 ?img .
   ?item wikibase:sitelinks ?sitelinks .
 }
@@ -86,7 +86,7 @@ SELECT ?v ?item ?sitelinks ?img WHERE {
 Q_ALL = """
 SELECT ?v ?item ?sitelinks WHERE {
   ?item wdt:P1260 ?v .
-  FILTER(STRSTARTS(STR(?v), "raa/lamning/"))
+  FILTER(STRSTARTS(STR(?v), "raa/lamning/") || STRSTARTS(STR(?v), "raa/fmi/"))
   ?item wikibase:sitelinks ?sitelinks .
 }
 """
@@ -114,20 +114,74 @@ def sparql(query: str, cache_name: str, refresh: bool, timeout: int = 600):
     return data
 
 
-def rows_of(data):
+FMIS_RE = re.compile(r"raa/fmi/(?:html/)?(\d{14})")
+
+
+def fmis_index(conn):
+    """Map the OLD FMIS id back to our uuid.
+
+    WHY THIS EXISTS. Wikidata identifies a Swedish site with P1260, and the
+    value is a bare string in one of several vocabularies. We only ever read
+    `raa/lamning/<uuid>`, which is the modern one -- so any item that carries
+    only the pre-2018 `raa/fmi/<id>` form was invisible to the whole pipeline.
+    Not invisible as "no article": invisible as `sitelinks = 0`, which is the
+    same thing the model sees for a mound nobody has ever written about.
+
+    Bohus fastning is the case that found this. Q1408860, SEVENTEEN sitelinks,
+    one of the best known fortresses in the country, and it scored 0.87 --
+    2 stars -- because its only P1260 values are `raa/bbr/21300000013608` and
+    `raa/fmi/10156300090001`. Uraniborg (30 sitelinks), Vreta kloster, Nydala
+    kloster, Lugnarohogen and Hagadosen were all dark for the same reason.
+
+    The id is positional: "10" then the four-digit parish code, the four-digit
+    lamningsnummer and the four-digit object number. `raa_number` carries the
+    last two as "<parish name> <nr>:<obj>", and `parish_code` the first, so
+    the key can be rebuilt on our side and joined exactly.
+
+    MEASURED, 2026-09-21: 319 Wikidata items carry an fmi id and no lamning
+    id. 60 resolve to a uuid we hold (194 sitelinks, 55 Swedish articles, 46
+    photographs); 1 is ambiguous and dropped; 258 are not fornlamningar at
+    all -- churches and listed buildings, correctly absent. 1,166 of 293,885
+    keys collide, so a colliding key is skipped rather than guessed.
+    """
+    key = {}
+    q = """SELECT uuid, parish_code, raa_number FROM sites
+           WHERE raa_number IS NOT NULL AND parish_code IS NOT NULL"""
+    for uuid, pc, rn in conn.execute(q):
+        m = re.match(r"^.*?\s(\d+)(?::(\d+))?$", rn.strip())
+        if not m:
+            continue
+        k = f"10{int(pc):04d}{int(m.group(1)):04d}{int(m.group(2) or 0):04d}"
+        key.setdefault(k, []).append(uuid)
+    # An ambiguous key is worse than a missing one: it would attach somebody
+    # else's Wikipedia article to a place, which is a wrong fact rather than
+    # an absent one.
+    return {k: v[0] for k, v in key.items() if len(v) == 1}
+
+
+def rows_of(data, fmis):
     """Yield (uuid, qid, sitelinks, sv, en, commons) with the UUID extracted.
 
     P1260 values are bare strings like `raa/lamning/<uuid>`, and SOME carry an
     `html/` infix (`raa/lamning/html/<uuid>`). A path split silently drops those,
     so match the UUID with a regex instead.
+
+    `fmis` is the fallback for the older `raa/fmi/<id>` vocabulary; see
+    fmis_index. The modern form still wins when an item carries both, because
+    it is the register's own key rather than a reconstruction of it.
     """
     for b in data["results"]["bindings"]:
         raw = b["v"]["value"]
         m = UUID_RE.search(raw)
-        if not m:
+        if m:
+            uuid = m.group(0)
+        else:
+            f = FMIS_RE.search(raw)
+            uuid = fmis.get(f.group(1)) if f else None
+        if not uuid:
             continue
         yield (
-            m.group(0),
+            uuid,
             b["item"]["value"].rsplit("/", 1)[-1],
             int(b["sitelinks"]["value"]),
             b.get("sv", {}).get("value"),
@@ -307,6 +361,8 @@ def main():
     p = argparse.ArgumentParser()
     p.add_argument("--db", default=DB)
     p.add_argument("--refresh", action="store_true", help="ignore the cache")
+    p.add_argument("--force-shrink", action="store_true",
+                   help="allow the wikidata table to shrink by more than half")
     p.add_argument("--skip-stubs", action="store_true",
                    help="skip the 145k-row query; fetch only items with sitelinks")
     args = p.parse_args()
@@ -314,10 +370,16 @@ def main():
     if not os.path.exists(args.db):
         sys.exit(f"{args.db} not found -- run build_sites.py first")
 
+    # The fmi fallback needs the register, so it is built before the first
+    # query result is read. Cheap: one scan of `sites`.
+    with sqlite3.connect(args.db) as _c:
+        fmis = fmis_index(_c)
+    print(f"{len(fmis):,} unambiguous FMIS ids indexed for the legacy P1260 form")
+
     print("Fetching labelled items (sitelinks > 0)...")
     labels_data = sparql(Q_LABELS, "labels.json", args.refresh)
     labelled = {}
-    for uuid, qid, sl, sv, en, commons in rows_of(labels_data):
+    for uuid, qid, sl, sv, en, commons in rows_of(labels_data, fmis):
         prev = labelled.get(uuid)
         if prev is None or sl > prev[1]:
             labelled[uuid] = (qid, sl, sv, en, commons)
@@ -329,7 +391,7 @@ def main():
         try:
             all_data = sparql(Q_ALL, "all.json", args.refresh)
             n_new = 0
-            for uuid, qid, sl, *_ in rows_of(all_data):
+            for uuid, qid, sl, *_ in rows_of(all_data, fmis):
                 if uuid not in everything:
                     everything[uuid] = (qid, sl, None, None, None)
                     n_new += 1
@@ -342,10 +404,16 @@ def main():
     try:
         img_data = sparql(Q_IMAGES, "images.json", args.refresh)
         for b in img_data["results"]["bindings"]:
-            m = UUID_RE.search(b["v"]["value"])
-            if not m:
+            raw = b["v"]["value"]
+            m = UUID_RE.search(raw)
+            if m:
+                uuid = m.group(0)
+            else:
+                f = FMIS_RE.search(raw)
+                uuid = fmis.get(f.group(1)) if f else None
+            if not uuid:
                 continue
-            images[m.group(0)] = (
+            images[uuid] = (
                 b["img"]["value"], int(b["sitelinks"]["value"]),
                 b["item"]["value"].rsplit("/", 1)[-1],
             )
@@ -359,6 +427,32 @@ def main():
             everything[uuid] = (qid, sl, None, None, None)
 
     conn = sqlite3.connect(args.db)
+    # REFUSE TO SHRINK THE TABLE BY ACCIDENT.
+    #
+    # The stub query is a 78 MB SPARQL response and it failed once with a
+    # bare IncompleteRead. The `except` above caught it, printed one warning
+    # line, and carried on to write a wikidata table of 3,473 rows in place
+    # of 145,152 -- a 97% loss, no non-zero exit, and every later stage
+    # reading it as though Sweden simply had no Wikidata coverage. The score
+    # would have been rebuilt on it.
+    #
+    # A transient network error must not be able to do that silently. If the
+    # new table is a fraction of the old one, stop and say so; --force-shrink
+    # is there for the legitimate case where the query really did change.
+    prev = conn.execute(
+        "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='wikidata'"
+    ).fetchone()[0]
+    if prev:
+        n_prev = conn.execute("SELECT COUNT(*) FROM wikidata").fetchone()[0]
+        if n_prev > 1000 and len(everything) < n_prev * 0.5 and not args.force_shrink:
+            sys.exit(
+                f"REFUSING TO WRITE: wikidata would go {n_prev:,} -> "
+                f"{len(everything):,} rows ({100*len(everything)/n_prev:.0f}%).\n"
+                f"That is what a failed stub query looks like, not a real "
+                f"change. Re-run without --refresh to use the cache, or pass "
+                f"--force-shrink if the shrink is intended."
+            )
+
     conn.executescript(SCHEMA)
     now = time.strftime("%Y-%m-%dT%H:%M:%S")
     with conn:
