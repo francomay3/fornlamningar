@@ -345,6 +345,16 @@ for entry in "${STAGES[@]}"; do
     # failure landing in the other repo, an hour later.
     # shellcheck disable=SC2086
     python3 "$file" --keep-geojson $TOP $TILE_ARGS
+    # THE ENGLISH SHARDS ARE PART OF THE EXPORT, and until 2026-09-19 they
+    # were a command in a comment in the app's sync-assets.sh -- so the
+    # pipeline spent five hours translating and then shipped whatever English
+    # somebody had exported by hand three days earlier. The symptom was mild
+    # enough to miss: descriptions.en.db held 3,524 of 5,627 entries and 792
+    # of those were still Swedish, which reads as "the translation is
+    # incomplete" rather than "the export is stale".
+    # shellcheck disable=SC2086
+    python3 "$file" --lang en --desc-out src/data/shards/descriptions-en \
+      --skip-tippecanoe $TOP $TILE_ARGS
   elif [[ -n "$JSON" ]] && grep -q "progress-json" "$file"; then
     # shellcheck disable=SC2086
     python3 "$file" $args $JSON

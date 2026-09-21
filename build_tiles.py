@@ -30,6 +30,7 @@ Usage:
 import argparse
 import json
 import os
+import re
 import shutil
 import sqlite3
 import subprocess
@@ -283,17 +284,36 @@ def load_images(places_db):
     currently no way to rank or cut them. Backfilling that is what would
     let them in, and it is in the TODO.
 
-    ONLY THE FILE NAME TRAVELS. The stored URLs average 409 bytes a row,
-    which is 4.5 MB of payload for a field the phone can rebuild: Commons
-    serves Special:FilePath/<file>?width=N and redirects to the real upload
-    URL. Storing the name costs ~80 bytes and works for any width the UI
-    asks for later.
+    THE URL TRAVELS AS THREE SHORT FIELDS, not as a URL. The stored ones
+    average 409 bytes a row -- 4.5 MB of payload -- and almost all of that
+    is a constant prefix, the file name repeated twice, and utm parameters.
+    What actually varies is the two-level hash directory and the rendered
+    width:
+
+        https://upload.wikimedia.org/wikipedia/commons/thumb/1/12/
+               Bohus-Castle6.jpg/960px-Bohus-Castle6.jpg?utm_source=...
+                              ^^^^                 ^^^
+
+    so `h` is "1/12", `w` is 960, and the phone rebuilds the rest.
+
+    THE FIRST ATTEMPT USED Special:FilePath/<file>?width=N INSTEAD, which is
+    tidier and does not need the hash -- and it shipped a sheet full of grey
+    boxes. Two reasons, and the second is the one that matters: it is a
+    double redirect ending on another host, and Wikimedia has begun refusing
+    arbitrary thumbnail widths outright ("Use thumbnail sizes listed on
+    ...", HTTP 400 -- 640 is refused for files where 250 and 500 are served).
+    Rebuilding a width nobody has rendered is guessing; `w` here is the width
+    Commons ITSELF returned when the crawler asked, so it is known to exist.
+
+    `w` is absent for a file small enough that Commons served the original
+    with no thumbnail, and then the path has no /thumb/ segment either.
     """
     if not os.path.exists(places_db):
         return {}
     c = sqlite3.connect(f"file:{places_db}?mode=ro", uri=True)
     out = {}
-    q = """SELECT cluster_id, file, author, licence, licence_url, page_url, source
+    q = """SELECT cluster_id, file, author, licence, licence_url, page_url,
+                  source, thumb_url, image_url
            FROM images
            WHERE usable = 1 AND source <> 'commons_geosearch'
              AND file IS NOT NULL AND file <> ''
@@ -305,12 +325,26 @@ def load_images(places_db):
                                 WHEN 'county_pdf' THEN 1
                                 WHEN 'county_page' THEN 2
                                 ELSE 3 END, image_id"""
-    for cid, f, author, lic, lic_url, page_url, _src in c.execute(q):
+    thumb_re = re.compile(r"/commons/thumb/([0-9a-f]/[0-9a-f]{2})/([^/]+)/(\d+)px-")
+    full_re = re.compile(r"/commons/([0-9a-f]/[0-9a-f]{2})/([^/?]+)")
+    no_hash = 0
+    for (cid, f, author, lic, lic_url, page_url, _src,
+         thumb_url, image_url) in c.execute(q):
         got = out.setdefault(cid, [])
         if len(got) >= MAX_PHOTOS:
             continue
-        name = f[5:] if f.lower().startswith("file:") else f
-        e = {"f": name}
+        # The percent-encoded token out of the URL, not the display name:
+        # re-encoding "Tycho Brahe's ..." on the phone is a second place for
+        # the escaping to differ from Commons'.
+        m = thumb_re.search(thumb_url or "")
+        if m:
+            e = {"f": m.group(2), "h": m.group(1), "w": int(m.group(3))}
+        else:
+            m = full_re.search(thumb_url or image_url or "")
+            if not m:
+                no_hash += 1
+                continue
+            e = {"f": m.group(2), "h": m.group(1)}
         # A licence that nobody stated is a licence we cannot honour, so the
         # row travels without one and the UI shows the file name as credit.
         # Same discipline as `sources`: stored, and shown only when known.
@@ -325,8 +359,9 @@ def load_images(places_db):
         got.append(e)
     c.close()
     n = sum(len(v) for v in out.values())
+    extra = f", {no_hash} skipped with no usable URL" if no_hash else ""
     print(f"  {n:,} photographs across {len(out):,} places "
-          f"(geosearch excluded; see load_images)")
+          f"(geosearch excluded; see load_images){extra}")
     return out
 
 
