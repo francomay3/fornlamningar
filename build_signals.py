@@ -50,6 +50,24 @@ WAYS_GPKG = "src/data/osm/sweden_ways.gpkg"
 BOARDS_GPKG = "src/data/osm/boards.gpkg"
 ARCH_GPKG = "src/data/osm/historic_pt.gpkg"
 ARCH_POLY_GPKG = "src/data/osm/historic_poly.gpkg"
+POI_GPKG = "src/data/osm/osm_poi.gpkg"
+
+# The POI families, as hstore substrings matched against `other_tags`.
+# Chosen by measurement, not by intuition -- see the note in fetch_osm.sh,
+# and note that the intuitive picks (a pub, a cafe, an ice cream parlour)
+# measured BEST of all and are absent, because all they were detecting was
+# that the site is in a town.
+POI_FAMILIES = {
+    "monument": ['"historic"=>"memorial"', '"historic"=>"monument"',
+                 '"historic"=>"stone"', '"historic"=>"rune_stone"',
+                 '"historic"=>"tomb"', '"historic"=>"ruins"',
+                 '"historic"=>"mine"', '"historic"=>"wayside_cross"'],
+    "nature":   ['"natural"=>"cave_entrance"', '"natural"=>"spring"'],
+    "viewpoint": ['"tourism"=>"viewpoint"'],
+    "amenity":  ['"leisure"=>"picnic_table"', '"leisure"=>"firepit"',
+                 '"tourism"=>"picnic_site"', '"amenity"=>"bench"',
+                 '"amenity"=>"shelter"'],
+}
 BUILDINGS_GPKG = "src/data/osm/buildings.gpkg"
 PARKING_GPKG = "src/data/osm/parking_pt.gpkg"
 PARKING_POLY_GPKG = "src/data/osm/parking_poly.gpkg"
@@ -352,6 +370,30 @@ CREATE TABLE signals (
     dist_to_way_m REAL,
     dist_to_board_m REAL,
     dist_to_osm_arch_m REAL,
+    -- Three slices of OSM that the lumped `arch` distance above was hiding,
+    -- chosen by sweeping all 722 key=value pairs in eight OSM keys against
+    -- Franco's visits and then STRATIFYING ON BUILDING DENSITY -- see the
+    -- long note in fetch_osm.sh for why the unadjusted table was useless
+    -- (it was topped by ice cream parlours and driving schools).
+    --
+    --   monument  historic=memorial|monument|stone|rune_stone|tomb|ruins|
+    --             mine|wayside_cross            adjusted lift 6.5-13.3x
+    --   nature    natural=cave_entrance|spring  adjusted lift 5.9-6.0x
+    --   viewpoint tourism=viewpoint             adjusted lift 4.9x
+    --   amenity   picnic_table|firepit|picnic_site|bench|shelter   1.9-3.6x
+    --
+    -- `nature` is the one to keep an eye on: its crude and adjusted lifts
+    -- are nearly equal (shrink 1.2x), because a cave mouth and a spring are
+    -- rural and there was no urbanity for the control to take away. That
+    -- makes it the least confounded thing on the list, not the weakest.
+    --
+    -- `amenity` is the weakest of the four and is here anyway, because it is
+    -- what OSM has where it has nothing else: the cholera cemetery at Li has
+    -- a picnic table 72 m away and its nearest information board is 3.3 km.
+    dist_to_osm_monument_m REAL,
+    dist_to_osm_nature_m REAL,
+    dist_to_osm_viewpoint_m REAL,
+    dist_to_osm_amenity_m REAL,
     dist_to_road_m REAL,
     dist_to_building_m REAL,
     -- Somewhere to leave the car. Franco asked whether this is worth having
@@ -494,6 +536,7 @@ def main():
     p.add_argument("--db", default=DB)
     p.add_argument("--ways", default=WAYS_GPKG)
     p.add_argument("--boards", default=BOARDS_GPKG)
+    p.add_argument("--poi", default=POI_GPKG)
     p.add_argument("--arch", default=ARCH_GPKG)
     p.add_argument("--arch-poly", default=ARCH_POLY_GPKG)
     p.add_argument("--buildings", default=BUILDINGS_GPKG)
@@ -566,6 +609,7 @@ def main():
 
     way_grid = board_grid = arch_grid = road_grid = bldg_grid = None
     park_grid = dig_grid = None
+    poi_grids = {}
     dig_boxes = []
     if not args.skip_spatial:
         if os.path.exists(args.ways):
@@ -579,6 +623,31 @@ def main():
             del rp
         else:
             print(f"  ! {args.ways} missing; dist_to_way_m will be NULL")
+        # The four POI families, from one layer with a tag filter each.
+        # Which tags and why: see fetch_osm.sh. Loaded here rather than as
+        # four files so a family can be retuned by editing one dict.
+        if os.path.exists(args.poi):
+            cn = sqlite3.connect(f"file:{args.poi}?mode=ro", uri=True)
+            buckets = {k: [] for k in POI_FAMILIES}
+            for tags, blob in cn.execute(
+                    "SELECT other_tags, geom FROM poi WHERE geom IS NOT NULL"):
+                if not tags:
+                    continue
+                xy = wkb_point(gpkg_wkb(blob))
+                if not xy:
+                    continue
+                for fam, needles in POI_FAMILIES.items():
+                    if any(nd in tags for nd in needles):
+                        buckets[fam].append(xy)
+            cn.close()
+            for fam, pts in buckets.items():
+                print(f"  {len(pts):>7,} osm {fam}")
+                if pts:
+                    a = np.array(pts)
+                    poi_grids[fam] = PointGrid(a[:, 0], a[:, 1])
+        else:
+            print(f"  ! {args.poi} missing; the four dist_to_osm_* "
+                  f"POI columns will be NULL")
         if os.path.exists(args.boards):
             bp = load_points(args.boards, "boards")
             print(f"  {len(bp):,} information boards")
@@ -674,6 +743,7 @@ def main():
         e, n = r["centroid_e"], r["centroid_n"]
         dw = db = da = dr = dbl = None
         dpk = ddig = None
+        poi = {k: None for k in POI_FAMILIES}
         dug = 0
         nb = None
         if e is not None:
@@ -683,6 +753,8 @@ def main():
                 db = board_grid.nearest(e, n)
             if arch_grid:
                 da = arch_grid.nearest(e, n)
+            for fam, g in poi_grids.items():
+                poi[fam] = g.nearest(e, n)
             if road_grid:
                 dr = road_grid.nearest(e, n)
             if bldg_grid:
@@ -752,7 +824,9 @@ def main():
             r["best_description_len"], r["all_boilerplate"],
             r["any_measurements"], r["any_visible"],
             r["sitelinks"], r["has_image"], r["has_commons"],
-            dw, db, da, dr, dbl, dpk, ddig, dug, views.get(r["cluster_id"]),
+            dw, db, da,
+            poi["monument"], poi["nature"], poi["viewpoint"], poi["amenity"],
+            dr, dbl, dpk, ddig, dug, views.get(r["cluster_id"]),
             nb,
             now if not args.skip_spatial else None, now,
             visitors.get(r["cluster_id"], 0),
@@ -765,7 +839,7 @@ def main():
     conn.executescript(SCHEMA)
     with conn:
         conn.executemany(
-            f"INSERT INTO signals VALUES ({','.join('?'*34)})", out)
+            f"INSERT INTO signals VALUES ({','.join('?'*38)})", out)
     conn.executescript(INDEXES)
     conn.commit()
     print(f"Wrote {len(out):,} signal rows in {time.time()-t0:.0f}s")

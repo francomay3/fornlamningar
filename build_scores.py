@@ -160,6 +160,43 @@ CANDIDATE_FEATURES = {
                                and r["dist_to_dig_m"] <= 500),
 }
 
+# OSM features that are NOT somebody writing about the archaeology.
+#
+# THE SPLIT MATTERS MORE THAN THE WEIGHTS. `osm_arch_le_100` sits in
+# LABEL_DERIVED because a mapper tagging `historic=archaeological_site` IS
+# documentation -- the same editor population the Wikipedia labels come from,
+# crediting the same famous places. None of the three below are that:
+#
+#   nature     a cave mouth and a spring are FACTS ABOUT THE GROUND. They
+#              were there before anybody noticed the grave field, and they
+#              are the reason people settled and buried there in the first
+#              place. Measured adjusted lift 5.9-6.0x with a shrink of only
+#              1.2x -- the least confounded thing in the whole sweep.
+#   viewpoint  a mapper's judgement about the VIEW, not about the monument.
+#   amenity    a bench, a fire pit, a picnic table: infrastructure somebody
+#              built because people come here. Weakest of the three (1.9-3.6x
+#              adjusted) and the broadest -- 7,880 clusters have one within
+#              the search radius, against 6,686 for an information board.
+#
+# So these are available to score_intrinsic, which is the point: the
+# undocumented places are exactly the ones with nothing else, and this is
+# new evidence about them that does not come from an encyclopaedia.
+#
+# See fetch_osm.sh for how the families were chosen and why the tags that
+# measured BEST (pubs, ice cream, cinemas) are deliberately not here.
+TERRAIN_FEATURES = {
+    "nature_le_300":    lambda r: (r["dist_to_osm_nature_m"] is not None
+                                   and r["dist_to_osm_nature_m"] <= 300),
+    "nature_le_1km":    lambda r: (r["dist_to_osm_nature_m"] is not None
+                                   and r["dist_to_osm_nature_m"] <= 1000),
+    "viewpoint_le_500": lambda r: (r["dist_to_osm_viewpoint_m"] is not None
+                                   and r["dist_to_osm_viewpoint_m"] <= 500),
+    "amenity_le_100":   lambda r: (r["dist_to_osm_amenity_m"] is not None
+                                   and r["dist_to_osm_amenity_m"] <= 100),
+    "amenity_le_500":   lambda r: (r["dist_to_osm_amenity_m"] is not None
+                                   and r["dist_to_osm_amenity_m"] <= 500),
+}
+
 # Somebody has been there and said so.
 #
 # IN score_intrinsic, deliberately, and it is the only "this place is known"
@@ -215,6 +252,17 @@ LABEL_DERIVED = {
     "has_commons":      lambda r: bool(r["has_commons"]),
     "osm_arch_le_100":  lambda r: (r["dist_to_osm_arch_m"] is not None
                                    and r["dist_to_osm_arch_m"] <= 100),
+    # historic=memorial|monument|stone|rune_stone|tomb|ruins|mine, kept apart
+    # from archaeological_site above because the sweep measured them SEPARATELY
+    # and they are not the same strength: `historic=stone` runs at 13.3x
+    # adjusted and `archaeological_site` at 6.5x, and the single lumped
+    # nearest-distance was quietly reporting whichever happened to be closer.
+    # Label-derived for the same reason as its neighbour: a mapper writing
+    # `memorial` on the map is a mapper writing about the place.
+    "osm_mon_le_100":   lambda r: (r["dist_to_osm_monument_m"] is not None
+                                   and r["dist_to_osm_monument_m"] <= 100),
+    "osm_mon_le_500":   lambda r: (r["dist_to_osm_monument_m"] is not None
+                                   and r["dist_to_osm_monument_m"] <= 500),
     # "A source mentions this place", which could not be a feature at all
     # until build_sources.py was moved ahead of build_signals.py: the corpus
     # was built after the scoring that wanted to read it.
@@ -522,6 +570,10 @@ CONTINUOUS = [
     ("log_bldg",    lambda r: math.log1p(r["dist_to_building_m"] if r["dist_to_building_m"] is not None else 2000)),
     ("log_board",   lambda r: math.log1p(r["dist_to_board_m"] if r["dist_to_board_m"] is not None else 5000)),
     ("log_nsites",  lambda r: math.log1p(r["n_sites"] or 1)),
+    ("log_amenity", lambda r: math.log1p(r["dist_to_osm_amenity_m"]
+                                         if r["dist_to_osm_amenity_m"] is not None else 5000)),
+    ("log_nature",  lambda r: math.log1p(r["dist_to_osm_nature_m"]
+                                         if r["dist_to_osm_nature_m"] is not None else 5000)),
 ]
 
 # Continuous forms of the candidates, separated so --no-candidates removes the
@@ -653,7 +705,7 @@ def main():
     test = set(shuffled[half:])
     print(f"  train positives {len(train):,}   test positives {len(test):,}\n")
 
-    feats = {**ACCESS_FEATURES, **ACCESS2_FEATURES,
+    feats = {**ACCESS_FEATURES, **ACCESS2_FEATURES, **TERRAIN_FEATURES,
              **SIZE_FEATURES, **NOTABILITY_FEATURES, **VISITOR_FEATURES}
     drop = set()
     for g in args.without:
