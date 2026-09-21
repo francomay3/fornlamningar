@@ -247,6 +247,13 @@ src/data/wikidata_cache/
 # re-run casually.
 src/data/wikimedia.sqlite
 src/data/lansstyrelsen.sqlite
+
+# The Swedish Wikipedia's per-socken lists. RAW: 996 pages, ~45 MB of
+# wikitext, re-fetchable in under a minute. The .json is the raw cache the
+# parser re-reads with --no-fetch, and it is the 45 MB -- it exists so a
+# parser change costs nothing at Wikipedia's end.
+src/data/wikilists.sqlite
+src/data/wikilists_cache.json
 *.sqlite-journal
 # The RAA archaeological-assignment extracts: 192 MB of GeoPackage, one
 # download from pub.raa.se, no account needed.
