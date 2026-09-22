@@ -56,7 +56,12 @@ TRANSLATE_MODEL = "gemma3:12b"
 # regeneration for 0.7% of rows would be the tail wagging the dog, and the
 # 6,949 pre-corpus rows are due a regeneration on their own merits anyway, at
 # which point they get this rule for free.
-PROMPT_VERSION = 8
+# 9: `group` and `members` documented, plus a multi-site example. This one
+#    IS worth the regeneration, unlike the "enligt Wikipedia" rule above:
+#    2,738 described places have more than one remain, and the model was
+#    writing about one of them. A visitor reading about a single passage
+#    grave while looking at two is wrong, not badly phrased.
+PROMPT_VERSION = 9
 
 # Bump when `payload()` changes WHAT IT PUTS IN FRONT OF THE MODEL: a field
 # added, removed or renamed, or a value computed differently.
@@ -81,7 +86,14 @@ PROMPT_VERSION = 8
 #      however it liked. Only ~670 of those groups hold rows that actually
 #      differ, so this moves few payloads -- but it is what stops a rebuild of
 #      the corpus reporting changes it did not make.
-PAYLOAD_VERSION = 3
+#   4  adds `members`: one trimmed, number-free clause per other member of
+#      the cluster, deduplicated against each other and against the
+#      representative's text. Reaches 579 of the 2,738 multi-site clusters
+#      with a description and adds 779 clauses in total -- low, and that is
+#      the source's doing: 3,069 of the 4,715 non-representative members
+#      carry text IDENTICAL to the representative's, because RAA stores one
+#      combined survey text on every lamning of a group.
+PAYLOAD_VERSION = 4
 
 SCHEMA = {
     "type": "object",
@@ -159,6 +171,19 @@ Länsstyrelsen", not "enligt registret". A reader standing at a mound wants \
 the fact, and where it came from is recorded beside the text rather than \
 inside it. "Enligt traditionen" is the one exception, and it is not naming a \
 source: it is marking a claim as folklore, which the reader does need.
+- "group" and "members" are THE OTHER REMAINS AT THE SAME PLACE, and the \
+reader is standing in front of all of them at once. "group" gives the count \
+and the mix -- "3 recorded remains within 86 m: Stenkammargrav×2; \
+Stensättning×1" -- and when it says two of something, say two. Writing about \
+one when the visitor can see a pair is the single most misleading thing this \
+prompt can produce, and it is what happened before these two fields were \
+documented. Do not turn the mix into a list: "source" is the main remain and \
+stays the spine of the description, and the others earn a clause, not a \
+paragraph. A count is not a measurement -- "två gånggrifter" is required, and \
+the ban on numbers does not apply to it.
+- "members" gives one detail per other remain, already trimmed. Use one or \
+two if they add something a visitor would notice; ignore the rest. Never \
+write a member's detail as if it belonged to the main remain.
 - Plain Swedish. No exclamation marks. Do not open with "Detta är" or \
 "Lämningen utgörs av".
 - If the input has no real content beyond a generic disclaimer, return an \
@@ -208,6 +233,34 @@ EXAMPLES = [
       "content": "En skeppssättning av 59 resta stenar, 67 meter lång, med de "
                  "högsta stenarna i stävarna. Den ligger på krönet av en brant "
                  "klint mot havet."}),
+    # A multi-site cluster, and the reason it is here: without an example the
+    # model read `group`, wrote about the representative alone, and left a
+    # visitor standing in front of two remains reading about one.
+    #
+    # Deliberately NOT the case this was found on (Fjaras 41, two passage
+    # graves). An example that is near-identical to a real query made the
+    # model WORSE on that query, not better -- shown the pair as an example
+    # and then asked about the pair, it kept writing the singular, which
+    # reads like avoidance of repeating an answer it had just been given.
+    # With an unrelated pair here it gets the case right.
+    #
+    # Note what the answer does: "tva" with no dimension anywhere, the
+    # second stone earns one clause and not a paragraph, and the register's
+    # pointer to a scanned book page is ignored as the rules require.
+    ({"class": "Runristning", "name": None, "location": "L\u00f6sen, Karlskrona",
+      "source": "Runsten, granit, 1,25 m h, 0,55-0,75 m br (NV-S\u00d6) och 0,3 m "
+                "tj. Runh\u00f6jd, 10 cm. Ristningen v\u00e4tter mot S\u00d6. Runorna \u00e4r "
+                "delvis vittringsskadade men \u00e4r troligen (se skiss i skannat "
+                "bokuppslag f\u00f6r runorna). Framf\u00f6r stenen ligger en sten.",
+      "group": "2 recorded remains within 8 m: Runristning\u00d72",
+      "members": [{"class": "Runristning",
+                   "detail": "Stenen \u00e4r starkt vittrad ocg runorna \u00e4r sv\u00e5ra "
+                             "att identifiera"}],
+      "size": "length/diameter 1.25 m"},
+     {"title": "Tv\u00e5 runstenar, den ena sv\u00e5rt vittrad",
+      "content": "Tv\u00e5 runstenar st\u00e5r intill varandra. Den ena har runor som "
+                 "vetter mot sydost och \u00e4r delvis vittringsskadade. Den andra "
+                 "\u00e4r s\u00e5 starkt vittrad att runorna \u00e4r sv\u00e5ra att urskilja."}),
 ]
 
 TRANSLATE_SYSTEM = """\
@@ -383,11 +436,100 @@ def word_budget(sources, register_text):
     return 160
 
 
+# A cluster's OTHER members: what else is standing at the place.
+#
+# Measured before this was written, over the 2,738 multi-site clusters that
+# have a description: 4,435 of their 4,715 non-representative members carry
+# their own survey text, and the classes are Hög, Stensättning, Hällristning,
+# Runristning -- monuments, not noise. Boplats, the classic "nothing to see",
+# is 87 of 4,715. So withholding them was losing real content: the pair of
+# passage graves at Fjärås 41 came out as one, because only the
+# representative's text was ever shown.
+#
+# What is NOT done here is hand the model all of it. The extra text is a
+# median 1.0x the representative's and 3.0x at p90, and there is a measured
+# result on exactly that move: "Raising the word budget made this worse, not
+# better: half the descriptions came back listing diameters because there was
+# suddenly room." So each member gets ONE clause, and the representative's
+# full text stays the spine.
+MEMBER_CAP = 6
+MEMBER_WORDS = 14
+
+
+def member_clause(class_sv, beskrivning):
+    """One short, number-free clause describing a member, or None.
+
+    Number-free ON PURPOSE, and it is not a side effect of the truncation.
+    Measurements in prose are 94% of everything the quality check flags, and
+    a list of members is the most inviting place in the payload to put one:
+    six rows of "Hög, 8 m diam och 0,8 m h" is a diameter parade. Picking the
+    first clause WITHOUT a digit also tends to pick the better sentence --
+    the register writes the metric one first and the telling one second
+    ("Övertorvad, beväxt med tall"), so the rule buys description as well as
+    silence.
+    """
+    text = " ".join((beskrivning or "").split())
+    if not text:
+        return None
+    # The survey opens with the class it already told us ("Hög, 8 m diam...").
+    if class_sv and text.lower().startswith(class_sv.lower()):
+        text = text[len(class_sv):].lstrip(" ,.")
+    for clause in re.split(r"(?<=[.;])\s+", text):
+        clause = clause.strip(" .;")
+        if not clause or NUM.search(clause):
+            continue
+        words = clause.split()
+        if len(words) > MEMBER_WORDS:
+            clause = " ".join(words[:MEMBER_WORDS])
+        return clause
+    return None
+
+
+def members(conn, cluster_id, rep_uuid):
+    """[{class, detail}] for the other members, only where there is a detail.
+
+    A member with no clause of its own is left out rather than listed bare,
+    because `group` already carries the counts and "Hög, Hög, Stensättning"
+    under a class_mix that says "Hög×2; Stensättning×1" is the same fact
+    twice.
+
+    Deduplication is not tidiness, it is a property of the source. RAA
+    stores one combined survey text on SEVERAL lamningar of a group: at
+    Overjarna 73 the same "1)Gravfalt, 125x75 m..." sits on a Gravfalt, two
+    Bytomt/gardstomt and a Hallristning, so the first draft of this listed
+    "En av dem har mittgrop" four times under four different classes. Any
+    clause already seen -- or already in the representative's text, which
+    the model reads in full as `source` -- says nothing new.
+    """
+    rows = conn.execute("""
+        SELECT s.uuid, s.class_sv, s.beskrivning, s.description_len
+          FROM site_clusters sc JOIN sites s USING (uuid)
+         WHERE sc.cluster_id = ? AND s.uuid <> ?
+         -- Longest record first: with a cap of six, the ones that get cut
+         -- should be the ones the survey had least to say about.
+         ORDER BY COALESCE(s.description_len, 0) DESC, s.uuid""",
+        (cluster_id, rep_uuid or "")).fetchall()
+    rep = conn.execute("SELECT beskrivning FROM sites WHERE uuid = ?",
+                       (rep_uuid or "",)).fetchone()
+    rep_text = " ".join(((rep["beskrivning"] if rep else "") or "").split())
+    out, seen = [], set()
+    for r in rows:
+        clause = member_clause(r["class_sv"], r["beskrivning"])
+        if not clause or clause in seen or clause in rep_text:
+            continue
+        seen.add(clause)
+        out.append({"class": r["class_sv"], "detail": clause})
+        if len(out) >= MEMBER_CAP:
+            break
+    return out
+
+
 def payload(conn, cluster_id, places_db=None):
     """Everything the model is allowed to know about a place."""
     r = conn.execute("""
         SELECT c.cluster_id, c.name, c.dominant_class, c.n_sites, c.n_classes,
-               c.class_mix, c.parish, c.municipality, c.county, c.province,
+               c.class_mix, c.rep_uuid, c.parish, c.municipality, c.county,
+               c.province,
                c.spread_m, c.best_description, c.all_boilerplate,
                s.uuid, s.lamningsnummer, s.dim_len_m, s.dim_height_m,
                s.dim_area_m2, s.terrang
@@ -436,6 +578,9 @@ def payload(conn, cluster_id, places_db=None):
     if (r["n_sites"] or 1) > 1:
         out["group"] = (f"{r['n_sites']} recorded remains within "
                         f"{round(r['spread_m'] or 0)} m: {r['class_mix']}")
+        rest = members(conn, cluster_id, r["rep_uuid"])
+        if rest:
+            out["members"] = rest
     if dims:
         out["size"] = ", ".join(dims)
     if r["terrang"]:
