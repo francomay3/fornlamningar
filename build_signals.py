@@ -689,9 +689,23 @@ def main():
             if not os.path.exists(path):
                 continue
             cn = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
-            for tags, blob in cn.execute(
-                    "SELECT other_tags, geom FROM feat WHERE geom IS NOT NULL"):
-                if "archaeological_site" not in (tags or ""):
+            # `historic` is a promoted COLUMN in GDAL's multipolygons layer and
+            # a plain hstore key in points, so the tag lives in a different
+            # place in each file and both have to be read. Asking the table
+            # which one it has beats hardcoding it per kind: the day someone
+            # adds `historic` to the points select, this keeps working.
+            has_hist = any(r[1] == "historic" for r in
+                           cn.execute("PRAGMA table_info(feat)"))
+            cols = "historic, other_tags" if has_hist else "NULL, other_tags"
+            for hist, tags, blob in cn.execute(
+                    f"SELECT {cols}, geom FROM feat WHERE geom IS NOT NULL"):
+                # Two ways to be an archaeological site, and before 2026-09-22
+                # only the second was checked: `historic=archaeological_site`,
+                # the tag itself, and the `archaeological_site=<type>` subtag
+                # that classifies one. A site carrying only the first was
+                # dropped -- see the note in fetch_osm.sh.
+                if hist != "archaeological_site" and \
+                        "archaeological_site" not in (tags or ""):
                     continue
                 if kind == "pt":
                     q = wkb_point(gpkg_wkb(blob))

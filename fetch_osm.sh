@@ -40,7 +40,24 @@ echo "pbf: $(du -h "$PBF" | cut -f1)"
 
 # out | osm layer | -nln | -select | -where
 # `tourism` and `historic` are not promoted to columns by GDAL's default
-# osmconf.ini, so they can only be matched inside the other_tags hstore.
+# osmconf.ini -- IN THE `points` LAYER. That is where this note came from and
+# it is only true there. The `multipolygons` layer has a different attribute
+# list, and `historic` IS in it:
+#
+#   [points]        attributes=name,barrier,highway,ref,address,is_in,place,man_made
+#   [multipolygons] attributes=name,type,aeroway,amenity,...,historic,...
+#
+# A promoted key is REMOVED from other_tags, so `-select osm_id,name,other_tags`
+# on a multipolygon silently drops it: Li gravfält (way/713294041,
+# historic=archaeological_site + historic:landuse=cemetery) arrived carrying
+# only `"historic:landuse"=>"cemetery"`, and the archaeological_site filter
+# downstream could not see it. 156 of 576 polygons were invisible that way,
+# Ekornavallen among them, and `dist_to_osm_arch_m` is the 24.3x signal.
+# The 400 that DID come through were the ones carrying the separate
+# `archaeological_site=<type>` subtag, which is not promoted.
+#
+# So: on a multipolygon extract, name every promoted key you intend to match.
+# `parking_poly` already does this correctly with `amenity`.
 extract() {
   local out="$DIR/$1.gpkg"; shift
   local layer="$1"; shift
@@ -74,8 +91,17 @@ HIST="other_tags LIKE '%historic%'
    OR other_tags LIKE '%archaeological_site%'
    OR other_tags LIKE '%tourism%=>%attraction%'"
 
+# The promoted column has to be added to the WHERE as well, not just the
+# -select. `-where` runs against the source layer, where `historic` exists
+# either way, so a polygon whose ONLY historic key was promoted -- nothing
+# else historic-ish left in the hstore -- never matched `other_tags LIKE
+# '%historic%'` and was missing from the file altogether, not merely missing
+# a tag. The points layer must NOT get this clause: there is no such field
+# there and ogr2ogr fails.
 extract historic_pt   points        feat   osm_id,name,other_tags "$HIST"
-extract historic_poly multipolygons feat   osm_id,name,other_tags "$HIST"
+extract historic_poly multipolygons feat   osm_id,name,historic,other_tags \
+  "$HIST
+   OR historic IS NOT NULL"
 
 # Points of interest that turned out to predict a visit, and the measurement
 # that chose them. ADDED 2026-09-21 after sweeping every `key=value` in these
