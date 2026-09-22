@@ -652,6 +652,40 @@ What the plan above got right, and what it got wrong, both worth keeping:
   prompt does forbid inference beyond the sources, which was the right
   instinct.
 
+### What the flagged rate is, and what it is not
+
+`flags` on `ai_descriptions` is a quality check, not an error. A flagged
+description is still written; the tiles stage is what decides to skip one.
+The rate by day, every run there has been:
+
+| day | n | flagged | of which `dims` |
+|---|---|---|---|
+| 2026-09-09 | 3,798 | 46.8% | — |
+| 2026-09-10 | 1,982 | 41.3% | — |
+| 2026-09-11 | 49 | 46.9% | — |
+| 2026-09-15 | 260 | 16.2% | 15.8% |
+| 2026-09-18 | 548 | 22.6% | 22.6% |
+| **2026-09-21** | **5,659** | **24.4%** | **23.7%** |
+
+**24% is among the best rates this prompt has had**, on by far the largest
+sample — not a regression, which is what it looked like against a
+half-remembered "about 4%" that never existed. Check this table before
+concluding a run degraded.
+
+The composition matters more than the rate. Of 1,380 flagged in the last run:
+
+```
+1,294   dims only          measurements in prose
+   79   dims + something else
+   15   purple / long only
+```
+
+So **94% of everything flagged is one fault**, the unsolved
+measurements-in-prose problem, and the style faults the flag set was
+originally built for are 15 rows in 5,659 — 0.3%. The `dims` detector only
+exists from 2026-09-15, which is the whole reason the rate appears to jump
+there: the fault was always in the text, nothing was counting it.
+
 ## Open decisions
 
 1. ~~**PBF parser.**~~ **Resolved.** GDAL 3.12.2 is working (after
