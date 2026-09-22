@@ -104,9 +104,34 @@ SCHEMA = {
     "required": ["title", "content"],
 }
 
-SYSTEM = """\
+# The first paragraph, and it is the one that has to change for a place with
+# more than one remain. Franco's reading of the failure, and it was the right
+# one: adding a bullet about `group` to a prompt whose opening sentence says
+# "you rewrite ENTRIES" and whose every example is one monument does not
+# change the job the model thinks it has. The framing has to say it.
+OPENING = """\
 You rewrite entries from the Swedish national heritage register for a map app \
 that helps people visit archaeological sites.
+"""
+
+OPENING_MULTI = """\
+You describe PLACES WITH SEVERAL REMAINS for a map app that helps people \
+visit archaeological sites.
+
+This place has more than one remain and the visitor sees all of them at once. \
+Your first sentence says what stands there and HOW MANY -- "Tv\u00e5 g\u00e5nggrifter \
+ligger intill varandra", "Fyra runristningar". Only then the detail.
+
+Read the input in this order. "group" is the count and the mix, and it is \
+the fact your first sentence is built on. "members" is one detail per other \
+remain. "source" is the survey text of ONE of them, the largest, and it is \
+the only one written out in full -- so it is your material, not your subject. \
+A description that describes only the source describes only part of the \
+place, and the reader standing in front of the rest will think they are \
+somewhere else.
+"""
+
+SYSTEM = OPENING + """\
 
 Write in SWEDISH. The source is Swedish and so is your answer. You are not \
 translating anything -- you are turning field-survey shorthand into plain \
@@ -600,7 +625,12 @@ def wiki_title_for(sources):
 
 
 def messages(model_input):
-    msgs = [{"role": "system", "content": SYSTEM}]
+    # A place with several remains gets a different opening, not an extra
+    # rule. See OPENING_MULTI.
+    system = SYSTEM
+    if model_input.get("group"):
+        system = OPENING_MULTI + SYSTEM[len(OPENING):]
+    msgs = [{"role": "system", "content": system}]
     for inp, out in EXAMPLES:
         msgs.append({"role": "user", "content": json.dumps(inp, ensure_ascii=False)})
         msgs.append({"role": "assistant", "content": json.dumps(out, ensure_ascii=False)})
