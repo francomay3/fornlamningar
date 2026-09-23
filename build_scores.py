@@ -33,7 +33,9 @@ Usage:
 """
 
 import argparse
+import json
 import math
+import os
 import random
 import sqlite3
 import sys
@@ -641,6 +643,62 @@ def fit_logistic(rows, feats, cw, kw, desc, positives, negatives, train_pos,
     return w, b, mu, sd, names
 
 
+# Same numbers as the app's placeQuestions.ts. A place leaves the map when
+# three distinct authors looked and did not find it, unless two others found it.
+MISSED_DROP = 3
+FOUND_ENOUGH = 2
+
+
+def not_found_clusters(conn):
+    """Clusters the app should stop sending people to.
+
+    Read from the contribution log, one current answer per (place, author,
+    kind) -- the same latest-wins rule the phone uses. Two signals count as
+    "looked and did not find it", and an author who said both still counts
+    once:
+
+      presence been=false with had_visit -- the phone was within fifty metres
+        and they said they had not been to the place.
+      rating not_found -- "I could not find the monument".
+
+    A plain "I have not been here" with no recorded visit does not count.
+    That is the default, and counting it would empty the map.
+    """
+    if not os.path.exists(paths.CONTRIBUTIONS):
+        return set()
+    cl = dict(conn.execute("SELECT uuid, cluster_id FROM site_clusters"))
+    src = sqlite3.connect(paths.ro(paths.CONTRIBUTIONS), uri=True)
+    rows = src.execute("""
+        SELECT e.place_uuid, e.author, e.kind, e.payload
+        FROM events e
+        JOIN (SELECT place_uuid, author, kind, MAX(seq) AS seq
+              FROM events WHERE kind IN ('presence', 'rating')
+              GROUP BY place_uuid, author, kind) m
+          ON m.place_uuid = e.place_uuid AND m.author = e.author
+         AND m.kind = e.kind AND m.seq = e.seq
+    """).fetchall()
+    src.close()
+    missed, found = {}, {}
+    for place, author, kind, payload in rows:
+        cid = cl.get(place)
+        if cid is None:
+            continue
+        try:
+            d = json.loads(payload)
+        except json.JSONDecodeError:
+            continue
+        if kind == "presence" and d.get("been") is True:
+            found.setdefault(cid, set()).add(author)
+        elif kind == "presence" and d.get("been") is False and d.get("had_visit"):
+            missed.setdefault(cid, set()).add(author)
+        elif kind == "rating" and d.get("not_found") is True:
+            missed.setdefault(cid, set()).add(author)
+    return {
+        cid for cid, authors in missed.items()
+        if len(authors) >= MISSED_DROP and len(found.get(cid, ())) < FOUND_ENOUGH
+    }
+
+
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--db", default=DB)
@@ -1043,6 +1101,18 @@ def main():
         print(f"  {len(struck):,} clusters struck out by the register "
               f"(mis-registered or merged; excluded outright)")
 
+    # Places three visitors looked for and did not find. Same bar as the
+    # app's question (placeQuestions.MISSED_DROP / FOUND_ENOUGH): a "no" only
+    # counts when the phone had already recorded a visit, or the rating was
+    # "could not find the monument", and two people who DID find it keep the
+    # pin. No rescue -- a county page does not put a marker back on a place
+    # three people stood beside and could not see. The next run drops it
+    # because excluded_hard is what the tiles omit.
+    not_found = not_found_clusters(conn)
+    if not_found:
+        print(f"  {len(not_found):,} clusters visitors could not find "
+              f"(excluded outright)")
+
     Xa, _ = build_matrix(rows, feats, cw, kw, desc, cont)
     lr_all = LR.logit((Xa - mu) / sd, w_lr, b_lr)
     Xaf, _ = build_matrix(rows, feats_full, cw, kw, desc, cont_full)
@@ -1145,7 +1215,8 @@ def main():
                    or ((r["dominant_class"] or "") in CLASS_BURIED
                        and not rescued)
                    or (r["dominant_class"] or "") in CLASS_NOT_A_PLACE
-                   or r["cluster_id"] in struck)
+                   or r["cluster_id"] in struck
+                   or r["cluster_id"] in not_found)
         soft = int(bool(r["class_soft_blacklisted"]) and not rescued)
         out.append((r["cluster_id"], cw.get(r["dominant_class"] or "?", 0.0),
                     kb, acc, nob, intrinsic, full, hard, soft,
