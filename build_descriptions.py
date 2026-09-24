@@ -280,11 +280,16 @@ def eligible(sites, limit, include_empty, near=None, top=None):
     return [r["cluster_id"] for r in ranked]
 
 
-def done_map(out, prompt_version):
-    """cluster_id -> (source_hash, payload_version) for rows at this prompt."""
-    return {r[0]: (r[1], r[2]) for r in out.execute(
-        "SELECT cluster_id, source_hash, payload_version FROM ai_descriptions "
-        "WHERE prompt_version = ?", (prompt_version,))}
+def done_map(out):
+    """cluster_id -> (source_hash, payload_version, prompt_version).
+
+    Every row, not the rows at one version: since prompt 10 the version a
+    place SHOULD have depends on its payload (dp.prompt_version_for), so the
+    comparison is made per place by the caller.
+    """
+    return {r[0]: (r[1], r[2], r[3]) for r in out.execute(
+        "SELECT cluster_id, source_hash, payload_version, prompt_version "
+        "FROM ai_descriptions")}
 
 
 def run_translate(sites, out, a):
@@ -637,7 +642,8 @@ def run_retitle(sites, out, a):
             continue
         en, _, terr = dp.translate_title(title, model=tmodel, host=a.host)
         out.execute("""UPDATE ai_descriptions
-                       SET title = ?, title_en = ?, prompt_version = ?
+                       SET title = ?, title_en = ?,
+                           prompt_version = MAX(COALESCE(prompt_version, 0), ?)
                        WHERE cluster_id = ?""",
                     (title, None if terr else en, dp.PROMPT_VERSION, cid))
         out.commit()
@@ -670,6 +676,11 @@ def main():
     p.add_argument("--include-empty", action="store_true",
                    help="also send places whose only text is the disclaimer")
     p.add_argument("--force", action="store_true", help="regenerate everything")
+    p.add_argument("--rich-only", action="store_true",
+                   help=f"only places that get prompt v{dp.MD_PROMPT_VERSION}, "
+                        "i.e. have sources besides the register. Leaves the "
+                        f"prompt-v{dp.PROMPT_VERSION} requeue of everything "
+                        "else for another day")
     p.add_argument("--only-flagged", action="store_true",
                    help="regenerate just the rows a check flagged")
     p.add_argument("--max-attempts", type=int, default=3)
@@ -776,30 +787,44 @@ def main():
         # genuinely worse -- but because "I cannot tell" must not be reported
         # as "this changed", and redoing them is a fourteen-hour decision
         # somebody should make on purpose. `--force` is how.
-        done = done_map(out, dp.PROMPT_VERSION)
+        done = done_map(out)
         blocked = {r[0] for r in out.execute(
             "SELECT cluster_id FROM failures WHERE attempts >= ?",
             (a.max_attempts,))}
-        keep, changed, unknown = [], 0, 0
+        keep, changed, unknown, upgraded = [], 0, 0, 0
         for c in ids:
             if c in blocked:
                 continue
             if c not in done:
                 keep.append(c)
                 continue
-            stored, shape = done[c]
-            if shape != dp.PAYLOAD_VERSION:
-                unknown += 1
-                continue
+            stored, shape, version = done[c]
             pl = dp.payload(sites, c)
             if pl is None:
                 # No longer describable. Leave the row alone rather than
                 # queueing a place the worker cannot build a payload for.
                 continue
+            if a.rich_only and (dp.prompt_version_for(pl["model_input"])
+                                != dp.MD_PROMPT_VERSION):
+                continue
+            # A place that now earns a newer prompt is queued whatever its
+            # payload shape: the new text replaces the old one wholesale, so
+            # there is no hash to compare.
+            if (version or 0) < dp.prompt_version_for(pl["model_input"]):
+                upgraded += 1
+                keep.append(c)
+                continue
+            if shape != dp.PAYLOAD_VERSION:
+                unknown += 1
+                continue
             if not stored or source_hash(pl["model_input"]) != stored:
                 changed += 1
                 keep.append(c)
         ids = keep
+        if upgraded:
+            print(f"  {upgraded:,} because they now get prompt "
+                  f"v{dp.MD_PROMPT_VERSION} (they have sources besides the "
+                  f"register)")
         if changed:
             print(f"  {changed:,} because their sources changed since they "
                   f"were written")
@@ -848,12 +873,13 @@ def main():
                 if pl is None:
                     results.put(("fail", cid, "no such cluster", None))
                     continue
-                res, elapsed, err = dp.generate(pl["model_input"], a.model, a.host)
+                res, elapsed, err, version = dp.describe(
+                    pl["model_input"], a.model, a.host)
                 if err:
                     results.put(("fail", cid, err, None))
                     continue
                 flags = dp.check(res, pl["model_input"])
-                results.put(("ok", cid, pl, (res, flags, elapsed)))
+                results.put(("ok", cid, pl, (res, flags, elapsed, version)))
             except Exception as exc:                      # noqa: BLE001
                 results.put(("fail", cid, f"{type(exc).__name__}: {exc}", None))
 
@@ -887,7 +913,7 @@ def main():
             continue
 
         pl = info
-        res, flags, elapsed = extra
+        res, flags, elapsed, version = extra
         # Committed one row at a time. Generation costs seconds, so batching
         # would buy nothing measurable and would turn Ctrl-C into lost work.
         out.execute("""
@@ -913,7 +939,7 @@ def main():
                 title_en=NULL, content_en=NULL,
                 translated_by=NULL, translated_at=NULL""",
             (pl["cluster_id"], pl["uuid"], pl["lamning"], res["title"],
-             res["content"], a.model, dp.PROMPT_VERSION,
+             res["content"], a.model, version,
              source_hash(pl["model_input"]), dp.PAYLOAD_VERSION,
              ",".join(flags), int(elapsed * 1000)))
         out.commit()

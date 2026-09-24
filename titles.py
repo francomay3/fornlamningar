@@ -55,7 +55,9 @@ def usable_wiki_title(title):
     if not title or not title.strip():
         return False
     t = title.strip()
-    if "(" in t:
+    # "Lista över fornborgar i Uppland#Sollentuna kommun" names a list, not
+    # the place.
+    if "(" in t or "#" in t:
         return False
     return not (SIGNUM.match(t) or SHORT_SIGNUM.match(t))
 

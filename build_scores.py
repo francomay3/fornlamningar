@@ -415,7 +415,7 @@ CLASS_TIER = {
     # easy to reach, which is exactly why the labels overrate them.
     "Hyttområde": TIER_C, "Hammarområde": TIER_C, "Dammvall": TIER_C,
     "Gränsmärke": TIER_C, "Vägmärke": TIER_C, "Lägenhetsbebyggelse": TIER_C,
-    "Kalkugn": TIER_C, "Kvarn": TIER_C, "Bro": TIER_C, "Vägbank": TIER_C,
+    "Kalkugn": TIER_C, "Kvarn": TIER_C, "Vägbank": TIER_C,
     "Husgrund, historisk tid": TIER_C,
     "Småindustriområde": TIER_C, "Kemisk industri": TIER_C,
     "Blästbrukslämning": TIER_C, "Blästplats": TIER_C, "Tomtning": TIER_C,

@@ -62,6 +62,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import sqlite3
 
 import paths
@@ -187,6 +188,8 @@ TRUST = {
     "register_vegetation": 0.4,
     "sign_ocr": 1.0,
     "wikipedia": 0.8,
+    # A page somebody read and chose to add, text pasted by them.
+    "web_page": 0.6,
     "county_attr": 0.6,
     "register": 0.5,
     "user_comment": 0.5,
@@ -329,7 +332,10 @@ def add(out, cluster_id, kind, text, **kw):
     """
     if not cluster_id or not text or not str(text).strip():
         return 0
-    clean = " ".join(str(text).split())
+    # Every other kind is one paragraph, and its row_sha was taken over the
+    # flattened text: flattening them differently now would make the whole
+    # corpus look new and every description stale.
+    clean = keep_lines(text) if kw.get("lines") else " ".join(str(text).split())
     out.execute("""
         INSERT OR IGNORE INTO sources
           (cluster_id, uuid, kind, lang, title, text, author, publisher,
@@ -464,19 +470,140 @@ def from_documents(out):
     return n
 
 
-def from_wikipedia(out, cl):
+def own_entry(text, number):
+    """The paragraphs of a list section that are about this one site.
+
+    A title into a list page ("Lista över fornborgar i Uppland#Sollentuna
+    kommun") is a section describing five forts, one paragraph each, tagged
+    "(Sollentuna 84:1)". Given the whole section the model mixed them: fort
+    141 was described with fort 84's walls. A section that does not cite the
+    number is about one place already (Högeklint) and is kept whole.
+    """
+    if not number:
+        return text
+    base = number.split(":")[0]
+    tag = re.compile(rf"\b{re.escape(base)}:\d")
+    mine = [l for l in text.splitlines() if tag.search(l)]
+    return "\n".join(mine) if mine else text
+
+
+def from_wikipedia(out, cl, numbers, also_keep=()):
+    """The article, whole, and in Swedish wherever Swedish exists.
+
+    The body when crawl_wikimedia has fetched one, else the lead. Until
+    2026-09-24 it was only ever the lead -- the REST summary, one paragraph
+    -- which is why a place with a 40,000-character article was described
+    from 205 characters of it.
+
+    English only for a site with no Swedish article. Where both exist the
+    English one is a second copy of the same subject in a language the
+    Swedish prompt filters out anyway, and it made the source list read as
+    if half the corpus were English.
+
+    SUPERSEDED ROWS ARE RETIRED, NOT DELETED. `add` only ever inserts, so
+    the old lead would otherwise sit beside the new article as a second
+    Wikipedia source. It is set usable = 0 instead of removed because
+    generation_sources points at it: the description written from the lead
+    still has to be able to say what it was written from.
+    """
     if not os.path.exists(WIKI_DB):
         return 0
     w = sqlite3.connect(f"file:{WIKI_DB}?mode=ro", uri=True)
+    has_body = "body" in {r[1] for r in w.execute(
+        "PRAGMA table_info(wiki_articles)")}
+    # body '' is an answer -- "the section this title points at is not
+    # there" -- and must not fall back to the lead, which for a title into a
+    # list page is the lead of the list.
+    text_col = ("CASE WHEN body IS NOT NULL THEN body ELSE extract END"
+                if has_body else "extract")
+    rows = w.execute(f"""
+        SELECT uuid, lang, title, {text_col}, url,
+               {"COALESCE(body_at, fetched_at)" if has_body else "fetched_at"}
+          FROM wiki_articles a
+         WHERE {text_col} IS NOT NULL AND {text_col} <> ''
+           AND (lang = 'sv' OR NOT EXISTS (
+                SELECT 1 FROM wiki_articles s
+                 WHERE s.uuid = a.uuid AND s.lang = 'sv'
+                   AND COALESCE(s.extract, '') <> ''))""").fetchall()
+    keep = set()
     n = 0
-    for uuid, lang, title, extract, url, when in w.execute(
-            "SELECT uuid, lang, title, extract, url, fetched_at "
-            "FROM wiki_articles WHERE extract IS NOT NULL AND extract <> ''"):
-        n += add(out, cl.get(uuid), "wikipedia", extract, uuid=uuid,
+    for uuid, lang, title, text, url, when in rows:
+        cid = cl.get(uuid)
+        if "#" in (title or ""):
+            text = own_entry(text, numbers.get(uuid))
+        clean = keep_lines(text)
+        if cid and clean:
+            keep.add(row_sha(cid, "wikipedia", lang, url, clean))
+        n += add(out, cid, "wikipedia", text, uuid=uuid,
                  lang=lang, title=title, publisher=f"Wikipedia ({lang})",
                  licence=BYSA4[0], licence_url=BYSA4[1], url=url,
-                 fetched_at=when)
+                 fetched_at=when, lines=True)
+    out.execute("CREATE TEMP TABLE IF NOT EXISTS wiki_keep (sha TEXT PRIMARY KEY)")
+    out.execute("DELETE FROM wiki_keep")
+    out.executemany("INSERT OR IGNORE INTO wiki_keep VALUES (?)",
+                    [(s,) for s in keep | set(also_keep)])
+    retired = out.execute("""
+        UPDATE sources SET usable = 0
+         WHERE kind = 'wikipedia' AND usable = 1
+           AND row_sha NOT IN (SELECT sha FROM wiki_keep)""").rowcount
+    print(f"  wikipedia:   {retired:,} superseded rows retired")
     return n
+
+
+ADDED = os.path.join(paths.DATA, "added_sources.jsonl")
+
+
+def from_added(out, cl):
+    """Sources a person added by hand on the admin page.
+
+    Written by ../franco-may/scripts/export-fl-added-sources.cjs from
+    fl_sources_added, and tracked in git: it is small, and it is the only
+    input here nobody could re-crawl.
+
+    The file is the whole truth. A row that was here last time and is not
+    now was taken back, and is retired the same way a superseded Wikipedia
+    lead is -- usable = 0, never deleted -- through `added_seen`, which
+    remembers which rows came from this file.
+
+    Returns the row_shas it kept, so from_wikipedia does not retire an added
+    Wikipedia article as a lead it no longer recognises.
+    """
+    out.execute("CREATE TABLE IF NOT EXISTS added_seen (row_sha TEXT PRIMARY KEY)")
+    keep = set()
+    if os.path.exists(ADDED):
+        with open(ADDED, encoding="utf-8") as f:
+            rows = [json.loads(l) for l in f if l.strip()]
+    else:
+        rows = []
+    for r in rows:
+        cid = cl.get(r["place_uuid"])
+        if not cid:
+            continue
+        kind = "wikipedia" if r["kind"] == "wikipedia" else "web_page"
+        lines = kind == "wikipedia"
+        clean = keep_lines(r["body"]) if lines else " ".join(r["body"].split())
+        sha = row_sha(cid, kind, r.get("lang"), r.get("url"), clean)
+        add(out, cid, kind, r["body"], uuid=r["place_uuid"], lang=r.get("lang"),
+            title=r.get("title"), publisher=r.get("publisher"),
+            licence=r.get("licence"), licence_url=r.get("licence_url"),
+            url=r.get("url"), fetched_at=r.get("created_at"), lines=lines)
+        # Back on if it was taken away once and has been added again.
+        out.execute("UPDATE sources SET usable = 1 WHERE row_sha = ?", (sha,))
+        out.execute("INSERT OR IGNORE INTO added_seen VALUES (?)", (sha,))
+        keep.add(sha)
+    gone = [s for (s,) in out.execute("SELECT row_sha FROM added_seen")
+            if s not in keep]
+    for s in gone:
+        out.execute("UPDATE sources SET usable = 0 WHERE row_sha = ?", (s,))
+    print(f"  added:       {len(keep):,} hand-added sources, "
+          f"{len(gone):,} taken back")
+    return keep
+
+
+def keep_lines(text):
+    """Whitespace collapsed within each line, paragraphs and headings kept."""
+    lines = (" ".join(l.split()) for l in str(text).split("\n"))
+    return "\n".join(l for l in lines if l)
 
 
 def dataset_licences(l):
@@ -764,7 +891,11 @@ def main():
     n = from_register_extras(sites, out, cl)
     out.commit()
     print(f"  reg extras:  {n:,} rows offered")
-    n = from_wikipedia(out, cl)
+    added = from_added(out, cl)
+    out.commit()
+    numbers = dict(sites.execute("SELECT uuid, raa_number FROM sites "
+                                 "WHERE raa_number IS NOT NULL"))
+    n = from_wikipedia(out, cl, numbers, also_keep=added)
     out.commit()
     print(f"  wikipedia:   {n:,} rows offered")
     n = from_documents(out)

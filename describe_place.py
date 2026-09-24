@@ -63,6 +63,25 @@ TRANSLATE_MODEL = "gemma3:12b"
 #    grave while looking at two is wrong, not badly phrased.
 PROMPT_VERSION = 9
 
+# 10: Markdown, several paragraphs, written from the whole corpus -- for the
+#     places that HAVE a corpus. See MD_HEAD. Places whose only text is the
+#     register stay at 9: on a 12-place random sample the new prompt took
+#     21.5 s a place against 5.6 s and produced the same text, because the
+#     register is all there is to say. So the version is per place, chosen by
+#     prompt_version_for(), and a run requeues only the rich ones.
+MD_PROMPT_VERSION = 10
+
+# What makes a place worth the long prompt: something written about it
+# besides the survey. Visitor comments do not count -- the prompt only lets
+# them describe the visit -- and neither do the register's own extra fields.
+RICH_KINDS = {"wikipedia", "web_page", "folklore", "county_page",
+              "county_attr", "county_programme", "county_pdf", "county_plan"}
+
+
+def prompt_version_for(model_input):
+    kinds = {s["kind"] for s in model_input.get("sources", [])}
+    return MD_PROMPT_VERSION if kinds & RICH_KINDS else PROMPT_VERSION
+
 # Bump when `payload()` changes WHAT IT PUTS IN FRONT OF THE MODEL: a field
 # added, removed or renamed, or a value computed differently.
 #
@@ -426,6 +445,29 @@ def load_sources(cluster_id, places_db=None, lang="sv"):
         out.append({"source_id": source_id,
                     "kind": "folklore" if kind == "tradition" else kind,
                     "publisher": publisher, "title": title, "text": t})
+    return cap_sources(out)
+
+
+# THE PROMPT HAS A SIZE, and Ollama does not say when it is exceeded: it
+# drops the start of the context -- the system prompt -- and answers anyway.
+# Harmless while Wikipedia was a 260-character lead; from 2026-09-24 it is
+# the whole article, and Bohus fästning alone is 33,000 characters. Each
+# source is cut at SOURCE_CAP and the lot at SOURCES_CAP, highest-trust
+# first because that is the order they arrive in, and NUM_CTX is set
+# explicitly so the window is a number in this file and not a server default.
+SOURCE_CAP = 12000
+SOURCES_CAP = 24000
+NUM_CTX = 16384
+
+
+def cap_sources(sources):
+    out, left = [], SOURCES_CAP
+    for s in sources:
+        if left <= 0:
+            break
+        text = s["text"][:min(SOURCE_CAP, left)]
+        left -= len(text)
+        out.append({**s, "text": text})
     return out
 
 
@@ -685,7 +727,7 @@ def generate(model_input, model=DEFAULT_MODEL, host=HOST, timeout=180):
         # Nothing here benefits from sampling. We want the same input to give
         # the same output, so a rerun is a no-op and a bad output is
         # reproducible while we fix the prompt.
-        "options": {"temperature": 0, "num_predict": 400},
+        "options": {"temperature": 0, "num_predict": 400, "num_ctx": NUM_CTX},
         # Reasoning models burn seconds thinking about a paraphrase and
         # sometimes leak the reasoning into the JSON. Ignored by models that
         # have no thinking mode.
@@ -705,6 +747,261 @@ def generate(model_input, model=DEFAULT_MODEL, host=HOST, timeout=180):
     title = " ".join(str(parsed.get("title") or "").split())
     content = " ".join(str(parsed.get("content") or "").split())
     return {"title": title, "content": content}, elapsed, None
+
+
+# --- prompt 10: Markdown from the corpus ------------------------------------
+#
+# Why the old prompt wrote 52 words about Bohus fästning with 15,000
+# characters of its article in the input: it is framed as a REWRITE of the
+# register entry, capped at 45-160 words, and its examples are all one
+# survey sentence long. The model did the job it was given. This one is
+# framed as telling a visitor what the sources say, and it is unconstrained
+# text rather than JSON -- a grammar-constrained decode of several
+# paragraphs is the thing that 500s on curly quotes (see TYPOGRAPHIC).
+#
+# THE RULES ARE ASSEMBLED PER PLACE, and that was measured, not guessed. With
+# one static list gemma3:12b wrote "enligt traditionen" in 13 of 20 bench
+# places, only 5 of which had any folklore: a rule that says "use this
+# phrase for folklore only" mostly teaches the phrase. Telling a place with
+# no folklore that it has none took it to 0.
+#
+# AND THEN THE OUTPUT IS CHECKED AND SENT BACK. md_problems() finds what a
+# program can find -- too many measurements, banned words, a named source,
+# a number or a period the input does not contain -- and the model gets up
+# to two turns to fix the list it is shown. On the 20-place bench that took
+# rule breaks from 33 to 0. It is also why this prompt is ~4x slower.
+
+MD_HEAD = """\
+You write the description of a place for a Swedish map app that helps \
+ordinary people visit archaeological and historical sites. The reader has the \
+app open and is deciding whether to go there, or is already standing there.
+
+Write in SWEDISH, in Markdown: paragraphs separated by a blank line, and \
+**bold** for at most one name. No headings, no lists, no links.
+
+THE SHAPE
+1. First paragraph, one or two sentences: what the place is, said so that a \
+person who reads nothing else knows what they would see.{group}
+2. Then what the sources tell that a curious visitor would want to know: \
+who built or used it, what happened there, what it was for, what became of \
+it. Pick the three or four best things and tell them clearly; leave the rest \
+out. Keep dates and names exactly as the sources give them.
+3. Last, if the sources say, what a visitor finds there today.
+Aim for about {words} words. With little material, write little: one short \
+paragraph is right for a place whose only source is a survey. Never pad.
+
+THE INPUT
+- "source" is the heritage register's survey text: what is physically there, \
+written by a surveyor in shorthand. Write out its abbreviations (NÖ = \
+nordost, "diam" = i diameter, "h" = hög). "X, rest av" means the remains of \
+an X. Never mention the register, surveys or damage classifications.
+- "sources" is what else has been written: history and context, use it freely.
+{kinds}
+RULES
+- Only facts from the input. Nothing you know yourself about the place, the \
+period or this kind of monument: if the input gives no date or period, the \
+text gives none. A short text is fine; an invented one is not.
+- Never name a source: no "enligt Wikipedia", "enligt uppgift", "besökare \
+säger", "källor". State the fact.
+- SIZES: the app already shows the size. Give at most TWO numbers with a \
+unit (meter, km) in the whole text, only for what is remarkable. Leave the \
+other measurements out entirely -- do not replace them with empty words like \
+"stor anläggning", "varierande storlek" or "lång och bred".
+- Plain, factual, warm Swedish. No selling. Never use these words: mystisk, \
+uråldrig, helig, majestätisk, tidlös, vittnar om, viskar, intressant, \
+imponerande, fascinerande, unik, spännande, sevärd, pittoresk, "väl värd ett \
+besök". No exclamation marks. Let the facts do the work.
+- Counts must be exact.
+{title}
+Reply in exactly this shape and nothing else:
+TITLE: <the title>
+
+<the Markdown>
+"""
+
+MD_FOLK = ("- kind \"folklore\" is a recorded local TRADITION. Tell it as one: "
+           "\"enligt traditionen ...\" or \"det sägs att ...\". Those phrases "
+           "belong to the folklore and to nothing else.\n")
+MD_NO_FOLK = ("- This place has NO recorded tradition. Do not write \"enligt "
+              "traditionen\", \"det sägs\" or \"sägnen\": every fact is stated "
+              "plainly.\n")
+MD_VISIT = ("- kind \"user_comment\" summarises what visitors say. Use it only "
+            "for what the place is like to visit today (paths, view, parking, "
+            "what it feels like), in the last paragraph, never for history, "
+            "dates or names. Do not retell jokes or games from it.\n")
+MD_GROUP = (" \"group\" lists the remains at this place: say how many there "
+            "are and of what kind, e.g. \"Två gånggrifter ligger intill "
+            "varandra\".")
+MD_TITLE_NAMED = "\nTITLE: write the name exactly: \"{name}\".\n"
+MD_TITLE_FREE = ("\nTITLE: what the place is plus one distinguishing detail "
+                 "from the input, as ONE plain phrase under 45 characters: no "
+                 "colon, dash or slash, no parish or municipality.\n")
+
+
+def md_target_words(model_input):
+    extra = sum(len(s["text"].split()) for s in model_input.get("sources", [])
+                if s["kind"] != "user_comment")
+    if extra == 0:
+        return 60
+    for limit, words in ((100, 90), (300, 140), (1000, 200)):
+        if extra < limit:
+            return words
+    return 260
+
+
+def md_system(model_input):
+    kinds = {s["kind"] for s in model_input.get("sources", [])}
+    k = MD_FOLK if "folklore" in kinds else MD_NO_FOLK
+    if "user_comment" in kinds:
+        k += MD_VISIT
+    name = model_input.get("name")
+    return MD_HEAD.format(
+        group=MD_GROUP if model_input.get("group") else "",
+        words=md_target_words(model_input), kinds=k,
+        title=MD_TITLE_NAMED.format(name=name) if name else MD_TITLE_FREE)
+
+
+def _plain_deep(v):
+    if isinstance(v, str):
+        return _plain_quotes(v)
+    if isinstance(v, list):
+        return [_plain_deep(x) for x in v]
+    if isinstance(v, dict):
+        return {k: _plain_deep(x) for k, x in v.items()}
+    return v
+
+
+MD_UNIT = re.compile(r"\d+(?:[,.]\d+)?(?:\s*(?:-|–|till|x|×)\s*\d+(?:[,.]\d+)?)?"
+                     r"\s*(?:meter|m\b|km|cm|kvadratmeter|m²)", re.I)
+MD_CLICHE = re.compile(r"\b(?:väl värd|intressant|imponerande|unik|fascinerande|"
+                       r"spännande|sevärd|pittoresk|charmig|mystisk|uråldrig|"
+                       r"helig|majestätisk|tidlös|vittnar om|viskar)", re.I)
+MD_NAMING = re.compile(r"enligt (wikipedia|fornkoll|länsstyrelsen|registret|"
+                       r"riksantikvar|besökare|uppgift)|enligt (samma |äldre |"
+                       r"historiska )?käll|wikipedia|fornkoll|"
+                       r"riksantikvarieämbetet", re.I)
+MD_TRADITION = re.compile(r"enligt traditionen|\bsägs\b|sägen|sägnen|legend", re.I)
+MD_FILLER = re.compile(r"stor anläggning|varierande storlek|lång och bred|"
+                       r"ganska omfattande|av olika storlek", re.I)
+# Periods are the invention the number check cannot see: given one visitor
+# comment and nothing else, the model dated Valla dös to the Bronze Age --
+# wrongly, too; dösar are Neolithic.
+MD_PERIODS = re.compile(r"stenålder|bronsålder|järnålder|vikingatid|medeltid|"
+                        r"folkvandringstid|vendeltid|neolit|mesolit", re.I)
+MD_TITLE_JUNK = re.compile(r"[:/]| – | - ")
+
+
+def md_problems(model_input, content, title=None):
+    """The rule breaks a program can see, as sentences the model can act on."""
+    kinds = {s["kind"] for s in model_input.get("sources", [])}
+    given = json.dumps(model_input, ensure_ascii=False)
+    out = []
+    m = MD_UNIT.findall(content)
+    if len(m) > 2:
+        out.append(f"It gives {len(m)} measurements ({'; '.join(m[:5])}). Keep "
+                   "at most two; delete the others without putting vague "
+                   "words in their place.")
+    f = sorted({x.group(0).lower() for x in MD_FILLER.finditer(content)})
+    if f:
+        out.append(f"It uses empty size words ({', '.join(f)}). Delete them.")
+    p = sorted({x.group(0).lower() for x in MD_PERIODS.finditer(content)
+                if x.group(0).lower() not in given.lower()})
+    if p:
+        out.append(f"It names a period the input does not give "
+                   f"({', '.join(p)}). Remove that claim.")
+    if title and not model_input.get("name") and MD_TITLE_JUNK.search(title):
+        out.append("The title has a colon, dash or slash. Make it one plain "
+                   "phrase.")
+    for w in sorted({x.group(0).lower() for x in MD_CLICHE.finditer(content)}):
+        out.append(f"It uses the banned word \"{w}\".")
+    n = MD_NAMING.search(content)
+    if n:
+        out.append(f"It names a source (\"{n.group(0)}\"). State the fact "
+                   "instead.")
+    if MD_TRADITION.search(content) and "folklore" not in kinds:
+        out.append("It says \"enligt traditionen\"/\"det sägs\", but this "
+                   "place has no recorded tradition. State those facts plainly.")
+    if re.search(r"^#|^\s*[-*] ", content, re.M):
+        out.append("It has headings or lists. Paragraphs only.")
+    src = set(NUM.findall(given))
+    invented = sorted({x for x in NUM.findall(content) if x not in src})
+    if invented:
+        out.append(f"It gives numbers that are not in the input "
+                   f"({', '.join(invented)}). Remove them and whatever claim "
+                   "they belong to.")
+    return out
+
+
+def tidy_md(text):
+    """Whitespace collapsed inside each paragraph, paragraphs kept apart."""
+    paras = re.split(r"\n\s*\n", (text or "").strip())
+    return "\n\n".join(" ".join(p.split()) for p in paras if p.strip())
+
+
+def _md_parse(txt):
+    head, _, rest = txt.strip().partition("\n")
+    if not head.startswith("TITLE:"):
+        return None, None
+    return head.removeprefix("TITLE:").strip(" *#\""), tidy_md(rest)
+
+
+def generate_md(model_input, model=DEFAULT_MODEL, host=HOST, timeout=900):
+    """Prompt 10. Same return shape as generate()."""
+    inp = _plain_deep({k: v for k, v in model_input.items()
+                       if k not in ("max_words", "size")})
+    msgs = [{"role": "system", "content": md_system(inp)},
+            {"role": "user", "content": json.dumps(inp, ensure_ascii=False)}]
+
+    def call():
+        body = {"model": model, "stream": False, "think": False,
+                "messages": msgs,
+                "options": {"temperature": 0, "num_predict": 1200,
+                            "num_ctx": NUM_CTX}}
+        req = urllib.request.Request(
+            f"{host}/api/chat", data=json.dumps(body).encode(),
+            headers={"Content-Type": "application/json"})
+        data, el, err = _chat(req, timeout)
+        return (None if err else data["message"]["content"]), el, err
+
+    txt, elapsed, err = call()
+    if err:
+        return None, elapsed, err
+    title, content = _md_parse(txt)
+    if not content:
+        return None, elapsed, f"no TITLE line: {txt[:120]}"
+    bad = md_problems(inp, content, title)
+    for _ in range(2):
+        if not bad:
+            break
+        msgs += [{"role": "assistant", "content": txt},
+                 {"role": "user", "content": "Your text breaks the rules:\n- "
+                  + "\n- ".join(bad) + "\nRewrite it with these fixed and "
+                  "everything else kept. Same reply shape."}]
+        txt, el, err = call()
+        elapsed += el
+        if err:
+            break
+        t2, c2 = _md_parse(txt)
+        if not c2:
+            break
+        bad2 = md_problems(inp, c2, t2)
+        # Kept only if it is better. A rewrite that trades one break for
+        # another is not progress, and the first draft is usually the richer.
+        if len(bad2) < len(bad) or (len(bad2) == len(bad) and len(
+                MD_UNIT.findall(c2)) < len(MD_UNIT.findall(content))):
+            title, content, bad = t2, c2, bad2
+    if model_input.get("name"):
+        title = model_input["name"]
+    return {"title": " ".join((title or "").split()), "content": content,
+            "md": True}, elapsed, None
+
+
+def describe(model_input, model=DEFAULT_MODEL, host=HOST):
+    """(result, elapsed, err, prompt_version) with the prompt this place gets."""
+    v = prompt_version_for(model_input)
+    fn = generate_md if v == MD_PROMPT_VERSION else generate
+    res, elapsed, err = fn(model_input, model, host)
+    return res, elapsed, err, v
 
 
 # Typographic quotes, normalised ONLY on the way into the model.
@@ -795,6 +1092,67 @@ def _translate_plain(text, model, host, timeout):
     return (out.strip('"') or None), elapsed, (None if out else "empty reply")
 
 
+MD_TRANSLATE_RULE = """
+
+The text has several paragraphs separated by blank lines: keep exactly the \
+same paragraphs. Translate EVERY Swedish word into English using the terms \
+above -- borg is castle, vallgrav is moat, fästning is fortress -- except the \
+names of places and people. Never add ** or any other marking; where the \
+Swedish has **around a name**, keep it around the same name. Reply with the \
+English text and nothing else."""
+
+
+def _translate_md_text(text, model, host, timeout):
+    body = {
+        "model": model or TRANSLATE_MODEL,
+        "messages": [
+            {"role": "system", "content": TRANSLATE_SYSTEM + MD_TRANSLATE_RULE},
+            {"role": "user", "content": _plain_quotes(text)},
+        ],
+        "stream": False,
+        "options": {"temperature": 0, "num_predict": 1500, "num_ctx": NUM_CTX},
+        "think": False,
+    }
+    req = urllib.request.Request(
+        f"{host}/api/chat", data=json.dumps(body).encode(),
+        headers={"Content-Type": "application/json"})
+    data, elapsed, err = _chat(req, timeout)
+    if err:
+        return None, elapsed, err
+    out = tidy_md(str(data.get("message", {}).get("content", "")))
+    return (out or None), elapsed, (None if out else "empty reply")
+
+
+def translate_md(sv, model=None, host=HOST, timeout=600):
+    """Prompt-10 text: Markdown in, Markdown out, no JSON.
+
+    Not through translate(), whose JSON schema and `" ".join(split())` would
+    fold the paragraphs into one and whose 400-token budget is shorter than
+    a 260-word description in English. If the paragraph count does not
+    survive, the paragraphs go one at a time: a bold marker or a paragraph
+    in the wrong place is a layout bug the reader sees.
+    """
+    content, elapsed, err = _translate_md_text(sv["content"], model, host,
+                                               timeout)
+    if err:
+        return None, elapsed, err
+    paras = sv["content"].split("\n\n")
+    if content.count("\n\n") != len(paras) - 1:
+        parts = []
+        for p in paras:
+            t, el, err = _translate_md_text(p, model, host, timeout)
+            elapsed += el
+            if err:
+                return None, elapsed, f"paragraph: {err}"
+            parts.append(" ".join(t.split()))
+        content = "\n\n".join(parts)
+    title, el, terr = translate_title(sv["title"], model=model, host=host)
+    elapsed += el or 0
+    if terr:
+        return None, elapsed, f"title: {terr}"
+    return {"title": title, "content": content}, elapsed, None
+
+
 def translate(sv, model=None, host=HOST, timeout=180):
     """Second pass: the simplified Swedish into English.
 
@@ -806,6 +1164,8 @@ def translate(sv, model=None, host=HOST, timeout=180):
     language) runs against the source, and the easy one runs against clean
     text and can be redone with a better model without touching it.
     """
+    if "\n\n" in (sv.get("content") or ""):
+        return translate_md(sv, model, host)
     body = {
         "model": model or TRANSLATE_MODEL,
         "messages": [
@@ -913,16 +1273,7 @@ def retitle(model_input, content_sv, model=DEFAULT_MODEL, host=HOST,
         headers={"Content-Type": "application/json"})
     data, elapsed, err = _chat(req, timeout)
     if err:
-        # See _translate_plain: the constrained decode is the fragile part,
-        # so the retry drops the constraint instead of repeating the same
-        # request and hoping.
-        ct, e1, err1 = _translate_plain(sv["content"], model, host, timeout)
-        tt, e2, _ = _translate_plain(sv["title"], model, host, timeout)
-        if ct:
-            return ({"title": " ".join((tt or sv["title"]).split()),
-                     "content": " ".join(ct.split())},
-                    elapsed + e1 + e2, None)
-        return None, elapsed + e1 + e2, f"{err}; unconstrained: {err1}"
+        return None, elapsed, err
     try:
         parsed = json.loads(data.get("message", {}).get("content", ""))
     except json.JSONDecodeError:
@@ -953,13 +1304,10 @@ def translate_title(title_sv, model=None, host=HOST, timeout=120):
         # See _translate_plain: the constrained decode is the fragile part,
         # so the retry drops the constraint instead of repeating the same
         # request and hoping.
-        ct, e1, err1 = _translate_plain(sv["content"], model, host, timeout)
-        tt, e2, _ = _translate_plain(sv["title"], model, host, timeout)
-        if ct:
-            return ({"title": " ".join((tt or sv["title"]).split()),
-                     "content": " ".join(ct.split())},
-                    elapsed + e1 + e2, None)
-        return None, elapsed + e1 + e2, f"{err}; unconstrained: {err1}"
+        tt, e1, err1 = _translate_plain(title_sv, model, host, timeout)
+        if tt:
+            return " ".join(tt.split()), elapsed + e1, None
+        return None, elapsed + e1, f"{err}; unconstrained: {err1}"
     try:
         parsed = json.loads(data.get("message", {}).get("content", ""))
     except json.JSONDecodeError:
@@ -1024,7 +1372,9 @@ def check(result, model_input):
             sorted({m.group(0).lower() for m in BANNED.finditer(
                 prose)})))
     words = len(result["content"].split())
-    if words > 80:
+    # Prompt 10 is long on purpose and says so in `md`; 400 is past anything
+    # its target_words asks for.
+    if words > (400 if result.get("md") else 80):
         flags.append(f"long:{words}w")
     if len(result["title"]) > 50:
         flags.append(f"title:{len(result['title'])}c")
@@ -1099,7 +1449,7 @@ def main():
             src = pl["model_input"]["source"]
             print(f"  SOURCE: {src[:220]}{'...' if len(src) > 220 else ''}")
         for m in models:
-            res, elapsed, err = generate(pl["model_input"], m, a.host)
+            res, elapsed, err, version = describe(pl["model_input"], m, a.host)
             stats[m][0] += elapsed
             stats[m][1] += 1
             if err:
@@ -1108,7 +1458,8 @@ def main():
             flags = check(res, pl["model_input"])
             if flags:
                 stats[m][2] += 1
-            print(f"  [{m}] {elapsed:.1f}s{'  FLAGS ' + ' '.join(flags) if flags else ''}")
+            print(f"  [{m}] v{version} {elapsed:.1f}s"
+                  f"{'  FLAGS ' + ' '.join(flags) if flags else ''}")
             print(f"     title:   {res['title']}")
             print(f"     content: {res['content'] or '(empty)'}")
 

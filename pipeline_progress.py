@@ -102,7 +102,8 @@ def target_ids(top: int) -> list[str]:
         sites.close()
 
 
-def measure(stage: str, top: int, since: float | None = None) -> tuple[int, int] | None:
+def measure(stage: str, top: int, since: float | None = None,
+            rich_only: bool = False) -> tuple[int, int] | None:
     """(done, total) for a counted stage, or None if it cannot be counted.
 
     `since` is set for a --force run and changes what "done" MEANS, which
@@ -138,21 +139,36 @@ def measure(stage: str, top: int, since: float | None = None) -> tuple[int, int]
         out.execute("CREATE TEMP TABLE want(cluster_id TEXT PRIMARY KEY)")
         out.executemany("INSERT OR IGNORE INTO want VALUES (?)", ((i,) for i in ids))
         if stage == "descriptions":
-            if since is None:
-                done, = out.execute(
-                    "SELECT count(*) FROM ai_descriptions a "
-                    "JOIN want w USING (cluster_id) "
-                    "WHERE a.content <> '' AND a.prompt_version = ?",
-                    (dp.PROMPT_VERSION,)).fetchone()
-            else:
-                stamp = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime(since))
-                done, = out.execute(
-                    "SELECT count(*) FROM ai_descriptions a "
-                    "JOIN want w USING (cluster_id) "
-                    "WHERE a.content <> '' AND a.prompt_version = ? "
-                    "AND a.created_at >= ?",
-                    (dp.PROMPT_VERSION, stamp)).fetchone()
-            total = len(ids)
+            # The version a place is done AT depends on the place: prompt 10
+            # for one with sources besides the register, 9 otherwise (see
+            # describe_place.prompt_version_for). Counting one version would
+            # show a prompt-10 run going backwards, one place at a time.
+            out.execute("CREATE TEMP TABLE rich(cluster_id TEXT PRIMARY KEY)")
+            if os.path.exists(paths.PLACES):
+                kinds = {"tradition" if k == "folklore" else k
+                         for k in dp.RICH_KINDS}
+                p = sqlite3.connect(paths.ro(paths.PLACES), uri=True)
+                out.executemany("INSERT OR IGNORE INTO rich VALUES (?)", p.execute(
+                    f"SELECT DISTINCT cluster_id FROM sources WHERE usable = 1 "
+                    f"AND kind IN ({','.join('?' * len(kinds))})", sorted(kinds)))
+                p.close()
+            # --rich-only queues only those, so they are the whole target.
+            if rich_only:
+                out.execute("DELETE FROM want WHERE cluster_id NOT IN "
+                            "(SELECT cluster_id FROM rich)")
+            at_version = (
+                "a.prompt_version = CASE WHEN a.cluster_id IN "
+                "(SELECT cluster_id FROM rich) THEN ? ELSE ? END")
+            args = [dp.MD_PROMPT_VERSION, dp.PROMPT_VERSION]
+            sql = ("SELECT count(*) FROM ai_descriptions a "
+                   "JOIN want w USING (cluster_id) "
+                   f"WHERE a.content <> '' AND {at_version}")
+            if since is not None:
+                sql += " AND a.created_at >= ?"
+                args.append(time.strftime("%Y-%m-%d %H:%M:%S",
+                                          time.gmtime(since)))
+            done, = out.execute(sql, args).fetchone()
+            total, = out.execute("SELECT count(*) FROM want").fetchone()
         else:
             # Translation's denominator is what Swedish text EXISTS, not the
             # target: it cannot translate a description that was never
@@ -177,7 +193,8 @@ def sample() -> None:
         return
     # A --force stage counts only what IT wrote; see measure().
     since = cur.get("started_at") if cur.get("force") else None
-    got = measure(stage, int(state.get("top") or 0), since)
+    got = measure(stage, int(state.get("top") or 0), since,
+                  bool(cur.get("rich_only")))
     row = {"ts": time.time(), "stage": stage}
     if got:
         row["done"], row["total"] = got
@@ -361,9 +378,10 @@ def begin_run(stages: list[str], top: int) -> None:
     })
 
 
-def begin_stage(name: str, force: bool = False) -> None:
+def begin_stage(name: str, force: bool = False, rich_only: bool = False) -> None:
     state = read_state()
-    state["current"] = {"name": name, "started_at": time.time(), "force": force}
+    state["current"] = {"name": name, "started_at": time.time(), "force": force,
+                        "rich_only": rich_only}
     write_state(state)
 
 
@@ -390,6 +408,9 @@ def main() -> int:
     ap.add_argument("--force", action="store_true",
                     help="with --begin-stage: this stage rewrites everything, "
                          "so rows from earlier runs are pending and not done")
+    ap.add_argument("--rich-only", action="store_true",
+                    help="with --begin-stage: build_descriptions --rich-only, "
+                         "so only places with a corpus are the target")
     ap.add_argument("--end-stage", nargs=2, metavar=("NAME", "SECONDS"))
     ap.add_argument("--end-run", action="store_true")
     ap.add_argument("--watch", action="store_true")
@@ -403,7 +424,7 @@ def main() -> int:
         begin_run([s for s in a.begin_run.split(",") if s], a.top)
         return 0
     if a.begin_stage:
-        begin_stage(a.begin_stage, a.force)
+        begin_stage(a.begin_stage, a.force, a.rich_only)
         return 0
     if a.end_stage:
         end_stage(a.end_stage[0], float(a.end_stage[1]))

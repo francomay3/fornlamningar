@@ -82,6 +82,10 @@ CREATE TABLE IF NOT EXISTS wiki_articles (
     lang        TEXT NOT NULL,          -- 'sv' | 'en'
     title       TEXT NOT NULL,
     extract     TEXT,                   -- lead paragraphs, CC BY-SA 4.0
+    -- The whole article as plain text, `== Section ==` headings kept and
+    -- the reference sections cut. See fetch_bodies.
+    body        TEXT,
+    body_at     TEXT,
     url         TEXT,
     -- Readership over the trailing twelve whole months. NULL means not
     -- fetched yet; 0 means fetched and genuinely unread, which is itself a
@@ -164,6 +168,10 @@ def get(url, params=None, retries=MAX_RETRY):
 def open_out():
     conn = sqlite3.connect(OUT_DB)
     conn.executescript(SCHEMA)
+    have = {r[1] for r in conn.execute("PRAGMA table_info(wiki_articles)")}
+    for col in ("body", "body_at"):
+        if col not in have:
+            conn.execute(f"ALTER TABLE wiki_articles ADD COLUMN {col} TEXT")
     conn.commit()
     return conn
 
@@ -277,6 +285,162 @@ def fetch_extracts(sites, out, limit=None):
         time.sleep(DELAY)
     out.commit()
     print(f"  {done:,} extracts stored")
+
+
+# Where an article stops being about the place. Everything from the first of
+# these top-level headings on is citations, links and reading lists: text a
+# model would either ignore or, worse, mine for names and dates that belong
+# to a book title rather than to the monument.
+TAIL_SECTIONS = {
+    "referenser", "källor", "noter", "externa länkar", "se även",
+    "litteratur", "vidare läsning", "källhänvisningar", "fotnoter",
+    "references", "sources", "notes", "external links", "see also",
+    "further reading", "bibliography", "literature", "citations",
+}
+
+
+def cut_tail(text):
+    """The article up to its reference sections, headings as `== X ==`."""
+    out = []
+    for line in text.split("\n"):
+        s = line.strip()
+        if s.startswith("==") and s.endswith("=="):
+            name = s.strip("= ").lower()
+            if name in TAIL_SECTIONS and not s.startswith("==="):
+                break
+        out.append(line)
+    # explaintext leaves the heading of a section whose only content was a
+    # gallery or a table: a title followed directly by the next title.
+    text = "\n".join(out)
+    while "\n\n\n" in text:
+        text = text.replace("\n\n\n", "\n\n")
+    return text.strip()
+
+
+def section_of(text, anchor):
+    """The part of an article under the heading `anchor`, subsections included.
+
+    A title from the Wikipedia lists can point INTO a page --
+    `Lista_över_fornborgar_i_Uppland#Sollentuna_kommun` -- and the page is
+    the list of every hill fort in the province: 50,914 characters handed to
+    four Sollentuna forts as if it were about each of them. The anchor is the
+    editor saying which part is, so that part is all that is kept. None if
+    the heading is not there, because the rest of the page is not about this
+    place either.
+    """
+    want = urllib.parse.unquote(anchor).replace("_", " ").strip().lower()
+    lines = text.split("\n")
+    for i, line in enumerate(lines):
+        s = line.strip()
+        if s.startswith("==") and s.strip("= ").lower() == want:
+            level = len(s) - len(s.lstrip("="))
+            out = []
+            for nxt in lines[i + 1:]:
+                n = nxt.strip()
+                if n.startswith("==") and len(n) - len(n.lstrip("=")) <= level:
+                    break
+                out.append(nxt)
+            return "\n".join(out).strip() or None
+    return None
+
+
+def fetch_bodies(out, limit=None, refresh=False):
+    """The WHOLE article, not the lead.
+
+    fetch_extracts takes the REST summary, which is the first paragraph and
+    by design nothing more: Bohus fästning came through as 205 characters of
+    a 39,544-character article, and the description written from it said
+    about as much. The summary stays in `extract` -- it is a clean one-line
+    lead -- and the article goes here, from TextExtracts with explaintext,
+    which drops templates, infoboxes and tables the same way the REST
+    endpoint does.
+
+    One title per request: TextExtracts returns full text for only one page
+    at a time (`exlimit` applies to intros). `redirects` because a title in
+    the lists is typed by hand and often lands on a redirect.
+    """
+    q = ("SELECT uuid, lang, title FROM wiki_articles"
+         + ("" if refresh else " WHERE body IS NULL"))
+    todo = out.execute(q).fetchall()
+    if limit:
+        todo = todo[:limit]
+    print(f"bodies: {len(todo):,} to fetch")
+    done = 0
+    for i, (uuid, lang, title) in enumerate(todo, 1):
+        page_title, _, anchor = title.partition("#")
+        j = get(f"https://{lang}.wikipedia.org/w/api.php", {
+            "action": "query", "prop": "extracts", "explaintext": 1,
+            "exsectionformat": "wiki", "redirects": 1, "format": "json",
+            "formatversion": 2, "titles": page_title.replace("_", " "),
+        })
+        page = ((j or {}).get("query") or {}).get("pages", [{}])[0]
+        if j is None or page.get("missing"):
+            record_failure(out, uuid, f"body:{lang}", "missing")
+        elif "__error" in j:
+            record_failure(out, uuid, f"body:{lang}", j["__error"])
+        else:
+            text = page.get("extract") or ""
+            body = section_of(text, anchor) if anchor else cut_tail(text)
+            # An empty body, not the lead: the lead of a list page is about
+            # the list. build_sources falls back to `extract` only when body
+            # is NULL, so '' also has to stop that.
+            out.execute("UPDATE wiki_articles SET body=?, body_at=datetime('now')"
+                        " WHERE uuid=? AND lang=?", (body or "", uuid, lang))
+            done += 1
+        if i % 100 == 0:
+            out.commit()
+            print(f"  {i:,}/{len(todo):,}")
+        time.sleep(DELAY)
+    out.commit()
+    print(f"  {done:,} bodies stored")
+
+
+def swap_to_swedish(out):
+    """A Swedish article for every site that only has an English one.
+
+    Wikidata gave some sites an English sitelink and no Swedish one even when
+    sv.wikipedia has the article -- the item simply was never linked. The
+    English article's own interlanguage link is the editors' statement that
+    the two are the same subject, which is as good a key as a sitelink.
+
+    The English row stays in the table (pageviews read it) and build_sources
+    drops it whenever the site has a Swedish one, so the corpus is Swedish
+    wherever Swedish exists and English only where it does not.
+    """
+    todo = out.execute("""
+        SELECT e.uuid, e.title FROM wiki_articles e
+         WHERE e.lang = 'en' AND NOT EXISTS (
+               SELECT 1 FROM wiki_articles s
+                WHERE s.uuid = e.uuid AND s.lang = 'sv')
+    """).fetchall()
+    print(f"swedish: {len(todo):,} sites with only an English article")
+    found = 0
+    for uuid, title in todo:
+        j = get("https://en.wikipedia.org/w/api.php", {
+            "action": "query", "prop": "langlinks", "lllang": "sv",
+            "redirects": 1, "format": "json", "formatversion": 2,
+            "titles": title,
+        })
+        page = ((j or {}).get("query") or {}).get("pages", [{}])[0]
+        links = page.get("langlinks") or []
+        time.sleep(DELAY)
+        if not links:
+            continue
+        sv = links[0]["title"]
+        s = get("https://sv.wikipedia.org/api/rest_v1/page/summary/"
+                + urllib.parse.quote(sv.replace(" ", "_"), safe=""))
+        time.sleep(DELAY)
+        if not s or "__error" in s:
+            continue
+        out.execute("""
+            INSERT OR IGNORE INTO wiki_articles
+                (uuid, lang, title, extract, url, fetched_at)
+            VALUES (?, 'sv', ?, ?, ?, datetime('now'))
+        """, (uuid, sv, s.get("extract"),
+              ((s.get("content_urls") or {}).get("desktop") or {}).get("page")))
+        found += 1
+    out.commit()
+    print(f"  {found:,} Swedish articles found through the English one")
 
 
 def month_range():
@@ -486,7 +650,11 @@ def status(sites, out):
                         "AND extract IS NOT NULL", (lang,)).fetchone()[0]
         v = out.execute("SELECT COUNT(*) FROM wiki_articles WHERE lang=? "
                         "AND views_12m IS NOT NULL", (lang,)).fetchone()[0]
-        print(f"  {lang}: {n:,} extracts, {v:,} with pageviews")
+        b = out.execute("SELECT COUNT(*), COALESCE(AVG(LENGTH(body)), 0) "
+                        "FROM wiki_articles WHERE lang=? AND body IS NOT NULL",
+                        (lang,)).fetchone()
+        print(f"  {lang}: {n:,} extracts, {b[0]:,} bodies (avg {b[1]:,.0f} "
+              f"chars), {v:,} with pageviews")
     ph, sites_ph = out.execute(
         "SELECT COUNT(*), COUNT(DISTINCT uuid) FROM photos").fetchone()
     print(f"  {ph:,} photos across {sites_ph:,} sites")
@@ -509,6 +677,12 @@ def main():
     p.add_argument("--sites-db", default=SITES_DB)
     p.add_argument("--out", default=OUT_DB)
     p.add_argument("--extracts", action="store_true")
+    p.add_argument("--swedish", action="store_true",
+                   help="find the sv article for sites with only an en one")
+    p.add_argument("--bodies", action="store_true",
+                   help="whole articles, not the lead")
+    p.add_argument("--refresh-bodies", action="store_true",
+                   help="refetch every body, not only the missing ones")
     p.add_argument("--pageviews", action="store_true")
     p.add_argument("--photos", action="store_true")
     p.add_argument("--all", action="store_true")
@@ -523,11 +697,15 @@ def main():
     out = open_out()
 
     if args.status or not (args.extracts or args.pageviews or args.photos
-                           or args.all):
+                           or args.swedish or args.bodies or args.all):
         status(sites, out)
         return
     if args.extracts or args.all:
         fetch_extracts(sites, out, args.limit)
+    if args.swedish or args.all:
+        swap_to_swedish(out)
+    if args.bodies or args.all:
+        fetch_bodies(out, args.limit, args.refresh_bodies)
     if args.pageviews or args.all:
         fetch_pageviews(sites, out, args.limit)
     if args.photos or args.all:

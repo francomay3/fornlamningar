@@ -327,6 +327,8 @@ for entry in "${STAGES[@]}"; do
   # filas de corridas anteriores estan pendientes y no hechas.
   force_flag=""
   case "$name:$DESC_ARGS" in descriptions:*--force*) force_flag="--force" ;; esac
+  case "$name:$DESC_ARGS" in descriptions:*--rich-only*) force_flag="$force_flag --rich-only" ;; esac
+  # shellcheck disable=SC2086
   python3 pipeline_progress.py --begin-stage "$name" $force_flag
   # build_scores has no --progress-json; pass the flag only where supported.
   if [[ "$name" == "descriptions" ]]; then
