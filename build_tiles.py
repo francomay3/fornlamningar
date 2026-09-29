@@ -261,6 +261,7 @@ def load_resolved_names(work_db, wiki_db):
 # Photographs, per place, for the carousel in the app's sheet.
 MAX_PHOTOS = 6
 PRIORITY = os.path.join(paths.DATA, "photo_priority.jsonl")
+SKIPS = os.path.join(paths.DATA, "photo_skips.jsonl")
 
 
 def load_photo_priority():
@@ -278,6 +279,30 @@ def load_photo_priority():
     if not os.path.exists(PRIORITY):
         return out
     with open(PRIORITY, encoding="utf-8") as fh:
+        for line in fh:
+            line = line.strip()
+            if not line:
+                continue
+            row = json.loads(line)
+            cid, src, file = row.get("cluster_id"), row.get("source"), row.get("file")
+            if cid and src and file:
+                out.add((cid, src, file))
+    return out
+
+
+def load_photo_skips():
+    """{(cluster_id, source, file)} a person set aside in the admin.
+
+    Written by ../franco-may/scripts/export-fl-photo-skips.cjs from
+    fl_photos.skipped. The file is the whole list. A photograph in it
+    does not ship, including one that was also prioritized: skip is the
+    decision that this picture is not the place. Absent means none have
+    been set aside.
+    """
+    out = set()
+    if not os.path.exists(SKIPS):
+        return out
+    with open(SKIPS, encoding="utf-8") as fh:
         for line in fh:
             line = line.strip()
             if not line:
@@ -343,6 +368,7 @@ def load_images(places_db):
         return {}
     c = sqlite3.connect(f"file:{places_db}?mode=ro", uri=True)
     priority = load_photo_priority()
+    skips = load_photo_skips()
     out = {}
     q = """SELECT cluster_id, file, author, licence, licence_url, page_url,
                   source, thumb_url, image_url
@@ -364,7 +390,11 @@ def load_images(places_db):
     for (cid, f, author, lic, lic_url, page_url, _src,
          thumb_url, image_url) in c.execute(q):
         # Unmarked geosearch stays out. A marked one is a person looking at
-        # the thumbnail and saying this one is the place.
+        # the thumbnail and saying this one is the place. A skipped
+        # photograph stays out whichever source it came from: the same
+        # decision, made one picture at a time.
+        if (cid, _src, f) in skips:
+            continue
         if _src == "commons_geosearch" and (cid, _src, f) not in priority:
             continue
         got = out.setdefault(cid, [])
@@ -416,7 +446,7 @@ def load_images(places_db):
     extra = f", {no_hash} skipped with no usable URL" if no_hash else ""
     pri = f", {marked} with a prioritized photograph" if marked else ""
     print(f"  {n:,} photographs across {len(trimmed):,} places "
-          f"(unmarked geosearch excluded; see load_images){pri}{extra}")
+          f"(unmarked geosearch and skipped photographs excluded){pri}{extra}")
     return trimmed
 
 
