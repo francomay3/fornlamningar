@@ -755,6 +755,20 @@ def main():
         print(f"  {len(neg_all):,} verified negatives, used by the logistic fit "
               f"(the lift baseline cannot use them)")
 
+    # A place marked not interesting in the admin is a judgement about the
+    # trip, and it outranks documentation of the same cluster. Otherwise a
+    # Wikipedia article would keep it in the positive set while the flag
+    # also put it in the negative set, and the fit would train on both.
+    admin_neg = {r[0] for r in conn.execute(
+        "SELECT DISTINCT sc.cluster_id FROM labels l "
+        "JOIN site_clusters sc ON sc.uuid = l.uuid "
+        "WHERE l.source = 'admin' AND l.label = 0")}
+    if admin_neg:
+        dropped = sum(1 for c in admin_neg if c in pos_all)
+        pos_all = {k: v for k, v in pos_all.items() if k not in admin_neg}
+        print(f"  {len(admin_neg):,} marked not interesting"
+              f", {dropped:,} of them had been positives")
+
     # Runestones are 83% of the label set; keeping them makes every weight a
     # runestone detector. Fit on everything else.
     fit_rows = [r for r in rows if r["dominant_class"] != "Runristning"]

@@ -25,7 +25,8 @@ against, "worth visiting" can only be learned as "documented". The register's
 own condition assessments are the one source of real negatives available
 without asking a human, and they are loaded at the end of `main`.
 
-Reads:  Wikidata Query Service, plus `sites` for the register's assessments
+Reads:  Wikidata Query Service, plus `sites` for the register's assessments,
+        and `src/data/uninteresting.jsonl` for places marked in the admin
 Writes: src/data/work.sqlite  (tables `wikidata`, `labels`)
 Cache:  src/data/wikidata_cache/*.json  (delete to force a refetch)
 
@@ -357,6 +358,55 @@ def load_contributions(conn):
               f"({pos:,} positive, {len(out) - pos:,} negative)")
 
 
+def load_uninteresting(conn):
+    """Places marked not worth the trip, from the admin.
+
+    `src/data/uninteresting.jsonl` is the whole list, written by
+    franco-may's export-fl-uninteresting.cjs. This table is rebuilt from
+    scratch at the start of `main`, so a mark taken off there is gone the
+    next time this file runs, and a missing file is an empty list.
+
+    `label` 0 is the same end of the scale as a hand label of "nothing to
+    see". `source` is `admin`, kept off the hand test set. build_scores
+    then drops these clusters from the positives, so a Wikipedia article
+    does not outvote somebody who looked and said the place was not worth
+    the trip.
+    """
+    path = os.path.join(paths.DATA, "uninteresting.jsonl")
+    if not os.path.exists(path):
+        return
+    uuids = []
+    with open(path) as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                row = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            u = str(row.get("place_uuid") or "").strip().lower()
+            if UUID_RE.fullmatch(u):
+                uuids.append(u)
+    if not uuids:
+        return
+    pairs = []
+    skipped = 0
+    for u in dict.fromkeys(uuids):
+        if conn.execute("SELECT 1 FROM sites WHERE uuid=?", (u,)).fetchone():
+            pairs.append((u, "admin", 0.0, 1.0, "hand", "not interesting"))
+        else:
+            skipped += 1
+    if pairs:
+        with conn:
+            conn.executemany(
+                "INSERT OR REPLACE INTO labels "
+                "(uuid,source,label,weight,confidence,note) VALUES (?,?,?,?,?,?)",
+                pairs)
+    extra = f" ({skipped} not in the register)" if skipped else ""
+    print(f"admin negatives loaded: {len(pairs):,} not interesting{extra}")
+
+
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--db", default=DB)
@@ -682,6 +732,7 @@ def main():
               f"destroyed or never confirmed in the field")
 
     load_contributions(conn)
+    load_uninteresting(conn)
 
     conn.executescript(INDEXES)
     conn.commit()
