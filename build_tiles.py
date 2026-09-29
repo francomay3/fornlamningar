@@ -260,6 +260,33 @@ def load_resolved_names(work_db, wiki_db):
 
 # Photographs, per place, for the carousel in the app's sheet.
 MAX_PHOTOS = 6
+PRIORITY = os.path.join(paths.DATA, "photo_priority.jsonl")
+
+
+def load_photo_priority():
+    """{(cluster_id, source, file)} a person marked in the admin.
+
+    Written by ../franco-may/scripts/export-fl-photo-priority.cjs from
+    fl_photos.prioritized. The file is the whole list: a photograph that
+    is not in it is not marked, and this build stops preferring it. Absent
+    means nobody has marked any.
+
+    A marked geosearch photograph is allowed into the six. An unmarked one
+    stays out.
+    """
+    out = set()
+    if not os.path.exists(PRIORITY):
+        return out
+    with open(PRIORITY, encoding="utf-8") as fh:
+        for line in fh:
+            line = line.strip()
+            if not line:
+                continue
+            row = json.loads(line)
+            cid, src, file = row.get("cluster_id"), row.get("source"), row.get("file")
+            if cid and src and file:
+                out.add((cid, src, file))
+    return out
 
 
 def load_images(places_db):
@@ -283,6 +310,10 @@ def load_images(places_db):
     -- the crawler had it from the API and dropped it -- so there is
     currently no way to rank or cut them. Backfilling that is what would
     let them in, and it is in the TODO.
+
+    A person can mark a photograph prioritized in the admin. Those go first
+    when this chooses the six, and a marked geosearch photograph is the one
+    case that file is allowed in. The marks are photo_priority.jsonl.
 
     THE URL TRAVELS AS THREE SHORT FIELDS, not as a URL. The stored ones
     average 409 bytes a row -- 4.5 MB of payload -- and almost all of that
@@ -311,28 +342,32 @@ def load_images(places_db):
     if not os.path.exists(places_db):
         return {}
     c = sqlite3.connect(f"file:{places_db}?mode=ro", uri=True)
+    priority = load_photo_priority()
     out = {}
     q = """SELECT cluster_id, file, author, licence, licence_url, page_url,
                   source, thumb_url, image_url
            FROM images
-           WHERE usable = 1 AND source <> 'commons_geosearch'
+           WHERE usable = 1
              AND file IS NOT NULL AND file <> ''
-           -- Wikidata's own designation first, then a county folder, then
-           -- an editor's list entry. All three are somebody asserting THIS
-           -- picture is THIS place; the order is how directly.
+           -- Wikidata's own designation first, then the archive, then a
+           -- county folder, then an editor's list entry. Geosearch is last,
+           -- and only a marked one is kept; see the loop.
            ORDER BY cluster_id,
                     CASE source WHEN 'commons_wikidata' THEN 0
-                                WHEN 'county_pdf' THEN 1
-                                WHEN 'county_page' THEN 2
-                                ELSE 3 END, image_id"""
+                                WHEN 'arkiv' THEN 1
+                                WHEN 'county_pdf' THEN 2
+                                WHEN 'county_page' THEN 3
+                                ELSE 4 END, image_id"""
     thumb_re = re.compile(r"/commons/thumb/([0-9a-f]/[0-9a-f]{2})/([^/]+)/(\d+)px-")
     full_re = re.compile(r"/commons/([0-9a-f]/[0-9a-f]{2})/([^/?]+)")
     no_hash = 0
     for (cid, f, author, lic, lic_url, page_url, _src,
          thumb_url, image_url) in c.execute(q):
-        got = out.setdefault(cid, [])
-        if len(got) >= MAX_PHOTOS:
+        # Unmarked geosearch stays out. A marked one is a person looking at
+        # the thumbnail and saying this one is the place.
+        if _src == "commons_geosearch" and (cid, _src, f) not in priority:
             continue
+        got = out.setdefault(cid, [])
         # The percent-encoded token out of the URL, not the display name:
         # re-encoding "Tycho Brahe's ..." on the phone is a second place for
         # the escaping to differ from Commons'.
@@ -341,10 +376,16 @@ def load_images(places_db):
             e = {"f": m.group(2), "h": m.group(1), "w": int(m.group(3))}
         else:
             m = full_re.search(thumb_url or image_url or "")
-            if not m:
+            if m:
+                e = {"f": m.group(2), "h": m.group(1)}
+            elif _src == "arkiv" and (image_url or thumb_url):
+                # Not a Commons path. The phone already treats `src` as a
+                # finished URL and does not rebuild it. `f` is only the
+                # carousel key, so it is the archive record, not a filename.
+                e = {"f": f, "src": image_url or thumb_url}
+            else:
                 no_hash += 1
                 continue
-            e = {"f": m.group(2), "h": m.group(1)}
         # A licence that nobody stated is a licence we cannot honour, so the
         # row travels without one and the UI shows the file name as credit.
         # Same discipline as `sources`: stored, and shown only when known.
@@ -356,13 +397,27 @@ def load_images(places_db):
             e["licurl"] = lic_url
         if page_url:
             e["page"] = page_url
-        got.append(e)
+        got.append((_src, f, e))
     c.close()
-    n = sum(len(v) for v in out.values())
+    # Prioritized first, and the order above everywhere else. Stable, so
+    # six marks keep the source order among themselves, and a place with
+    # none marked ships the same six as before.
+    trimmed = {}
+    marked = 0
+    for cid, rows in out.items():
+        rows.sort(key=lambda row: (cid, row[0], row[1]) not in priority)
+        take = [e for _, _, e in rows[:MAX_PHOTOS]]
+        if not take:
+            continue
+        trimmed[cid] = take
+        if any((cid, src, file) in priority for src, file, _ in rows[:MAX_PHOTOS]):
+            marked += 1
+    n = sum(len(v) for v in trimmed.values())
     extra = f", {no_hash} skipped with no usable URL" if no_hash else ""
-    print(f"  {n:,} photographs across {len(out):,} places "
-          f"(geosearch excluded; see load_images){extra}")
-    return out
+    pri = f", {marked} with a prioritized photograph" if marked else ""
+    print(f"  {n:,} photographs across {len(trimmed):,} places "
+          f"(unmarked geosearch excluded; see load_images){pri}{extra}")
+    return trimmed
 
 
 def load_ai_descriptions(path):
@@ -763,6 +818,11 @@ def main():
     os.makedirs(os.path.dirname(args.geojson) or ".", exist_ok=True)
     t0 = time.time()
     named = 0
+    # Same set the sheet will show. A place whose only pictures are a
+    # coordinate guess is not "with a photo" -- see load_images. The 0 is
+    # absent rather than stored: the filter asks for 1, and six thousand
+    # zeros are bytes for a value the absence already has.
+    images = load_images(paths.PLACES)
     with open(args.geojson, "w", encoding="utf-8") as f:
         for i, r in enumerate(rows):
             cls = r["dominant_class"] or ""
@@ -795,6 +855,8 @@ def main():
                     # means the same thing everywhere, and so the app never
                     # sees the raw score it would be tempted to render.
                     "stars": stars_for(pct),
+                    # 1 when the sheet has a photograph. Omitted otherwise.
+                    **({"photo": 1} if images.get(r["cluster_id"]) else {}),
                 },
                 "tippecanoe": {"minzoom": minzoom[i]},
             }, ensure_ascii=False) + "\n")
@@ -806,7 +868,7 @@ def main():
     write_descriptions(rows, args.desc_out, args.desc_shard_chars,
                        args.max_desc, ai, args.lang, load_dims(args.db, rows),
                        load_resolved_names(args.db, paths.WIKIMEDIA),
-                       load_images(paths.PLACES))
+                       images)
     write_families(rows, args.groups_out)
 
     if args.skip_tippecanoe:
