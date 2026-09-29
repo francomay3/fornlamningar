@@ -109,6 +109,10 @@ FIELD_SEP = re.compile(r"\n\s*\|")
 # "artikel = <!--Neptuni akrar-->". That is the editors saying the article
 # does not exist yet, so it is not an article.
 COMMENT = re.compile(r"<!--.*?-->", re.S)
+# A name written as a link: [[Kärnan]], or [[Torsburgen (fornborg)|Torsburgen]]
+# where the part after the pipe is what a reader sees. Stored raw, the
+# brackets became the place's title.
+LINK = re.compile(r"\[\[([^\[\]]+)\]\]")
 
 
 def api(**kw):
@@ -161,8 +165,22 @@ def fetch_all(titles, batch=40):
     return out
 
 
+def wiki_plain(text):
+    """The words the link shows, not the link itself."""
+    def shown(m):
+        inner = m.group(1)
+        text = inner.split("|")[-1] if "|" in inner else inner.split("#")[0]
+        return text.replace("_", " ")
+    out = LINK.sub(shown, text).strip()
+    if len(out) >= 2 and out[0] == out[-1] == '"':
+        out = out[1:-1].strip()
+    return " ".join(out.split())
+
+
 def clean(v):
     v = COMMENT.sub("", v or "").strip()
+    if "[[" in v:
+        v = wiki_plain(v)
     return v or None
 
 

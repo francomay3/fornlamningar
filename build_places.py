@@ -10,6 +10,7 @@ Reads:  work.sqlite       clusters, scores, sites      (cheap, rebuildable)
         wikimedia.sqlite  Commons photos with licences
         lansstyrelsen.sqlite   sign and parking status
 Writes: places.sqlite     features, images
+        franco-may/data/place-scores.txt.gz   the raw score, for the admin list
         (build_sources.py writes `sources` and `generation_sources` into the
          same file -- the corpus is part of the product, not a side table)
 
@@ -25,6 +26,7 @@ Deliberately NOT here:
 """
 
 import argparse
+import gzip
 import os
 import sqlite3
 
@@ -325,6 +327,27 @@ def build_features(out):
     return n
 
 
+def write_place_scores(out):
+    """uuid and score_full, for the admin list.
+
+    The tiles carry the percentile and the stars, and they leave the raw
+    number out on purpose. The admin table is the place that number is
+    read. One line per place, `uuid score`, four decimal places.
+    """
+    path = os.path.join(paths.WEB, "data", "place-scores.txt.gz")
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    n = 0
+    with gzip.open(path, "wt", encoding="utf-8") as f:
+        for uuid, score in out.execute("""
+                SELECT uuid, score FROM features
+                 WHERE uuid IS NOT NULL AND uuid <> ''
+                   AND score IS NOT NULL"""):
+            f.write(f"{uuid} {score:.4f}\n")
+            n += 1
+    print(f"scores:   {n:,} -> {path}")
+    return n
+
+
 def build_members(out):
     """One row per register record inside each place."""
     w = sqlite3.connect(paths.ro(paths.WORK), uri=True)
@@ -339,6 +362,45 @@ def build_members(out):
                is_representative)
             VALUES (?,?,?,?,?,?)
         """, (cid, uuid, cls, lam, url, 1 if rep.get(cid) == uuid else 0))
+        n += 1
+    out.commit()
+    return n
+
+
+def arkiv_images(out):
+    """Photographs whose own archive record visualizes this lamning and no other.
+
+    The relation list alone is not that claim: it also returns a neighbour's
+    picture. crawl_arkiv_images already applied the cut, counting a unique
+    old FMIS id as the same site. Here the row is only carried across.
+    """
+    if not os.path.exists(paths.ARKIV_IMAGES):
+        return 0
+    a = sqlite3.connect(paths.ro(paths.ARKIV_IMAGES), uri=True)
+    try:
+        rows = a.execute("""
+            SELECT uuid, record_uri, label, thumb_url, image_url, page_url,
+                   licence, licence_url, author, fetched_at
+            FROM photos
+        """).fetchall()
+    except sqlite3.OperationalError:
+        return 0
+    w = sqlite3.connect(paths.ro(paths.WORK), uri=True)
+    cl = dict(w.execute("SELECT uuid, cluster_id FROM site_clusters"))
+    n = 0
+    for (uuid, uri, label, thumb, img, page, lic, lurl, author,
+         fetched) in rows:
+        cid = cl.get(uuid)
+        if not cid or not (thumb or img):
+            continue
+        out.execute("""
+            INSERT OR IGNORE INTO images
+              (cluster_id, uuid, source, file, image_url, thumb_url,
+               page_url, author, credit, licence, licence_url, usable,
+               fetched_at)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
+        """, (cid, uuid, "arkiv", uri, img or thumb, thumb or img, page,
+              author, label, lic, lurl, 1 if (lic or lurl) else 0, fetched))
         n += 1
     out.commit()
     return n
@@ -523,8 +585,11 @@ def main():
     print(f"images:   {n:,} from Commons")
     n = pdf_images(out)
     print(f"          {n:,} from county folders")
+    n = arkiv_images(out)
+    print(f"          {n:,} from the archive")
     rollups(out)
     prune(out)
+    write_place_scores(out)
     status(out)
 
 

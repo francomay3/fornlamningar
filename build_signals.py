@@ -454,8 +454,9 @@ CREATE INDEX idx_sig_views ON signals(wiki_views_12m DESC);
 
 # Source kinds that are somebody having WRITTEN about a place. `register` is
 # excluded because every cluster has one by definition, so counting it would
-# produce a constant. `user_comment` is excluded for the opposite reason: it is
-# not documentation, and it is counted separately as visitor_text.
+# produce a constant. `user_comment` and `investigation` are excluded for the
+# opposite reason: they are notes about standing there, not a document, and a
+# live comment is counted separately as visitor_text.
 DOC_KINDS = ("wikipedia", "county_page", "county_pdf", "county_plan",
              "county_programme", "county_attr", "tradition",
              "register_parts", "sign_ocr")
@@ -496,9 +497,18 @@ def visitor_signals(conn):
     # place this pipeline has never seen and is skipped, not invented.
     cl = dict(conn.execute("SELECT uuid, cluster_id FROM site_clusters"))
     src = sqlite3.connect(paths.ro(paths.CONTRIBUTIONS), uri=True)
+    gone = set()
+    for (payload,) in src.execute(
+            "SELECT payload FROM events WHERE kind = 'comment_delete'"):
+        try:
+            target = json.loads(payload).get("target_event_id")
+        except json.JSONDecodeError:
+            continue
+        if target:
+            gone.add(target)
     seen, texts = {}, {}
-    for uuid, author, kind, payload in src.execute(
-            "SELECT place_uuid, author, kind, payload FROM events "
+    for uuid, author, kind, payload, event_id in src.execute(
+            "SELECT place_uuid, author, kind, payload, event_id FROM events "
             "WHERE kind IN ('presence', 'visit', 'comment')"):
         cid = cl.get(uuid)
         if cid is None:
@@ -508,7 +518,10 @@ def visitor_signals(conn):
         except json.JSONDecodeError:
             continue
         if kind == "comment":
-            if (d.get("body") or "").strip():
+            # A withdrawn comment is not somebody writing about the place.
+            # The investigation notes are sources now, and a comment about
+            # the wrong remain was taken off on purpose.
+            if event_id not in gone and (d.get("body") or "").strip():
                 texts[cid] = 1
         elif kind == "visit" or d.get("been") is True:
             seen.setdefault(cid, set()).add(author)

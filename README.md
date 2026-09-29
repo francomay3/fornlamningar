@@ -90,9 +90,13 @@ Two things run outside the runner on purpose:
 description, access. `score_full` also credits Wikipedia articles and
 photographs.
 
-The app uses `score_intrinsic`. Every documentation-derived signal correlates
-strongly with fame, and fame is exactly what an app for *finding* places must
-not assume: the sites worth surfacing are the ones nobody has written up yet.
+The map is ranked by `score_full`. That has been the default of
+`build_tiles.py` since 2026-09-18, after it beat `score_intrinsic` on the
+least circular label set once the two stopped double-counting the same
+fact. `score_intrinsic` is still computed. It is the discovery score, and
+`--score intrinsic` exports it. Neither number is shown in the app. The
+score only decides which places are on the map and which appear first as
+you zoom out.
 
 ## One rule, one file
 

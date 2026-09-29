@@ -699,6 +699,44 @@ def not_found_clusters(conn):
     }
 
 
+def lost_runestone_clusters(conn):
+    """Clusters where every member is a runestone the edition says is gone.
+
+    A member that the runic database does not mention is not gone. One lost
+    stone in a group of standing ones leaves the place.
+    """
+    if not os.path.exists(paths.RUNDATA):
+        return set()
+    r = sqlite3.connect(f"file:{paths.RUNDATA}?mode=ro", uri=True)
+    try:
+        lost = {
+            u for (u,) in r.execute("""
+                SELECT uuid FROM inscriptions
+                WHERE uuid IS NOT NULL
+                GROUP BY uuid
+                HAVING SUM(extant) = 0
+            """)
+        }
+    except sqlite3.OperationalError:
+        return set()
+    finally:
+        r.close()
+    if not lost:
+        return set()
+    groups = {}
+    for uuid, cid in conn.execute("SELECT uuid, cluster_id FROM site_clusters"):
+        groups.setdefault(cid, []).append(uuid)
+    classes = dict(conn.execute("SELECT uuid, class_sv FROM sites"))
+    # The uuid on a lost inscription is sometimes the grave field it was
+    # found in, not a runestone. That place is still there.
+    return {
+        cid for cid, members in groups.items()
+        if members
+        and all(u in lost for u in members)
+        and all(classes.get(u) == "Runristning" for u in members)
+    }
+
+
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--db", default=DB)
@@ -1115,6 +1153,15 @@ def main():
         print(f"  {len(struck):,} clusters struck out by the register "
               f"(mis-registered or merged; excluded outright)")
 
+    # A runestone the Scandinavian Runic-text Database says is gone. Same
+    # shape as `struck`: the cluster goes only when every member is gone,
+    # so a lost fragment beside a standing stone does not take the place
+    # with it. No rescue -- a Wikipedia article does not put the stone back.
+    lost_runes = lost_runestone_clusters(conn)
+    if lost_runes:
+        print(f"  {len(lost_runes):,} clusters whose runestone is gone "
+              f"(Samnordisk runtextdatabas; excluded outright)")
+
     # Places three visitors looked for and did not find. Same bar as the
     # app's question (placeQuestions.MISSED_DROP / FOUND_ENOUGH): a "no" only
     # counts when the phone had already recorded a visit, or the rating was
@@ -1230,7 +1277,8 @@ def main():
                        and not rescued)
                    or (r["dominant_class"] or "") in CLASS_NOT_A_PLACE
                    or r["cluster_id"] in struck
-                   or r["cluster_id"] in not_found)
+                   or r["cluster_id"] in not_found
+                   or r["cluster_id"] in lost_runes)
         soft = int(bool(r["class_soft_blacklisted"]) and not rescued)
         out.append((r["cluster_id"], cw.get(r["dominant_class"] or "?", 0.0),
                     kb, acc, nob, intrinsic, full, hard, soft,

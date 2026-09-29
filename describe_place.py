@@ -825,10 +825,10 @@ MD_FOLK = ("- kind \"folklore\" is a recorded local TRADITION. Tell it as one: "
 MD_NO_FOLK = ("- This place has NO recorded tradition. Do not write \"enligt "
               "traditionen\", \"det sägs\" or \"sägnen\": every fact is stated "
               "plainly.\n")
-MD_VISIT = ("- kind \"user_comment\" summarises what visitors say. Use it only "
-            "for what the place is like to visit today (paths, view, parking, "
-            "what it feels like), in the last paragraph, never for history, "
-            "dates or names. Do not retell jokes or games from it.\n")
+MD_VISIT = ("- kind \"user_comment\" or \"investigation\" is a note about "
+            "what the place is like to visit today (paths, view, parking, "
+            "what it feels like). Use it only in the last paragraph, never "
+            "for history, dates or names. Do not retell jokes or games from it.\n")
 MD_GROUP = (" \"group\" lists the remains at this place: say how many there "
             "are and of what kind, e.g. \"Två gånggrifter ligger intill "
             "varandra\".")
@@ -840,7 +840,7 @@ MD_TITLE_FREE = ("\nTITLE: what the place is plus one distinguishing detail "
 
 def md_target_words(model_input):
     extra = sum(len(s["text"].split()) for s in model_input.get("sources", [])
-                if s["kind"] != "user_comment")
+                if s["kind"] not in ("user_comment", "investigation"))
     if extra == 0:
         return 60
     for limit, words in ((100, 90), (300, 140), (1000, 200)):
@@ -852,7 +852,7 @@ def md_target_words(model_input):
 def md_system(model_input):
     kinds = {s["kind"] for s in model_input.get("sources", [])}
     k = MD_FOLK if "folklore" in kinds else MD_NO_FOLK
-    if "user_comment" in kinds:
+    if "user_comment" in kinds or "investigation" in kinds:
         k += MD_VISIT
     name = model_input.get("name")
     return MD_HEAD.format(

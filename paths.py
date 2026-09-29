@@ -41,6 +41,12 @@ LANSSTYRELSEN = os.path.join(DATA, "lansstyrelsen.sqlite")
 # service is up. It is pulled by cursor and re-readable from seq 0.
 CONTRIBUTIONS = os.path.join(DATA, "contributions.sqlite")
 WIKIMEDIA = os.path.join(DATA, "wikimedia.sqlite")
+# Scandinavian Runic-text Database, edition 2020, via the Runor API.
+# See crawl_rundata.py. RAW: one request per inscription.
+RUNDATA = os.path.join(DATA, "rundata.sqlite")
+# Archive photographs whose own record visualizes exactly one lamning uuid.
+# See crawl_arkiv_images.py. RAW: slow to re-fetch, never edited by hand.
+ARKIV_IMAGES = os.path.join(DATA, "arkiv_images.sqlite")
 
 # The Swedish Wikipedia's per-socken lists of fornlamningar (the Wiki Loves
 # Monuments tables). Folk names, article links and Commons photographs, keyed

@@ -47,6 +47,7 @@ Usage:
     python crawl_wikimedia.py --extracts
     python crawl_wikimedia.py --pageviews
     python crawl_wikimedia.py --photos
+    python crawl_wikimedia.py --nearby
     python crawl_wikimedia.py --all
 """
 
@@ -138,6 +139,11 @@ CREATE TABLE IF NOT EXISTS failures (
 GEO_RADIUS_M = 500
 # More than this and they are almost certainly not all of the same thing.
 MAX_PHOTOS_PER_SITE = 8
+# The admin drawer is where a person decides which nearby file is the place.
+# Eight is too few in a town: the photograph of Bastion Kung Carl sits 34 m
+# away and eleventh, behind pictures of the square. One page of the picker
+# is enough to choose from. An unmarked row still does not ship.
+NEARBY_PER_SITE = 24
 
 
 def get(url, params=None, retries=MAX_RETRY):
@@ -637,6 +643,151 @@ def fetch_photos(sites, out, limit=None):
     print(f"  {n_files:,} photo rows")
 
 
+def published_uuids():
+    """Place ids the admin lists, from the published description shards."""
+    root = paths.DESCRIPTIONS
+    if not os.path.isdir(root):
+        sys.exit(f"missing {root}")
+    seen = []
+    got = set()
+    for name in sorted(os.listdir(root)):
+        if not name.endswith(".json"):
+            continue
+        with open(os.path.join(root, name), encoding="utf-8") as f:
+            for u in json.load(f):
+                if u not in got:
+                    got.add(u)
+                    seen.append(u)
+    return seen
+
+
+def photographed(out):
+    """Uuids that already have some picture, nearby or otherwise."""
+    got = {r[0] for r in out.execute("SELECT DISTINCT uuid FROM photos")}
+    if not os.path.exists(paths.PLACES):
+        return got
+    db = sqlite3.connect(f"file:{paths.PLACES}?mode=ro", uri=True)
+    got.update(
+        u for (u,) in db.execute("""
+            SELECT f.uuid FROM features f
+            JOIN images i ON i.cluster_id = f.cluster_id
+            WHERE i.usable = 1
+              AND f.uuid IS NOT NULL AND f.uuid <> ''""")
+    )
+    db.close()
+    return got
+
+
+def fetch_nearby(sites, out, limit=None):
+    """Commons geosearch for published places that never had one.
+
+    fetch_photos only asks about a site Wikidata already illustrated or
+    wrote about, and it stops once any photograph is stored. A place with
+    no article, or one file added by hand, therefore has an empty nearby
+    drawer. These rows fill that drawer. The app still leaves an unmarked
+    geosearch photograph out.
+
+    Places with no photograph at all come first, then places that already
+    have one. Stopping the run and starting it again continues from what
+    is left: a place with a nearby row, or one that was searched and had
+    nothing within the radius, is not asked again.
+    """
+    uuids = published_uuids()
+    have = {r[0] for r in out.execute(
+        "SELECT DISTINCT uuid FROM photos WHERE source = 'geosearch'")}
+    checked = {r[0] for r in out.execute(
+        "SELECT uuid FROM failures WHERE stage = 'nearby' AND error = 'none'")}
+    coords = {u: (lat, lon) for u, lat, lon in sites.execute(
+        "SELECT uuid, lat, lon FROM sites WHERE lon IS NOT NULL")}
+    pending = [u for u in uuids
+               if u not in have and u not in checked and u in coords]
+    got = photographed(out)
+    bare = [u for u in pending if u not in got]
+    rest = [u for u in pending if u in got]
+    todo = bare + rest
+    print(f"nearby: {len(bare):,} with no photograph, "
+          f"then {len(rest):,} that already have one")
+    if limit:
+        todo = todo[:limit]
+        print(f"  stopping after {len(todo):,}")
+    n_files = 0
+    n_empty = 0
+    for i, uuid in enumerate(todo, 1):
+        lat, lon = coords[uuid]
+        j = get("https://commons.wikimedia.org/w/api.php", {
+            "action": "query", "format": "json", "list": "geosearch",
+            "gscoord": f"{lat}|{lon}", "gsradius": GEO_RADIUS_M,
+            "gslimit": NEARBY_PER_SITE, "gsnamespace": 6,
+        })
+        if not j or "__error" in j:
+            record_failure(out, uuid, "nearby",
+                           (j or {}).get("__error", "no response"))
+            time.sleep(DELAY)
+            continue
+        found = {}
+        for g in (j.get("query") or {}).get("geosearch") or []:
+            title = g.get("title")
+            if title and title not in found:
+                found[title] = g.get("dist")
+        titles = []
+        for title in found:
+            row = out.execute(
+                "SELECT source FROM photos WHERE uuid = ? AND file = ?",
+                (uuid, title)).fetchone()
+            if row and row[0] != "geosearch":
+                continue
+            titles.append(title)
+        if not titles:
+            record_failure(out, uuid, "nearby", "none")
+            n_empty += 1
+            if i % 50 == 0:
+                out.commit()
+                print(f"  {i:,}/{len(todo):,}  "
+                      f"({n_files:,} files, {n_empty:,} empty)")
+            time.sleep(DELAY)
+            continue
+
+        meta = get("https://commons.wikimedia.org/w/api.php", {
+            "action": "query", "format": "json", "titles": "|".join(titles),
+            "prop": "imageinfo",
+            "iiprop": "url|size|extmetadata", "iiurlwidth": 640,
+        })
+        if not meta or "__error" in meta:
+            record_failure(out, uuid, "nearby",
+                           (meta or {}).get("__error", "no response"))
+            time.sleep(DELAY)
+            continue
+        stored = 0
+        for p in ((meta.get("query") or {}).get("pages") or {}).values():
+            ii = (p.get("imageinfo") or [None])[0]
+            title = p.get("title")
+            if not ii or title not in found:
+                continue
+            lic, lic_url, author, credit = commons_meta(ii)
+            out.execute("""
+                INSERT OR REPLACE INTO photos
+                  (uuid, file, source, distance_m, page_url, thumb_url,
+                   image_url, width, height, licence, licence_url, author,
+                   credit, fetched_at)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,datetime('now'))
+            """, (uuid, title, "geosearch", found[title],
+                  ii.get("descriptionurl"), ii.get("thumburl"), ii.get("url"),
+                  ii.get("width"), ii.get("height"), lic, lic_url, author,
+                  credit))
+            stored += 1
+            n_files += 1
+        if stored == 0:
+            record_failure(out, uuid, "nearby", "none")
+            n_empty += 1
+        if i % 50 == 0:
+            out.commit()
+            print(f"  {i:,}/{len(todo):,}  "
+                  f"({n_files:,} files, {n_empty:,} empty)")
+        time.sleep(DELAY)
+    out.commit()
+    print(f"  {n_files:,} nearby photo rows, {n_empty:,} places with none")
+
+
 def record_failure(out, uuid, stage, error):
     out.execute("INSERT OR REPLACE INTO failures (uuid, stage, error, at) "
                 "VALUES (?,?,?,datetime('now'))", (uuid, stage, error))
@@ -685,6 +836,8 @@ def main():
                    help="refetch every body, not only the missing ones")
     p.add_argument("--pageviews", action="store_true")
     p.add_argument("--photos", action="store_true")
+    p.add_argument("--nearby", action="store_true",
+                   help="geosearch published places that never got one")
     p.add_argument("--all", action="store_true")
     p.add_argument("--status", action="store_true")
     p.add_argument("--limit", type=int, default=None,
@@ -697,7 +850,8 @@ def main():
     out = open_out()
 
     if args.status or not (args.extracts or args.pageviews or args.photos
-                           or args.swedish or args.bodies or args.all):
+                           or args.nearby or args.swedish or args.bodies
+                           or args.all):
         status(sites, out)
         return
     if args.extracts or args.all:
@@ -710,6 +864,8 @@ def main():
         fetch_pageviews(sites, out, args.limit)
     if args.photos or args.all:
         fetch_photos(sites, out, args.limit)
+    if args.nearby or args.all:
+        fetch_nearby(sites, out, args.limit)
     print()
     status(sites, out)
 

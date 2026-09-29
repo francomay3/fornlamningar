@@ -4,6 +4,15 @@ Read [README.md](README.md) for what the pipeline is, [NOMENCLATURA.md](NOMENCLA
 for the words, [PIPELINE.md](PIPELINE.md) for measurements that must not be
 re-decided. This file is only the operational bits that are not in those.
 
+## A change made by hand
+
+When Franco asks to change something manually, use judgment and leave the
+thing right. The field being edited is evidence, not the answer. The case
+that set this: a wiki list stored `Glos Altare, Glose Altare` because that
+is the text after the pipe. Those are two spellings of one name. The article
+calls it Glos altare, and that is what is stored. A later wikilist crawl
+will put the doubled form back unless the parser learns the same judgment.
+
 ## Repos
 
 | path | what it is |

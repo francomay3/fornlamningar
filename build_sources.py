@@ -20,7 +20,9 @@ different reliability and different reasons to exist.
                     counting rows: several objects link to the same page and
                     308 more point at an intranet host. Still the best prose
                     in the corpus.
-    user_comment    Not yet. This is where it lands.
+    user_comment    A visitor's own note, still on the sheet.
+    investigation   Franco's notes, taken off the sheet on 2026-09-28.
+                    The same sentences, read as a source, not as a comment.
     sign_ocr        Not yet. Photographs of on-site signs, read by OCR --
                     text written by an antiquarian for a visitor standing in
                     front of the thing, which is the register we do not have.
@@ -56,6 +58,7 @@ Writes: places.sqlite -- the `sources` and `generation_sources` tables, in
 Usage:
     python build_sources.py
     python build_sources.py --status
+    python build_sources.py --collapse
 """
 
 import argparse
@@ -130,11 +133,18 @@ CREATE TABLE IF NOT EXISTS sources (
     -- they collapse. 1,070 clusters lose a duplicate source and 199 of them
     -- have a generated description, which will read as stale and regenerate:
     -- correct, since the payload it was built from really did change.
+    --
+    -- SAME TEXT, DIFFERENT URL, IS STILL TWO ROWS. The url is the lamning,
+    -- and RAÄ copies one area description onto every part of a complex.
+    -- Taking the url out of the hash would collapse those, and would also
+    -- make every kept row look new. collapse_repeated does the collapse
+    -- and keeps the row a description already cites.
     row_sha     TEXT NOT NULL,
     UNIQUE (row_sha)
 );
 CREATE INDEX IF NOT EXISTS idx_src_cluster ON sources(cluster_id);
 CREATE INDEX IF NOT EXISTS idx_src_kind    ON sources(kind);
+CREATE INDEX IF NOT EXISTS idx_src_cluster_kind ON sources(cluster_id, kind);
 
 -- Which source rows produced a given generated description. The join table is
 -- the attribution: see the module docstring.
@@ -188,11 +198,17 @@ TRUST = {
     "register_vegetation": 0.4,
     "sign_ocr": 1.0,
     "wikipedia": 0.8,
+    # The inscription's own reading and its English translation. Certain
+    # about what the stone says, not about whether to go.
+    "rundata": 0.8,
     # A page somebody read and chose to add, text pasted by them.
     "web_page": 0.6,
     "county_attr": 0.6,
     "register": 0.5,
     "user_comment": 0.5,
+    # The same kind of sentence as a visitor note: what the place is like
+    # to stand in. Not a survey, and not a second document.
+    "investigation": 0.5,
 }
 
 CC0 = ("CC0 1.0", "https://creativecommons.org/publicdomain/zero/1.0/")
@@ -316,6 +332,231 @@ def prune(out, sites_db):
         out.execute("DETACH w")
 
 
+# A shorter text is the same source with an update appended only when it is
+# the opening of the longer one and at least half of it. Below that it is a
+# part's own sentence that the area inventory happens to quote, and both
+# rows stay. 40 characters is what keeps a vegetation note ("skog") from
+# swallowing, or being swallowed by, the sentence a later visit added.
+REPEAT_PREFIX_MIN = 40
+REPEAT_PREFIX_RATIO = 0.5
+
+
+def repeats(existing, new):
+    """True when `new` says nothing `existing` does not already say.
+
+    Identical, or `new` is the opening of `existing` and most of it. The
+    second is how one part of a complex gains an "Uppdatering" while the
+    others keep the description as it was: the old text is the start of
+    the new one.
+    """
+    if existing == new:
+        return True
+    if (len(new) >= REPEAT_PREFIX_MIN and len(existing) > len(new)
+            and len(new) >= REPEAT_PREFIX_RATIO * len(existing)
+            and existing.startswith(new)):
+        return True
+    return False
+
+
+def already_held(out, cluster_id, kind, lang, text):
+    """A usable row for this place already says this.
+
+    Checked before insert because row_sha includes the url, and the next
+    build would otherwise put the copies back. See collapse_repeated.
+    """
+    rows = out.execute(
+        """SELECT text FROM sources
+            WHERE cluster_id = ? AND kind = ?
+              AND ifnull(lang, '') = ifnull(?, '')
+              AND usable = 1""",
+        (cluster_id, kind, lang)).fetchall()
+    return any(repeats(existing, text) for (existing,) in rows)
+
+
+def collapse_repeated(out):
+    """One place lists a paragraph once.
+
+    Measured before the first run of this: 36,938 extra rows across 23,012
+    clusters, almost all of them the register text RAÄ copies onto every
+    part. Gamla Skogsby (Torslunda 25, the place that made it visible) had
+    the same register entry 13 times and the same tradition 14 times, plus
+    one longer register entry that starts with that same text and adds the
+    2025 excavation note. The admin lists every row, so that is what it
+    showed. describe_place.load_sources already drops a repeated opening
+    before the model sees it, which is why the descriptions did not read
+    as though the paragraph had been corroborated thirteen times.
+
+    The row kept is the one a description already cites, else the earliest
+    arrival. first_seen_at on an identical group becomes the earliest of
+    the copies: a later copy of the same words is not a new source, and
+    must not make the place look stale. An extended copy keeps its own
+    date, because the appended update really did arrive later.
+    """
+    referenced = set()
+    attribution = {}
+    for cid, lang, sid, basis in out.execute(
+            "SELECT cluster_id, lang, source_id, basis FROM generation_sources"):
+        referenced.add(sid)
+        attribution.setdefault(sid, []).append((cid, lang, basis))
+
+    rows = out.execute("""
+        SELECT source_id, cluster_id, kind, ifnull(lang, ''), text,
+               usable, first_seen_at, fetched_at
+          FROM sources
+    """).fetchall()
+
+    def rank(row):
+        # Lower sorts first. A cited row stays, so attribution does not
+        # have to move; among the rest the earliest arrival is the honest
+        # one, and source_id only breaks a tie.
+        return (0 if row[5] else 1,
+                0 if row[0] in referenced else 1,
+                row[6] or "9999",
+                row[0])
+
+    # (cluster, kind, lang, text) -> rows. One text, however many urls.
+    groups = {}
+    for row in rows:
+        groups.setdefault((row[1], row[2], row[3], row[4]), []).append(row)
+
+    drop = {}          # source_id -> keeper source_id
+    backdate = {}      # keeper source_id -> (first_seen_at, fetched_at)
+    identical = 0
+    for members in groups.values():
+        if len(members) < 2:
+            continue
+        keeper = min(members, key=rank)
+        seen = [m[6] for m in members if m[6]]
+        fetched = [m[7] for m in members if m[7]]
+        backdate[keeper[0]] = (min(seen) if seen else None,
+                               min(fetched) if fetched else None)
+        for member in members:
+            if member[0] != keeper[0]:
+                drop[member[0]] = keeper[0]
+                identical += 1
+
+    # What remains, one row per text: the keeper of each exact group.
+    kept = {}
+    for (cid, kind, lang, text), members in groups.items():
+        keeper = min(members, key=rank)
+        if keeper[0] in drop:
+            continue
+        kept.setdefault((cid, kind, lang), []).append(keeper)
+
+    extended = 0
+    for members in kept.values():
+        if len(members) < 2:
+            continue
+        by_len = sorted(members, key=lambda r: len(r[4]), reverse=True)
+        for short in by_len:
+            containers = [long for long in by_len
+                          if long[0] != short[0]
+                          and long[0] not in drop
+                          and repeats(long[4], short[4])
+                          and (long[5] or not short[5])]
+            if not containers:
+                continue
+            # The longest version is the one that still says everything.
+            container = max(containers, key=lambda r: (len(r[4]), -rank(r)[0],
+                                                       -rank(r)[1], -r[0]))
+            drop[short[0]] = container[0]
+            extended += 1
+
+    def resolve(sid):
+        seen = set()
+        while sid in drop:
+            if sid in seen:
+                break
+            seen.add(sid)
+            sid = drop[sid]
+        return sid
+
+    repoint = []
+    out.execute("BEGIN")
+    try:
+        for sid, (seen_at, fetched_at) in backdate.items():
+            if sid in drop:
+                continue
+            out.execute("""
+                UPDATE sources
+                   SET first_seen_at = COALESCE(?, first_seen_at),
+                       fetched_at = COALESCE(?, fetched_at)
+                 WHERE source_id = ?
+                   AND (first_seen_at IS NULL OR first_seen_at > ?
+                        OR fetched_at IS NULL OR fetched_at > ?)
+            """, (seen_at, fetched_at, sid, seen_at, fetched_at))
+
+        live = {(cid, lang, sid) for sid, items in attribution.items()
+                for cid, lang, _basis in items}
+        for old, new in drop.items():
+            new = resolve(new)
+            for cid, lang, _basis in attribution.get(old, []):
+                if (cid, lang, new) in live:
+                    out.execute("""
+                        DELETE FROM generation_sources
+                         WHERE cluster_id = ? AND lang = ? AND source_id = ?
+                    """, (cid, lang, old))
+                else:
+                    out.execute("""
+                        UPDATE generation_sources SET source_id = ?
+                         WHERE cluster_id = ? AND lang = ? AND source_id = ?
+                    """, (new, cid, lang, old))
+                    live.add((cid, lang, new))
+                live.discard((cid, lang, old))
+                repoint.append((old, new))
+
+        touched = {row[1] for row in rows if row[0] in drop}
+        out.executemany("DELETE FROM sources WHERE source_id = ?",
+                        [(sid,) for sid in drop])
+
+        # The denormalised counts on features are a copy of this table.
+        # Leaving them would keep counting the copies just removed.
+        names = {r[0] for r in out.execute(
+            "SELECT name FROM sqlite_master WHERE type = 'table'")}
+        if touched and "features" in names:
+            out.execute("CREATE TEMP TABLE collapsed_clusters "
+                        "(cluster_id TEXT PRIMARY KEY)")
+            out.executemany("INSERT INTO collapsed_clusters VALUES (?)",
+                            [(c,) for c in touched])
+            out.execute("""
+                UPDATE features SET n_sources = COALESCE((
+                    SELECT COUNT(*) FROM sources s
+                     WHERE s.cluster_id = features.cluster_id), 0)
+                 WHERE cluster_id IN (SELECT cluster_id FROM collapsed_clusters)
+            """)
+            out.execute("""
+                UPDATE features SET sources_newest_at = (
+                    SELECT MAX(s.fetched_at) FROM sources s
+                     WHERE s.cluster_id = features.cluster_id)
+                 WHERE cluster_id IN (SELECT cluster_id FROM collapsed_clusters)
+            """)
+            out.execute("""
+                UPDATE features SET sources_first_seen_at = (
+                    SELECT MAX(s.first_seen_at) FROM sources s
+                     WHERE s.cluster_id = features.cluster_id)
+                 WHERE cluster_id IN (SELECT cluster_id FROM collapsed_clusters)
+            """)
+            out.execute("""
+                UPDATE features SET stale = CASE
+                    WHEN description_generated_at IS NULL THEN NULL
+                    WHEN sources_first_seen_at IS NULL THEN 0
+                    WHEN sources_first_seen_at > description_generated_at THEN 1
+                    ELSE 0 END
+                 WHERE cluster_id IN (SELECT cluster_id FROM collapsed_clusters)
+            """)
+
+        out.commit()
+    except Exception:
+        out.rollback()
+        raise
+
+    print(f"  collapsed:   {len(drop):,} repeated rows "
+          f"({identical:,} identical, {extended:,} extended copies) "
+          f"across {len(touched):,} clusters")
+    print(f"  attribution: {len(repoint):,} generation_sources repointed")
+    return {"deleted": list(drop), "repoint": repoint}
+
+
 def add(out, cluster_id, kind, text, **kw):
     """One source row. `fetched_at` is WHEN THE CONTENT WAS OBTAINED.
 
@@ -336,6 +577,13 @@ def add(out, cluster_id, kind, text, **kw):
     # flattened text: flattening them differently now would make the whole
     # corpus look new and every description stale.
     clean = keep_lines(text) if kw.get("lines") else " ".join(str(text).split())
+    # row_sha includes the url, so the same paragraph copied onto every
+    # part of a complex would insert once per part. The place already has
+    # it. collapse_repeated removes the copies that were inserted before
+    # this check existed; this is what keeps the next build from putting
+    # them back.
+    if already_held(out, cluster_id, kind, kw.get("lang"), clean):
+        return 0
     out.execute("""
         INSERT OR IGNORE INTO sources
           (cluster_id, uuid, kind, lang, title, text, author, publisher,
@@ -467,6 +715,80 @@ def from_documents(out):
                      title=name, publisher=f"Länsstyrelsen ({county})",
                      url=url, licence=lic or "unresolved",
                      licence_url=urls.get(lic), fetched_at=when)
+    return n
+
+
+# The licence text on the project page requires this URL whenever the
+# database is quoted. It is the same for every row; the signum is in the text.
+RUNDATA_CITE = "http://www.nordiska.uu.se/forskn/samnord.htm"
+RUNDATA_LIC = (
+    "DbCL 1.0", "https://opendatacommons.org/licenses/dbcl/1.0/")
+
+
+def from_rundata(out, cl):
+    """The inscription, in the edition's own words.
+
+    English is a translation; the Swedish line is the normalised reading,
+    which is the text a Swedish description can actually quote. A stone the
+    edition marks as gone is not a source: it is not a place any more, and
+    build_scores drops the cluster when every member is gone.
+
+    Rows that were here and are not in this edition are retired, not deleted.
+    """
+    if not os.path.exists(paths.RUNDATA):
+        return 0
+    r = sqlite3.connect(f"file:{paths.RUNDATA}?mode=ro", uri=True)
+    try:
+        rows = r.execute("""
+            SELECT uuid, signum, period_sv, text_sv, text_en, fetched_at
+            FROM inscriptions
+            WHERE extant = 1 AND uuid IS NOT NULL
+              AND (COALESCE(text_sv, '') <> '' OR COALESCE(text_en, '') <> '')
+        """).fetchall()
+    except sqlite3.OperationalError:
+        return 0
+    finally:
+        r.close()
+    keep = set()
+    n = 0
+    for uuid, signum, period, text_sv, text_en, when in rows:
+        cid = cl.get(uuid)
+        if not cid:
+            continue
+        parts = [p for p in (signum, period) if p]
+        head = ", ".join(parts)
+        body = []
+        if text_sv:
+            body.append(f"{head}. Inskrift: {text_sv}" if head else text_sv)
+        if text_en:
+            body.append(f"Engelsk översättning: {text_en}")
+        text = " ".join(body)
+        clean = " ".join(text.split())
+        sha = row_sha(cid, "rundata", "sv", RUNDATA_CITE, clean)
+        n += add(out, cid, "rundata", text, uuid=uuid, lang="sv",
+                 title=signum, publisher="Samnordisk runtextdatabas",
+                 licence=RUNDATA_LIC[0], licence_url=RUNDATA_LIC[1],
+                 url=RUNDATA_CITE, fetched_at=when)
+        keep.add(sha)
+        if text_en:
+            en = f"{head}. {text_en}" if head else text_en
+            en_clean = " ".join(en.split())
+            en_sha = row_sha(cid, "rundata", "en", RUNDATA_CITE, en_clean)
+            n += add(out, cid, "rundata", en, uuid=uuid, lang="en",
+                     title=signum, publisher="Samnordisk runtextdatabas",
+                     licence=RUNDATA_LIC[0], licence_url=RUNDATA_LIC[1],
+                     url=RUNDATA_CITE, fetched_at=when)
+            keep.add(en_sha)
+    if keep:
+        out.execute("CREATE TEMP TABLE IF NOT EXISTS rundata_keep (sha TEXT PRIMARY KEY)")
+        out.execute("DELETE FROM rundata_keep")
+        out.executemany("INSERT INTO rundata_keep VALUES (?)", [(s,) for s in keep])
+        retired = out.execute("""
+            UPDATE sources SET usable = 0
+             WHERE kind = 'rundata' AND usable = 1
+               AND row_sha NOT IN (SELECT sha FROM rundata_keep)""").rowcount
+        if retired:
+            print(f"  rundata:     {retired:,} superseded rows retired")
     return n
 
 
@@ -803,20 +1125,29 @@ def from_contributions(out, cl):
     read from here now. The filter stays for the next bulk import, which is
     the case it was written for.
 
-    MODERATION IS THE OPEN EDGE, and it is worth knowing before this carries
-    real traffic. Hiding a comment emits `comment_removed`, which stops it
-    being SERVED -- but a description already generated from it keeps the
-    sentence. Removing text from the corpus does not unwrite the paragraph it
-    fed. Today that is theoretical: there are no organic comments. Before
-    there are many, generation has to either wait for a comment to be
-    moderated or be re-run when one is removed.
+    On 2026-09-28 those notes left the sheet. A `comment_delete` whose
+    payload says `reason: "investigation"` withdraws the comment and keeps
+    the body as kind `investigation`. A delete without that reason (the
+    comment was about the wrong remain) keeps nothing. A comment nobody
+    has withdrawn is still `user_comment`. The old `user_comment` row for
+    a withdrawn body is set unusable, so the model does not read it twice
+    and does not read a sentence we already judged was the wrong place.
+
+    A description already generated from the comment keeps its sentence
+    until the next generation run. Removing the comment does not unwrite it.
     """
     if not os.path.exists(paths.CONTRIBUTIONS):
-        return 0
+        return 0, 0
     src = sqlite3.connect(paths.ro(paths.CONTRIBUTIONS), uri=True)
     src.row_factory = sqlite3.Row
+    withdrawn = {}
+    for row in src.execute("SELECT payload FROM events WHERE kind = 'comment_delete'"):
+        payload = json.loads(row["payload"])
+        target = payload.get("target_event_id")
+        if target:
+            withdrawn[target] = payload.get("reason") or ""
     rows = src.execute("""
-        SELECT place_uuid, author, payload, server_ts
+        SELECT event_id, place_uuid, payload, server_ts
           FROM events
          WHERE kind = 'comment'
            AND json_extract(payload, '$.source') IS NULL
@@ -824,7 +1155,15 @@ def from_contributions(out, cl):
     """).fetchall()
     src.close()
 
-    n = 0
+    def same(text):
+        # The corpus already held these sentences with a hyphen where the
+        # log has an en dash. The row stays as it was stored; the match
+        # only decides whether that old visitor-comment row is still live.
+        return (text.replace("\u2013", "-").replace("\u2014", "-")
+                .replace("\u2212", "-").replace("\u00a0", " "))
+
+    n_user = n_inv = 0
+    retire = set()
     for r in rows:
         cid = cl.get(r["place_uuid"])
         if not cid:
@@ -832,12 +1171,23 @@ def from_contributions(out, cl):
         body = " ".join(json.loads(r["payload"]).get("body", "").split())
         if not body:
             continue
-        # No author, no url. The device id is a write credential and must not
-        # be stored beside text that gets exported; the salted public id is
-        # not useful to a reader either. A visitor comment is anonymous here.
-        n += add(out, cid, "user_comment", body, lang="sv",
-                 publisher="Fornkoll", fetched_at=r["server_ts"])
-    return n
+        reason = withdrawn.get(r["event_id"])
+        if reason is None:
+            # No author, no url. The device id is a write credential and must
+            # not be stored beside text that gets exported.
+            n_user += add(out, cid, "user_comment", body, lang="sv",
+                          publisher="Fornkoll", fetched_at=r["server_ts"])
+            continue
+        retire.add((cid, same(body)))
+        if reason == "investigation":
+            n_inv += add(out, cid, "investigation", body, lang="sv",
+                         publisher="Fornkoll", fetched_at=r["server_ts"])
+    for cid, text, sha in out.execute(
+            "SELECT cluster_id, text, row_sha FROM sources "
+            "WHERE kind = 'user_comment' AND usable = 1"):
+        if (cid, same(text)) in retire:
+            out.execute("UPDATE sources SET usable = 0 WHERE row_sha = ?", (sha,))
+    return n_user, n_inv
 
 
 def status(out):
@@ -868,6 +1218,8 @@ def main():
     p.add_argument("--sites-db", default=SITES_DB)
     p.add_argument("--out", default=OUT_DB)
     p.add_argument("--status", action="store_true")
+    p.add_argument("--collapse", action="store_true",
+                   help="drop repeated texts already in the corpus and exit")
     args = p.parse_args()
 
     out = sqlite3.connect(args.out)
@@ -879,6 +1231,14 @@ def main():
 
     if args.status:
         status(out)
+        return
+
+    if args.collapse:
+        info = collapse_repeated(out)
+        dest = "/tmp/fl_source_collapse.json"
+        with open(dest, "w", encoding="utf-8") as fh:
+            json.dump(info, fh)
+        print(f"  wrote {dest}")
         return
 
     sites = sqlite3.connect(f"file:{args.sites_db}?mode=ro", uri=True)
@@ -895,6 +1255,9 @@ def main():
     out.commit()
     numbers = dict(sites.execute("SELECT uuid, raa_number FROM sites "
                                  "WHERE raa_number IS NOT NULL"))
+    n = from_rundata(out, cl)
+    out.commit()
+    print(f"  rundata:     {n:,} rows offered")
     n = from_wikipedia(out, cl, numbers, also_keep=added)
     out.commit()
     print(f"  wikipedia:   {n:,} rows offered")
@@ -911,10 +1274,12 @@ def main():
     n = from_plans(out)
     out.commit()
     print(f"  county_plan: {n:,} rows offered")
-    n = from_contributions(out, cl)
+    n_user, n_inv = from_contributions(out, cl)
     out.commit()
-    print(f"  user_comment:{n:,} rows offered")
+    print(f"  user_comment:{n_user:,} rows offered")
+    print(f"  investigation:{n_inv:,} rows offered")
     prune(out, os.path.abspath(args.sites_db))
+    collapse_repeated(out)
     print()
     status(out)
 

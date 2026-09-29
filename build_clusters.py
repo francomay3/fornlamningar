@@ -174,6 +174,58 @@ CREATE INDEX idx_cl_muni       ON clusters(municipality_code);
 """
 
 
+def load_pin_overrides():
+    """uuid -> (lon, lat) that must be the pin.
+
+    Written from the admin. scripts/export-fl-pin-overrides.cjs in
+    franco-may writes src/data/pin_overrides.jsonl, and this reads that
+    file. The representative's own coordinate is what the algorithm would
+    stand the pin on; a row here replaces that and nothing else.
+    centroid_e/n stay
+    the mean of the members, because that is what the score was fitted
+    against. A uuid that is no longer the representative is reported and
+    does not move some other cluster's pin.
+    """
+    path = os.path.join(paths.DATA, "pin_overrides.jsonl")
+    wanted = {}
+    if not os.path.exists(path):
+        return wanted
+    with open(path, encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            row = json.loads(line)
+            uuid, lon, lat = row.get("place_uuid"), row.get("lon"), row.get("lat")
+            if uuid and lon is not None and lat is not None:
+                wanted[uuid] = (float(lon), float(lat))
+    return wanted
+
+
+def load_rep_overrides():
+    """cluster_id -> uuid that must be the pin, ahead of the length rule.
+
+    Written by hand after a review, not by the clustering pass. A cluster
+    whose generated text describes a member other than the longest register
+    entry keeps that member as the representative even when a later rebuild
+    would have picked the wordier record. If the uuid is no longer a member,
+    the rule is reported and the ordinary pick stands — it does not silently
+    disappear and it does not attach the uuid to a different cluster.
+    """
+    path = os.path.join(paths.DATA, "rep_overrides.jsonl")
+    wanted = {}
+    if not os.path.exists(path):
+        return wanted
+    with open(path, encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            row = json.loads(line)
+            wanted[row["cluster_id"]] = row["uuid"]
+    return wanted
+
+
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--db", default=DB)
@@ -333,9 +385,10 @@ def main():
     # icon and description came from different members) and quietly dropped
     # this protection on the way.
     rep_sql, rep_params = representative_order("s")
-    best, rep_class, rep_pos, rep_uuid = {}, {}, {}, {}
-    for cid, uuid, cls, d, lon, lat in conn.execute(f"""
-        SELECT sc.cluster_id, s.uuid, s.class_sv, s.beskrivning, s.lon, s.lat
+    best, rep_class, rep_pos, rep_uuid, rep_title = {}, {}, {}, {}, {}
+    for cid, uuid, cls, d, lon, lat, title in conn.execute(f"""
+        SELECT sc.cluster_id, s.uuid, s.class_sv, s.beskrivning, s.lon, s.lat,
+               s.title
         FROM site_clusters sc
         JOIN sites s ON s.uuid = sc.uuid
         ORDER BY sc.cluster_id, {rep_sql}
@@ -347,13 +400,55 @@ def main():
                 rep_pos[cid] = (lon, lat)
             if d:
                 best[cid] = d
+            if title:
+                rep_title[cid] = title
 
+    # A reviewed override wins after the length rule, not inside it. The
+    # table names a member; this only checks that the member is still here.
+    overrides = load_rep_overrides()
+    forced = {}
+    if overrides:
+        for cid, uuid, cls, d, lon, lat, title in conn.execute(
+            """SELECT sc.cluster_id, s.uuid, s.class_sv, s.beskrivning,
+                      s.lon, s.lat, s.title
+                 FROM site_clusters sc JOIN sites s ON s.uuid = sc.uuid
+                WHERE s.uuid IN (%s)""" % ",".join("?" * len(overrides)),
+            list(overrides.values()),
+        ):
+            if overrides.get(cid) == uuid:
+                forced[cid] = (uuid, cls, d, lon, lat, title)
+        for cid, (uuid, cls, d, lon, lat, title) in forced.items():
+            rep_class[cid] = cls
+            rep_uuid[cid] = uuid
+            if lon is not None and lat is not None:
+                rep_pos[cid] = (lon, lat)
+            if d:
+                best[cid] = d
+            if title:
+                rep_title[cid] = title
+            else:
+                rep_title.pop(cid, None)
+        missing = sorted(cid for cid in overrides if cid not in forced)
+        emit(event="progress", stage="rep_overrides",
+             applied=len(forced), missing=len(missing),
+             message=f"  representative overrides: {len(forced):,} applied"
+                     + (f", {len(missing):,} no longer members "
+                        f"({', '.join(missing[:8])})" if missing else ""))
+
+    pin_overrides = load_pin_overrides()
+    n_pins = 0
     out = []
     for r in agg:
         cid = r["cluster_id"]
         c = mix[cid]
         spread = math.hypot(r["maxe"] - r["mine"], r["maxn"] - r["minn"]) \
             if r["mine"] is not None else None
+        forced_pin = pin_overrides.get(rep_uuid.get(cid))
+        if forced_pin:
+            n_pins += 1
+            pin = forced_pin
+        else:
+            pin = rep_pos.get(cid, (r["avg_lon"], r["avg_lat"]))
         out.append((
             cid, method.get(cid, "raa"), r["n_sites"],
             # The representative site's class, NOT the commonest one.
@@ -373,14 +468,19 @@ def main():
             rep_uuid.get(cid),
             r["n_classes"],
             "; ".join(f"{k}×{v}" for k, v in c.most_common(4)),
-            # The register's name wins; the Wikipedia lists fill the gaps.
-            # Keyed on the REPRESENTATIVE site, not on any member: the name
-            # has to belong to the thing the pin, the icon and the text are
-            # about, and a cluster of six mounds where the fourth has a folk
-            # name would otherwise wear a name for a stone it is not
-            # standing on.
-            r["name"] or wl_names.get(rep_uuid.get(cid)),
-            1 if (r["has_name"] or wl_names.get(rep_uuid.get(cid))) else 0,
+            # The representative's own register name wins. The aggregate
+            # above is MAX(title), which is the alphabetically last name of
+            # any member, and that is how a pin standing on Lukas hög was
+            # labelled Sankt Hans hög. Measured 2026-09-28: 12 multi-site
+            # clusters where both have a title and they disagree, and about
+            # 1,200 where the representative is unnamed and a sibling is not.
+            # An unnamed representative still borrows that sibling name,
+            # because a blank pin is worse than a name from the same cluster.
+            # The Wikipedia lists fill whatever is still empty, and they are
+            # keyed on the representative.
+            rep_title.get(cid) or r["name"] or wl_names.get(rep_uuid.get(cid)),
+            1 if (rep_title.get(cid) or r["has_name"]
+                  or wl_names.get(rep_uuid.get(cid))) else 0,
             r["raa_group"],
             r["parish"], r["parish_code"], r["municipality"],
             r["municipality_code"], r["county"], r["province"],
@@ -401,9 +501,11 @@ def main():
             # stone -- the same argument as dominant_class above. It does not
             # fix a 400 m cluster being several places at once; it does
             # guarantee the pin stands on one of them.
+            #
+            # A dragged pin replaces that coordinate and nothing under it.
+            # The mean above is still the mean.
             r["ce"], r["cn"],
-            rep_pos.get(cid, (r["avg_lon"], r["avg_lat"]))[0],
-            rep_pos.get(cid, (r["avg_lon"], r["avg_lat"]))[1], spread,
+            pin[0], pin[1], spread,
             (r["maxe"] - r["mine"]) if r["mine"] is not None else None,
             (r["maxn"] - r["minn"]) if r["minn"] is not None else None,
             r["any_polygon"], r["any_visible"],
@@ -411,6 +513,14 @@ def main():
             best.get(cid), len(best.get(cid, "")) or 0,
             r["all_boiler"], r["any_measure"],
         ))
+
+    if pin_overrides:
+        idle = len(pin_overrides) - n_pins
+        emit(event="progress", stage="pin_overrides",
+             applied=n_pins, missing=idle,
+             message=f"  pin overrides: {n_pins:,} applied"
+                     + (f", {idle:,} not the current representative"
+                        if idle else ""))
 
     conn.executemany(
         f"INSERT INTO clusters VALUES ({','.join('?'*30)})", out

@@ -286,12 +286,22 @@ def load_contributions(conn):
     src = sqlite3.connect(paths.ro(paths.CONTRIBUTIONS), uri=True)
     # Latest event per (place, author, kind). seq is the server's commit order,
     # so it is the only ordering that is the same for every reader.
+    # A withdrawn rating is not an answer. `rating_delete` names the event
+    # it retracts, so the latest surviving rating is what the phone shows --
+    # not the latest row of kind 'rating', which may be the one just deleted.
     rows = src.execute("""
         SELECT e.place_uuid, e.author, e.kind, e.payload
         FROM events e
-        JOIN (SELECT place_uuid, author, kind, MAX(seq) AS seq
-              FROM events WHERE kind IN ('rating','presence')
-              GROUP BY place_uuid, author, kind) m
+        JOIN (
+            SELECT place_uuid, author, kind, MAX(seq) AS seq
+              FROM events
+             WHERE kind = 'presence'
+                OR (kind = 'rating' AND event_id NOT IN (
+                    SELECT json_extract(payload, '$.target_event_id')
+                      FROM events WHERE kind = 'rating_delete'
+                ))
+             GROUP BY place_uuid, author, kind
+        ) m
           ON m.place_uuid = e.place_uuid AND m.author = e.author
          AND m.kind = e.kind AND m.seq = e.seq
     """).fetchall()
