@@ -805,7 +805,8 @@ def main():
         dropped = sum(1 for c in admin_neg if c in pos_all)
         pos_all = {k: v for k, v in pos_all.items() if k not in admin_neg}
         print(f"  {len(admin_neg):,} marked not interesting"
-              f", {dropped:,} of them had been positives")
+              f", {dropped:,} of them had been positives"
+              f"; excluded from the export")
 
     # Runestones are 83% of the label set; keeping them makes every weight a
     # runestone detector. Fit on everything else.
@@ -1265,6 +1266,12 @@ def main():
         # than adding to it -- the point is that the others do not count.
         if (r["dominant_class"] or "") in CLASS_BURIED:
             rescued = bool(r["any_visible"])
+        # A place marked not worth the trip leaves the export. Training on
+        # the mark is not enough: a county page on the same cluster still
+        # scores inside the top 6 000, which is how Veinge 197 stayed at
+        # rank 4 549 after Franco had already flagged it. The mark is about
+        # this place, so a sitelink or a county page does not rescue it.
+        #
         # `or in struck` and not `and not rescued`: see the note where
         # `struck` is built. A record the register has withdrawn is not a
         # place with a bad prior, it is not a place.
@@ -1278,7 +1285,8 @@ def main():
                    or (r["dominant_class"] or "") in CLASS_NOT_A_PLACE
                    or r["cluster_id"] in struck
                    or r["cluster_id"] in not_found
-                   or r["cluster_id"] in lost_runes)
+                   or r["cluster_id"] in lost_runes
+                   or r["cluster_id"] in admin_neg)
         soft = int(bool(r["class_soft_blacklisted"]) and not rescued)
         out.append((r["cluster_id"], cw.get(r["dominant_class"] or "?", 0.0),
                     kb, acc, nob, intrinsic, full, hard, soft,

@@ -378,9 +378,10 @@ def load_uninteresting(conn):
 
     `label` 0 is the same end of the scale as a hand label of "nothing to
     see". `source` is `admin`, kept off the hand test set. build_scores
-    then drops these clusters from the positives, so a Wikipedia article
-    does not outvote somebody who looked and said the place was not worth
-    the trip.
+    drops these clusters from the positives and from the export, so a
+    county page does not keep a place somebody looked at and marked not
+    worth the trip. build_tiles reads the same file, so a tiles-only run
+    drops a new mark before the next score.
     """
     path = os.path.join(paths.DATA, "uninteresting.jsonl")
     if not os.path.exists(path):
