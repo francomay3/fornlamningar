@@ -11,8 +11,10 @@ declare in metadata.json:
             (clustered / point_count / sqrt_point_count are added by tippecanoe)
 
 `score` is consumed by the frontend only as a MapLibre `symbol-sort-key`, so
-only the ordering matters. We emit a 0-100 percentile because it is readable
-when debugging.
+only the ordering matters. We emit a 0-100 percentile of the export order
+because it is readable when debugging. With `--top` that order is the
+interest ranking in interest.py, not `score_full`: the cut is still
+`score_full`, and the stars are decided afterwards.
 
 One feature per CLUSTER, not per site: a gravfalt of 40 stensattningar is one
 place a visitor drives to, and should be one pin.
@@ -38,7 +40,8 @@ import sys
 import time
 
 from families import CLASS_BLACKLIST, FAMILY, FAMILY_ICON, FAMILY_ORDER
-from titles import resolve_title
+from interest import rank_cut
+from titles import resolve_title, title_overrides
 from periods import period_for
 
 import paths
@@ -90,20 +93,15 @@ TIPPECANOE_OPTS = [
 ]
 
 
-# Star rating: percentile buckets, not a linear rescale of the raw score.
+# Percentile stars, used only when the export is NOT a top-N cut.
 #
-# The raw score is a power-law decay -- median 0.07, 85% of clusters below
-# 0.50, and a long thin tail. Mapping worst..best linearly onto 0..5 would put
-# ~9,500 of the exported 10,000 at zero stars and three at five, which is
-# useless as a filter and misleading as a display.
+# The map that ships passes --top. There the cut is score_full and the stars
+# come from interest.py (readership, then the comparison score). These
+# buckets remain for an uncut dump, where there is no "after the cut" to
+# rescore: the raw score is a power law, and mapping it linearly onto stars
+# would put almost everything on one star.
 #
-# Buckets over the RANK inside the exported set fix both: every band has
-# members by construction, and "3 stars and up" means a definite thing ("the
-# better half of what the app ships"). The cutoffs are cumulative percentiles
-# from the top, and `score` below is already exactly that percentile.
-#
-# There is no zero-star band. A site we know little about is not a bad site,
-# and one star already says "least remarkable of the ten thousand we picked".
+# There is no zero-star band. A site we know little about is not a bad site.
 STAR_CUTOFFS = (
     (90.0, 5),   # top 10%
     (70.0, 4),   # next 20%
@@ -252,7 +250,7 @@ def load_resolved_names(work_db, wiki_db):
                 wiki.setdefault(cid, title)
     out = {}
     for cid in set(names) | set(wiki):
-        t, _src = resolve_title(wiki.get(cid), names.get(cid))
+        t, _src = resolve_title(wiki.get(cid), names.get(cid), cid)
         if t:
             out[cid] = t
     return out
@@ -262,6 +260,65 @@ def load_resolved_names(work_db, wiki_db):
 MAX_PHOTOS = 6
 PRIORITY = os.path.join(paths.DATA, "photo_priority.jsonl")
 SKIPS = os.path.join(paths.DATA, "photo_skips.jsonl")
+
+
+def uninteresting_clusters(conn):
+    """Clusters a person marked not worth the trip.
+
+    The file is the whole list, refreshed before this stage. Scoring sets
+    excluded_hard for the same clusters, but only the next time it runs.
+    Reading the file here drops a new mark on a tiles-only run, and the
+    top-N cut fills the seat from the next place.
+    """
+    path = os.path.join(paths.DATA, "uninteresting.jsonl")
+    if not os.path.exists(path):
+        return set()
+    uuids = []
+    with open(path, encoding="utf-8") as fh:
+        for line in fh:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                row = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            uuid = str(row.get("place_uuid") or "").strip().lower()
+            if uuid:
+                uuids.append(uuid)
+    if not uuids:
+        return set()
+    found = set()
+    for i in range(0, len(uuids), 400):
+        chunk = uuids[i:i + 400]
+        marks = ",".join("?" * len(chunk))
+        for (cid,) in conn.execute(
+                f"SELECT DISTINCT cluster_id FROM site_clusters "
+                f"WHERE uuid IN ({marks})", chunk):
+            found.add(cid)
+    return found
+
+
+def load_pin_overrides():
+    """uuid -> (lon, lat) dragged on the admin page.
+
+    The same file build_clusters.py reads. Applied here as well, because a
+    run that starts after cluster would otherwise ship yesterday's pin.
+    """
+    path = os.path.join(paths.DATA, "pin_overrides.jsonl")
+    out = {}
+    if not os.path.exists(path):
+        return out
+    with open(path, encoding="utf-8") as fh:
+        for line in fh:
+            line = line.strip()
+            if not line:
+                continue
+            row = json.loads(line)
+            uuid, lon, lat = row.get("place_uuid"), row.get("lon"), row.get("lat")
+            if uuid and lon is not None and lat is not None:
+                out[uuid] = (float(lon), float(lat))
+    return out
 
 
 def load_photo_priority():
@@ -312,6 +369,46 @@ def load_photo_skips():
             if cid and src and file:
                 out.add((cid, src, file))
     return out
+
+
+def load_added_marks(places):
+    """Priority and skip marks for photographs added on the admin page.
+
+    Written by ../franco-may/scripts/export-fl-added-photos.cjs. A hand-added
+    file is prioritized when it is pasted, so it goes first. A nearby file
+    is not, and the loop below keeps an unmarked one out. Absent means
+    nobody has added a photograph this way.
+    """
+    priority = set()
+    skips = set()
+    path = os.path.join(paths.DATA, "added_photos.jsonl")
+    if not os.path.exists(path):
+        return priority, skips
+    cl = {
+        u.lower(): cid
+        for u, cid in places.execute(
+            "SELECT uuid, cluster_id FROM features "
+            "WHERE uuid IS NOT NULL AND uuid <> ''")
+        if u
+    }
+    with open(path, encoding="utf-8") as fh:
+        for line in fh:
+            line = line.strip()
+            if not line:
+                continue
+            row = json.loads(line)
+            cid = cl.get((row.get("place_uuid") or "").lower())
+            src = row.get("source")
+            file = row.get("file")
+            if not cid or src not in ("hand", "geosearch", "paste") or not file:
+                continue
+            stored = "paste" if src == "paste" else f"commons_{src}"
+            key = (cid, stored, file)
+            if row.get("prioritized"):
+                priority.add(key)
+            if row.get("skipped"):
+                skips.add(key)
+    return priority, skips
 
 
 def load_images(places_db):
@@ -369,6 +466,12 @@ def load_images(places_db):
     c = sqlite3.connect(f"file:{places_db}?mode=ro", uri=True)
     priority = load_photo_priority()
     skips = load_photo_skips()
+    # Photographs added on the admin page are not in those two files until
+    # a catalog export has copied them into fl_photos. The jsonl is keyed
+    # by place uuid; features knows the cluster.
+    extra_pri, extra_skip = load_added_marks(c)
+    priority |= extra_pri
+    skips |= extra_skip
     out = {}
     q = """SELECT cluster_id, file, author, licence, licence_url, page_url,
                   source, thumb_url, image_url
@@ -408,10 +511,11 @@ def load_images(places_db):
             m = full_re.search(thumb_url or image_url or "")
             if m:
                 e = {"f": m.group(2), "h": m.group(1)}
-            elif _src == "arkiv" and (image_url or thumb_url):
+            elif _src in ("arkiv", "paste") and (image_url or thumb_url):
                 # Not a Commons path. The phone already treats `src` as a
                 # finished URL and does not rebuild it. `f` is only the
-                # carousel key, so it is the archive record, not a filename.
+                # carousel key: the archive record, or the file name of a
+                # photo pasted in the admin.
                 e = {"f": f, "src": image_url or thumb_url}
             else:
                 no_hash += 1
@@ -520,6 +624,7 @@ def write_descriptions(rows, out_dir, shard_chars, max_desc, ai=None,
     could afford; out here the full RAA text costs nothing at map load.
     """
     ai = ai or {}
+    forced_titles = title_overrides()
     shards, n_ai = {}, 0
     for r in rows:
         uuid = r["uuid"] or ""
@@ -555,8 +660,15 @@ def write_descriptions(rows, out_dir, shard_chars, max_desc, ai=None,
             # have discarded a seventh key without a word. What it was
             # carrying -- "160 fornlämningar" -- is in the content text
             # anyway.
+            # A title typed on the admin page is the title, even when the
+            # generated heading already contains those words. The folk-name
+            # rule below keeps a richer heading that merely includes the
+            # name; a person who typed one asked for that string.
+            forced = forced_titles.get(uuid)
             name = (resolved or {}).get(r["cluster_id"]) or r["name"]
-            if name and title and name.lower() not in title.lower():
+            if forced:
+                entry["title"] = forced
+            elif name and title and name.lower() not in title.lower():
                 entry["title"] = name
             elif title:
                 entry["title"] = title
@@ -662,7 +774,8 @@ def write_families(rows, path):
     for i, r in enumerate(rows):
         cls = r["dominant_class"] or ""
         fam = FAMILY.get(cls, "misc")
-        stars = stars_for(round(100.0 * (n_rows - i) / n_rows, 2))
+        stars = r["stars"] if "stars" in r.keys() else stars_for(
+            round(100.0 * (n_rows - i) / n_rows, 2))
         fc = fam_counts.setdefault(fam, empty())
         cc = cls_counts.setdefault(fam, {}).setdefault(cls, empty()) if cls else None
         for k in range(stars):
@@ -797,6 +910,14 @@ def main():
 
     conn = sqlite3.connect(f"file:{args.db}?mode=ro", uri=True)
     conn.row_factory = sqlite3.Row
+    dull = uninteresting_clusters(conn)
+    params = []
+    if dull and not args.include_excluded:
+        marks = ",".join("?" * len(dull))
+        where.append(f"c.cluster_id NOT IN ({marks})")
+        params.extend(sorted(dull))
+        print(f"  {len(dull):,} clusters marked not interesting, "
+              f"left out of the export")
     rows = conn.execute(f"""
         SELECT c.cluster_id, c.name, c.dominant_class, c.n_sites,
                c.lon, c.lat, c.best_description,
@@ -811,11 +932,12 @@ def main():
         WHERE {' AND '.join(where)}
         ORDER BY {score_col} DESC
         {f'LIMIT {args.top}' if args.top else ''}
-    """).fetchall()
+    """, params).fetchall()
     conn.close()
 
     if not rows:
         sys.exit("no clusters matched the filters")
+    rows = [dict(r) for r in rows]
     orphans = sorted({r["dominant_class"] for r in rows
                       if r["dominant_class"] and r["dominant_class"] not in FAMILY})
     if orphans:
@@ -825,7 +947,24 @@ def main():
           + (f" (top {args.top:,})" if args.top else "")
           + f" (score_{args.score}, desc limit {args.max_desc or 'none'})")
     if args.top:
-        print(f"  score range kept: {rows[0]['score']:.2f} .. {rows[-1]['score']:.2f}")
+        # The cut was score_full. Stars, and the order minzoom walks, are
+        # decided now, on this set only.
+        print(f"  score_full range kept: "
+              f"{rows[0]['score']:.2f} .. {rows[-1]['score']:.2f}")
+        rows = rank_cut(rows, args.db)
+    else:
+        for i, r in enumerate(rows):
+            r["stars"] = stars_for(round(100.0 * (n - i) / n, 2))
+    pins = load_pin_overrides()
+    n_pins = 0
+    for r in rows:
+        forced = pins.get(r.get("uuid"))
+        if not forced:
+            continue
+        r["lon"], r["lat"] = forced
+        n_pins += 1
+    if n_pins:
+        print(f"  {n_pins} pins at the admin coordinate")
 
     minzoom = assign_minzoom_by_family(rows, args.maxzoom,
                                        args.cells_per_tile)
@@ -839,9 +978,8 @@ def main():
         shown.append(f"z{z}:{cum:,}")
     print("  visible by zoom (cumulative): " + "  ".join(shown))
     star_hist = {}
-    for i in range(n):
-        s = stars_for(round(100.0 * (n - i) / n, 2))
-        star_hist[s] = star_hist.get(s, 0) + 1
+    for r in rows:
+        star_hist[r["stars"]] = star_hist.get(r["stars"], 0) + 1
     print("  stars: " + "  ".join(f"{s}*:{star_hist.get(s, 0):,}"
                                   for s in (5, 4, 3, 2, 1)))
 
@@ -853,11 +991,18 @@ def main():
     # absent rather than stored: the filter asks for 1, and six thousand
     # zeros are bytes for a value the absence already has.
     images = load_images(paths.PLACES)
+    admin_titles = title_overrides()
     with open(args.geojson, "w", encoding="utf-8") as f:
         for i, r in enumerate(rows):
             cls = r["dominant_class"] or ""
             pct = round(100.0 * (n - i) / n, 2)
-            if r["name"]:
+            # The sheet already uses the typed title. The marker has to
+            # use it too, or the pin still says the register class.
+            forced_title = admin_titles.get(r["uuid"] or "")
+            if forced_title:
+                label = forced_title
+                named += 1
+            elif r["name"]:
                 label = r["name"]
                 named += 1
             elif (r["n_sites"] or 1) > 1:
@@ -877,14 +1022,14 @@ def main():
                     # granularity, so ship the family rather than making the
                     # frontend expand 153 class names back into groups.
                     "family": FAMILY.get(cls, "misc"),
-                    # Percentile, best-first. Ordering is all the frontend
-                    # uses it for (symbol-sort-key).
+                    # Percentile of the export order, best-first. Ordering
+                    # is all the frontend uses it for (symbol-sort-key).
+                    # With --top that order is interest.rank_key, so a
+                    # five-star pin sorts above a four-star one.
                     "score": pct,
-                    # The same percentile bucketed for display and filtering.
-                    # Derived here rather than in the app so that "5 stars"
-                    # means the same thing everywhere, and so the app never
-                    # sees the raw score it would be tempted to render.
-                    "stars": stars_for(pct),
+                    # Decided with the order, above. The app filters on this
+                    # and never sees the raw score.
+                    "stars": r["stars"],
                     # 1 when the sheet has a photograph. Omitted otherwise.
                     **({"photo": 1} if images.get(r["cluster_id"]) else {}),
                 },

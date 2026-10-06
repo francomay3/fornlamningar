@@ -239,7 +239,72 @@ def articles(sites):
         if (uuid, "sv") not in seen:
             out.append((uuid, "sv", title))
             seen.add((uuid, "sv"))
+    # Hand links last, and only where nothing else named an article.
+    # Wikidata and the lists win a conflict: those are an editor pointing
+    # at a page. This file is for the page they never pointed at.
+    for uuid, lang, title in manual_articles():
+        if (uuid, lang) not in seen:
+            out.append((uuid, lang, title))
+            seen.add((uuid, lang))
     return out
+
+
+def _read_links(path=None):
+    path = path or os.path.join(paths.DATA, "wiki_links.jsonl")
+    if not os.path.exists(path):
+        return []
+    out = []
+    with open(path, encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            out.append(json.loads(line))
+    return out
+
+
+def manual_articles(path=None):
+    """(uuid, lang, title) from src/data/wiki_links.jsonl.
+
+    The article people read and the RAÄ record are sometimes two Wikidata
+    items, and the one with the article carries no P1260. A label crawl
+    will not find it. Hunehals borg is the documented case; Birka, the
+    Gamla Uppsala mounds, Torsburgen and the Tanum carvings are the same
+    shape. The file is the judgment, and a recrawl keeps it.
+    """
+    return [(r["uuid"], r["lang"], r["title"]) for r in _read_links(path)]
+
+
+def apply_passages(out, path=None):
+    """Replace a stored body with the passage a hand link names.
+
+    One Wikipedia page can be about several places. The Tanum article is
+    the area: four panels in one paragraph, then the world-heritage listing
+    and the motorway. Copied whole, the motorway and the other panels'
+    scenes read as though they belonged to this rock. `passage` is the
+    sentences that are about this one, in the article's own words, and the
+    readership stays the page's — fame is the article, not the paragraph.
+
+    A refetch writes the whole page and then this puts the passage back,
+    so the cut survives the crawl.
+    """
+    n = 0
+    for r in _read_links(path):
+        passage = (r.get("passage") or "").strip()
+        if not passage:
+            continue
+        cur = out.execute(
+            "SELECT body FROM wiki_articles WHERE uuid=? AND lang=?",
+            (r["uuid"], r["lang"])).fetchone()
+        if cur is None or cur[0] == passage:
+            continue
+        out.execute(
+            "UPDATE wiki_articles SET body=?, body_at=datetime('now') "
+            "WHERE uuid=? AND lang=?",
+            (passage, r["uuid"], r["lang"]))
+        n += 1
+    out.commit()
+    return n
 
 
 def wikilist_articles(path=None):
@@ -398,7 +463,10 @@ def fetch_bodies(out, limit=None, refresh=False):
             print(f"  {i:,}/{len(todo):,}")
         time.sleep(DELAY)
     out.commit()
+    cut = apply_passages(out)
     print(f"  {done:,} bodies stored")
+    if cut:
+        print(f"  {cut:,} bodies kept to the passage in wiki_links")
 
 
 def swap_to_swedish(out):

@@ -11,14 +11,15 @@ Reads:  work.sqlite       clusters, scores, sites      (cheap, rebuildable)
         lansstyrelsen.sqlite   sign and parking status
 Writes: places.sqlite     features, images
         franco-may/data/place-scores.txt.gz   the raw score, for the admin list
+        franco-may/data/compare-pool.jsonl.gz the tinder pool, via export_compare_pool.py
         (build_sources.py writes `sources` and `generation_sources` into the
          same file -- the corpus is part of the product, not a side table)
 
 Deliberately NOT here:
-  stars     A quantile of whatever set got exported. Export 5,000 instead of
-            10,000 and every star changes without a single place changing, so
-            a star is a property of the tile, not of the place. `score` is
-            here; the bucketing happens in build_tiles.py.
+  stars     Assigned in build_tiles.py after the top-N cut, from Wikipedia
+            readership and the comparison score (interest.py). A star is a
+            property of that export, not of the place, so it is not stored
+            here. `score` is score_full, which only decides membership.
   signals   The features a model was fitted on. They belong next to the model
             that consumes them, in work.sqlite, and putting them here would
             invite reading a fitted intermediate as if it were a fact about
@@ -27,11 +28,13 @@ Deliberately NOT here:
 
 import argparse
 import gzip
+import json
 import os
 import sqlite3
 
 import paths
 from crawl_lansstyrelsen import plan_clusters
+from export_compare_pool import write_compare_pool
 from families import FAMILY
 
 SCHEMA = """
@@ -406,6 +409,103 @@ def arkiv_images(out):
     return n
 
 
+ADDED_PHOTOS = os.path.join(paths.DATA, "added_photos.jsonl")
+
+
+def from_added_photos(out):
+    """Photographs a person added on the admin page.
+
+    Written by ../franco-may/scripts/export-fl-added-photos.cjs from
+    fl_photos_added, and tracked in git once that export has been run: it
+    is small, and it is the only input here nobody could re-crawl.
+
+    The file is the whole truth. A row that was here last time and is not
+    now was taken back, and the image is marked unusable -- the same end
+    as skipping it. `added_photo_seen` remembers which rows came from this
+    file, so a crawl photograph that was never added here is left alone.
+
+    A hand-added file is usable even with no licence stated: a person
+    chose it, and the sheet credits the file name. A nearby file follows
+    the crawl and stays unusable until a licence is known.
+    """
+    out.execute("""
+        CREATE TABLE IF NOT EXISTS added_photo_seen (
+            cluster_id TEXT NOT NULL,
+            source     TEXT NOT NULL,
+            file       TEXT NOT NULL,
+            PRIMARY KEY (cluster_id, source, file)
+        )""")
+    rows = []
+    if os.path.exists(ADDED_PHOTOS):
+        with open(ADDED_PHOTOS, encoding="utf-8") as f:
+            rows = [json.loads(line) for line in f if line.strip()]
+    if not os.path.exists(paths.WORK):
+        return 0
+    w = sqlite3.connect(paths.ro(paths.WORK), uri=True)
+    cl = {
+        u.lower(): cid
+        for u, cid in w.execute("SELECT uuid, cluster_id FROM site_clusters")
+        if u
+    }
+    w.close()
+    keep = set()
+    n = 0
+    for r in rows:
+        cid = cl.get((r.get("place_uuid") or "").lower())
+        short = r.get("source")
+        file = r.get("file")
+        if not cid or short not in ("hand", "geosearch", "paste") or not file:
+            continue
+        # A pasted file is a finished URL, the same shape as an archive
+        # record. The other two are Commons titles.
+        src = "paste" if short == "paste" else f"commons_{short}"
+        usable = 1 if short in ("hand", "paste") or r.get("licence") else 0
+        dist = r.get("distance_m")
+        try:
+            dist = float(dist) if dist not in (None, "") else None
+        except (TypeError, ValueError):
+            dist = None
+        out.execute("""
+            INSERT OR IGNORE INTO images
+              (cluster_id, uuid, source, file, image_url, thumb_url,
+               page_url, width, height, distance_m, author,
+               licence, licence_url, usable, fetched_at)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+        """, (cid, r.get("place_uuid"), src, file, r.get("image_url"),
+              r.get("thumb"), r.get("page"), r.get("width"), r.get("height"),
+              dist, r.get("author"), r.get("licence"), r.get("licence_url"),
+              usable, r.get("created_at")))
+        if usable:
+            # Back on if it was taken away once and has been added again.
+            # A crawl row that was already usable is unchanged.
+            out.execute("""
+                UPDATE images SET usable = 1
+                 WHERE cluster_id = ? AND source = ? AND file = ? AND usable = 0
+            """, (cid, src, file))
+        out.execute("""
+            INSERT OR IGNORE INTO added_photo_seen (cluster_id, source, file)
+            VALUES (?,?,?)
+        """, (cid, src, file))
+        keep.add((cid, src, file))
+        n += 1
+    gone = [row for row in out.execute(
+        "SELECT cluster_id, source, file FROM added_photo_seen")
+            if row not in keep]
+    for cid, src, file in gone:
+        out.execute("""
+            UPDATE images SET usable = 0
+             WHERE cluster_id = ? AND source = ? AND file = ?
+        """, (cid, src, file))
+        out.execute("""
+            DELETE FROM added_photo_seen
+             WHERE cluster_id = ? AND source = ? AND file = ?
+        """, (cid, src, file))
+    out.commit()
+    if gone:
+        print(f"          {len(gone):,} added photographs taken back")
+    return n
+
+
 def build_images(out):
     """Commons photos, carried over with their licences intact."""
     if not os.path.exists(paths.WIKIMEDIA):
@@ -587,9 +687,12 @@ def main():
     print(f"          {n:,} from county folders")
     n = arkiv_images(out)
     print(f"          {n:,} from the archive")
+    n = from_added_photos(out)
+    print(f"          {n:,} added on the admin page")
     rollups(out)
     prune(out)
     write_place_scores(out)
+    write_compare_pool()
     status(out)
 
 

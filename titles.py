@@ -32,7 +32,11 @@ so it is safe to match; a parenthetical disambiguator (7 titles) is
 Wikipedia's plumbing rather than part of a name, so it goes too.
 """
 
+import json
+import os
 import re
+
+import paths
 
 # "Upplands runinskrifter 165", "Närkes runinskrifter 34". Written as one
 # alternation of landskap names rather than a loose r"runinskrifter \d+"
@@ -62,13 +66,72 @@ def usable_wiki_title(title):
     return not (SIGNUM.match(t) or SHORT_SIGNUM.match(t))
 
 
-def resolve_title(wiki_title=None, register_name=None):
+_NAME_OVERRIDES = None
+
+
+def name_overrides(path=None):
+    """cluster_id -> the name a person set, ahead of every rule.
+
+    Same shape as a dragged pin. The register and the Wikipedia title are
+    what the rules would print; a row here replaces that and nothing else.
+    Written by hand. A cluster_id that no longer exists is reported by the
+    clustering pass and does not rename some other place.
+    """
+    global _NAME_OVERRIDES
+    path = path or os.path.join(paths.DATA, "name_overrides.jsonl")
+    if _NAME_OVERRIDES is not None and path == os.path.join(paths.DATA, "name_overrides.jsonl"):
+        return _NAME_OVERRIDES
+    out = {}
+    if os.path.exists(path):
+        with open(path, encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith("#"):
+                    continue
+                row = json.loads(line)
+                cid, name = row.get("cluster_id"), (row.get("name") or "").strip()
+                if cid and name:
+                    out[cid] = name
+    if path == os.path.join(paths.DATA, "name_overrides.jsonl"):
+        _NAME_OVERRIDES = out
+    return out
+
+
+def title_overrides(path=None):
+    """place uuid -> the title typed on the admin page.
+
+    franco-may writes src/data/title_overrides.jsonl, and that file is the
+    whole list: a uuid missing from it keeps whatever the rules would
+    print. A hand-written name_overrides row still applies when this file
+    has nothing for that place. When both name the same cluster, the typed
+    title wins, because it is the later edit.
+    """
+    path = path or os.path.join(paths.DATA, "title_overrides.jsonl")
+    out = {}
+    if not os.path.exists(path):
+        return out
+    with open(path, encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            row = json.loads(line)
+            uuid, title = row.get("place_uuid"), (row.get("title") or "").strip()
+            if uuid and title:
+                out[uuid] = title
+    return out
+
+
+def resolve_title(wiki_title=None, register_name=None, cluster_id=None):
     """The place's name, or None if nothing names it.
 
     Returns (title, source) so a caller can record WHY -- worth having,
     because the next person to look at a wrong title needs to know whether
     to fix the guard or the register.
     """
+    forced = name_overrides().get(cluster_id) if cluster_id else None
+    if forced:
+        return forced, "override"
     if usable_wiki_title(wiki_title):
         return wiki_title.strip(), "wikipedia"
     if register_name and register_name.strip():

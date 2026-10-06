@@ -19,7 +19,7 @@
 #   ./run_pipeline.sh --from tiles --top 30000 --tile-args "--max-desc 200"
 #   ./run_pipeline.sh --skip-long      # stages 1-9 only: the old ~4 min run
 #   ./run_pipeline.sh --concurrency 3  # parallel generation (see below)
-#   ./run_pipeline.sh --no-pull        # do not mirror the contribution log
+#   ./run_pipeline.sh --no-pull        # do not mirror the admin or the log
 #
 # A FULL RUN IS NOW HOURS, NOT MINUTES. Stages 10 and 11 generate and then
 # translate the descriptions with a local model; on this machine that is most
@@ -74,11 +74,13 @@ DESC_ARGS="${DESC_ARGS:-}"
 CONCURRENCY="${CONCURRENCY:-1}"
 # Stop before generation, i.e. the old four-minute pipeline.
 SKIP_LONG=0
-# Mirror the contribution log before scoring. On by default: user ratings are
-# an input to the score now, so a run that skipped this would rank on stale
-# data without saying so. --no-pull is for when the network is the problem.
+# Mirror the admin and the contribution log before the stages that read
+# them. On by default: a run that skipped this would ship yesterday's pins,
+# titles, photographs and sources without saying so. --no-pull is for when
+# the network is the problem.
 PULL=1
 APP_DIR="${APP_DIR:-../fornlamningar-app}"
+WEB_DIR="${WEB_DIR:-../franco-may}"
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --from) FROM="$2"; shift 2 ;;
@@ -275,6 +277,89 @@ fi
 (( preflight_fail )) && exit 1
 
 # ---------------------------------------------------------------------------
+# Stage 0a: the admin.
+#
+# Pins, titles, "not worth the trip", hand-added sources, and the photograph
+# marks all live in the admin database. The stages only read the jsonl on
+# disk, and until this pull existed a run shipped whatever had been exported
+# by hand last, which is how a phone showed the default six photographs
+# after those photographs had already been chosen. Each file is the whole
+# list, so the export replaces it. A failed pull keeps the file already
+# there: same trade as the contribution log below.
+#
+# Which files depends on which stages this run will actually reach. A
+# `--from tiles` run still refreshes the photograph marks, because that is
+# the stage that reads them. It does not refresh pins: cluster is what
+# moves them, and this run is not going to re-cluster.
+stage_num() {
+  local want="$1" entry num name
+  for entry in "${STAGES[@]}"; do
+    IFS=: read -r num name _ <<<"$entry"
+    if [[ "$name" == "$want" ]]; then
+      echo "$num"
+      return 0
+    fi
+  done
+  return 1
+}
+will_run() {
+  local n
+  n="$(stage_num "$1")" || return 1
+  (( FROM <= n ))
+}
+pull_admin() {
+  local script="$1" file="$2"
+  local path="$WEB_DIR/scripts/$script"
+  if [[ ! -f "$path" ]]; then
+    echo "   ! no $path -- keeping src/data/$file" >&2
+    return 0
+  fi
+  if ! node "$path" "$ROOT/src/data/$file"; then
+    echo "   ! $script failed -- keeping src/data/$file" >&2
+  fi
+}
+
+ROOT="$(cd "$(dirname "$0")" && pwd)"
+if (( PULL )); then
+  echo "── stage 0a: admin"
+  if will_run cluster || will_run tiles; then
+    pull_admin export-fl-pin-overrides.cjs pin_overrides.jsonl
+    pull_admin export-fl-title-overrides.cjs title_overrides.jsonl
+  fi
+  # Not interesting has to be fresh before scoring AND before tiles.
+  # Scoring trains on the mark and drops the cluster from the export.
+  # A tiles-only run never reaches scoring, and it still has to drop a
+  # mark made since the last score, or the place stays in the top 6 000.
+  if will_run labels || will_run score || will_run tiles; then
+    pull_admin export-fl-uninteresting.cjs uninteresting.jsonl
+    pull_admin export-fl-flags.cjs place_flags.jsonl
+  fi
+  if will_run sources; then
+    pull_admin export-fl-added-sources.cjs added_sources.jsonl
+  fi
+  if will_run places || will_run tiles; then
+    pull_admin export-fl-added-photos.cjs added_photos.jsonl
+  fi
+  if will_run tiles; then
+    pull_admin export-fl-photo-priority.cjs photo_priority.jsonl
+    pull_admin export-fl-photo-skips.cjs photo_skips.jsonl
+  fi
+  # Added photographs become image rows in places. A full run does that at
+  # the places stage. A run that starts later would export the file and
+  # then ignore it, so fold them in here.
+  if will_run tiles && ! will_run places; then
+    python3 - <<'PY'
+import sqlite3
+import build_places
+import paths
+out = sqlite3.connect(paths.PLACES)
+n = build_places.from_added_photos(out)
+print(f"   {n} added photographs folded into places")
+PY
+  fi
+fi
+
+# ---------------------------------------------------------------------------
 # Stage 0f: the contribution log.
 #
 # Before stage 1, because build_labels.py turns these events into labels and
@@ -379,5 +464,22 @@ for entry in "${STAGES[@]}"; do
   python3 pipeline_progress.py --end-stage "$name" "$((SECONDS - t0))"
   echo "   done in $((SECONDS - t0))s"
 done
+
+# Sources and the photograph catalog are built into places.sqlite and then
+# left there. The admin reads Neon, and until this push the two drifted:
+# generation 11 was still what the page showed after release 14. The loaders
+# live in the web repo because that is where the database credential is.
+if (( PULL )) && will_run release; then
+  echo "── push: sources and photographs"
+  if ! python3 export_sources.py --out /tmp/fl_sources.jsonl.gz \
+      || ! node "$WEB_DIR/scripts/load-fl-sources.cjs" /tmp/fl_sources.jsonl.gz; then
+    echo "   ! sources push failed -- rerun export_sources.py and load-fl-sources.cjs" >&2
+  fi
+  if ! python3 export_place_photos.py --out /tmp/fl_photos.jsonl.gz \
+      || ! node "$WEB_DIR/scripts/load-fl-photos.cjs" /tmp/fl_photos.jsonl.gz; then
+    echo "   ! photograph push failed -- rerun export_place_photos.py and load-fl-photos.cjs" >&2
+  fi
+fi
+
 python3 pipeline_progress.py --end-run
 echo "── pipeline complete in $((SECONDS - start_all))s"

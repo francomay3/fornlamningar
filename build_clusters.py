@@ -38,6 +38,7 @@ import sys
 import time
 
 from families import CLASS_BLACKLIST, representative_order
+from titles import name_overrides, title_overrides
 
 import paths
 
@@ -436,13 +437,22 @@ def main():
                         f"({', '.join(missing[:8])})" if missing else ""))
 
     pin_overrides = load_pin_overrides()
+    names_forced = name_overrides()
+    admin_titles = title_overrides()
     n_pins = 0
+    n_names = 0
+    n_admin = 0
     out = []
     for r in agg:
         cid = r["cluster_id"]
         c = mix[cid]
         spread = math.hypot(r["maxe"] - r["mine"], r["maxn"] - r["minn"]) \
             if r["mine"] is not None else None
+        admin_name = admin_titles.get(rep_uuid.get(cid))
+        if admin_name:
+            n_admin += 1
+        elif cid in names_forced:
+            n_names += 1
         forced_pin = pin_overrides.get(rep_uuid.get(cid))
         if forced_pin:
             n_pins += 1
@@ -478,9 +488,11 @@ def main():
             # because a blank pin is worse than a name from the same cluster.
             # The Wikipedia lists fill whatever is still empty, and they are
             # keyed on the representative.
-            rep_title.get(cid) or r["name"] or wl_names.get(rep_uuid.get(cid)),
-            1 if (rep_title.get(cid) or r["has_name"]
-                  or wl_names.get(rep_uuid.get(cid))) else 0,
+            admin_name
+            or names_forced.get(cid)
+            or rep_title.get(cid) or r["name"] or wl_names.get(rep_uuid.get(cid)),
+            1 if (admin_name or names_forced.get(cid) or rep_title.get(cid)
+                  or r["has_name"] or wl_names.get(rep_uuid.get(cid))) else 0,
             r["raa_group"],
             r["parish"], r["parish_code"], r["municipality"],
             r["municipality_code"], r["county"], r["province"],
@@ -513,6 +525,21 @@ def main():
             best.get(cid), len(best.get(cid, "")) or 0,
             r["all_boiler"], r["any_measure"],
         ))
+
+    if admin_titles:
+        idle = len(admin_titles) - n_admin
+        emit(event="progress", stage="title_overrides",
+             applied=n_admin, missing=idle,
+             message=f"  title overrides: {n_admin:,} applied"
+                     + (f", {idle:,} not the current representative"
+                        if idle else ""))
+
+    if names_forced:
+        idle = len(names_forced) - n_names
+        emit(event="progress", stage="name_overrides",
+             applied=n_names, missing=idle,
+             message=f"  name overrides: {n_names:,} applied"
+                     + (f", {idle:,} unknown cluster" if idle else ""))
 
     if pin_overrides:
         idle = len(pin_overrides) - n_pins

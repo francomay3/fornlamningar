@@ -633,7 +633,8 @@ def payload(conn, cluster_id, places_db=None):
              for s in sources if s["kind"] != "register"]
 
     title, _src = resolve_title(wiki_title=wiki_title_for(sources),
-                                register_name=r["name"])
+                                register_name=r["name"],
+                                cluster_id=cluster_id)
     out = {
         "class": r["dominant_class"],
         "name": title,
