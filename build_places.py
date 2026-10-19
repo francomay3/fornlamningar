@@ -11,6 +11,7 @@ Reads:  work.sqlite       clusters, scores, sites      (cheap, rebuildable)
         lansstyrelsen.sqlite   sign and parking status
 Writes: places.sqlite     features, images
         franco-may/data/place-scores.txt.gz   the raw score, for the admin list
+        franco-may/data/place-coords.txt.gz   representative uuid to lon lat
         franco-may/data/compare-pool.jsonl.gz the tinder pool, via export_compare_pool.py
         (build_sources.py writes `sources` and `generation_sources` into the
          same file -- the corpus is part of the product, not a side table)
@@ -122,8 +123,13 @@ CREATE TABLE IF NOT EXISTS images (
     uuid         TEXT,               -- the register row it was matched to
     -- Provenance, and it doubles as a confidence ordering.
     --   commons_wikidata  the image the Wikidata item itself designates
+    --   commons_article   a photograph embedded in the Wikipedia article.
+    --                     The item's own image is one; the page usually
+    --                     has more, and those are the place's pictures.
     --   commons_geo       a Commons file whose own coordinates fall nearby:
-    --                     a good guess, still a guess
+    --                     a good guess, still a guess. Stored as
+    --                     commons_geosearch. Left out of the app until
+    --                     somebody marks it.
     --   county_pdf        extracted from a county folder, page-matched
     --   county_page       an <img> on a county visitor page
     source       TEXT NOT NULL,
@@ -330,6 +336,33 @@ def build_features(out):
     return n
 
 
+def write_place_coords():
+    """Representative uuid, lon, lat. Five decimal places.
+
+    The admin map reads this file and nothing else. It is keyed by the
+    representative, which is also the uuid of the description. A file
+    left from before a representative changed still has the old uuid:
+    the page then has a text and no coordinates, and the old uuid has
+    coordinates and no text. Written from clusters, which is where the
+    representative is decided.
+    """
+    path = os.path.join(paths.WEB, "data", "place-coords.txt.gz")
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    work = sqlite3.connect(paths.ro(paths.WORK), uri=True)
+    n = 0
+    with gzip.open(path, "wt", encoding="utf-8") as f:
+        for uuid, lon, lat in work.execute("""
+                SELECT rep_uuid, lon, lat FROM clusters
+                 WHERE rep_uuid IS NOT NULL AND rep_uuid <> ''
+                   AND lon IS NOT NULL AND lat IS NOT NULL
+                 ORDER BY rep_uuid"""):
+            f.write(f"{uuid} {lon:.5f} {lat:.5f}\n")
+            n += 1
+    work.close()
+    print(f"coords:   {n:,} -> {path}")
+    return n
+
+
 def write_place_scores(out):
     """uuid and score_full, for the admin list.
 
@@ -454,12 +487,13 @@ def from_added_photos(out):
         cid = cl.get((r.get("place_uuid") or "").lower())
         short = r.get("source")
         file = r.get("file")
-        if not cid or short not in ("hand", "geosearch", "paste") or not file:
+        if not cid or short not in ("hand", "geosearch", "paste", "official") or not file:
             continue
-        # A pasted file is a finished URL, the same shape as an archive
-        # record. The other two are Commons titles.
-        src = "paste" if short == "paste" else f"commons_{short}"
-        usable = 1 if short in ("hand", "paste") or r.get("licence") else 0
+        # A pasted file, and a photograph taken from an official Swedish
+        # page, are a finished URL, the same shape as an archive record.
+        # The other two are Commons titles.
+        src = short if short in ("paste", "official") else f"commons_{short}"
+        usable = 1 if short in ("hand", "paste", "official") or r.get("licence") else 0
         dist = r.get("distance_m")
         try:
             dist = float(dist) if dist not in (None, "") else None
@@ -522,6 +556,33 @@ def build_images(out):
         cid = cl.get(uuid)
         if not cid:
             continue
+        # The article pass reclassifies a file the geosearch had already
+        # stored. The old row would otherwise stay in the drawer as a
+        # nearby guess beside the same file, now known to illustrate the
+        # article. One row, and it is the article's.
+        if src == "article":
+            # The article row may already be there from an earlier pass or
+            # from another register row in this cluster. Renaming the
+            # geosearch copy onto it collides with idx_i_identity. The
+            # article row is the one to keep; the nearby guess goes.
+            already = out.execute("""
+                SELECT 1 FROM images
+                 WHERE cluster_id = ? AND file = ? AND source = 'commons_article'
+                 LIMIT 1
+            """, (cid, f)).fetchone()
+            if already:
+                out.execute("""
+                    DELETE FROM images
+                     WHERE cluster_id = ? AND file = ? AND source = 'commons_geosearch'
+                """, (cid, f))
+                continue
+            cur = out.execute("""
+                UPDATE images SET source = 'commons_article'
+                 WHERE cluster_id = ? AND file = ? AND source = 'commons_geosearch'
+            """, (cid, f))
+            if cur.rowcount:
+                n += 1
+                continue
         out.execute("""
             INSERT OR IGNORE INTO images
               (cluster_id, uuid, source, file, image_url, thumb_url,
@@ -692,6 +753,7 @@ def main():
     rollups(out)
     prune(out)
     write_place_scores(out)
+    write_place_coords()
     write_compare_pool()
     status(out)
 

@@ -659,7 +659,9 @@ def not_found_clusters(conn):
 
       presence been=false with had_visit -- the phone was within fifty metres
         and they said they had not been to the place.
-      rating not_found -- "I could not find the monument".
+      rating not_found -- retired. Old rows said "I could not find the
+        monument". The app no longer collects star ratings, so a fresh log
+        has none of these.
 
     A plain "I have not been here" with no recorded visit does not count.
     That is the default, and counting it would empty the map.

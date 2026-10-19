@@ -1,10 +1,34 @@
 {"cluster_id":"raa:123:Österhaninge 402","source":"arkiv","file":"http://kulturarvsdata.se/raa/dokumentation/e95faacb-835b-4249-b57e-35c66cbc3934"}
+{"cluster_id":"raa:1359:Svensköp 1","source":"commons_wikidata","file":"File:Svensköps kyrka, tornet.jpg"}
+{"cluster_id":"raa:1382:Tullstorp 1","source":"arkiv","file":"http://kulturarvsdata.se/raa/dokumentation/cd8ed994-f24e-4624-a88e-9f31bf6e5be4"}
+{"cluster_id":"raa:1382:Tullstorp 1","source":"arkiv","file":"http://kulturarvsdata.se/raa/dokumentation/2c2bfb00-044e-421e-b01c-2d4766e1838b"}
+{"cluster_id":"raa:1382:Tullstorp 1","source":"arkiv","file":"http://kulturarvsdata.se/raa/dokumentation/f2e9dc57-f87b-42af-99e3-3c97e92bc8cc"}
+{"cluster_id":"raa:1403:Västra Ingelstad 1","source":"arkiv","file":"http://kulturarvsdata.se/raa/dokumentation/6bbfe19e-a54f-4565-a382-8a46791c07e3"}
+{"cluster_id":"raa:1403:Västra Ingelstad 1","source":"arkiv","file":"http://kulturarvsdata.se/raa/dokumentation/75332caa-c6b1-4fc1-9d13-04e891ac208c"}
+{"cluster_id":"raa:1403:Västra Ingelstad 1","source":"arkiv","file":"http://kulturarvsdata.se/raa/kmb/16001000036262"}
+{"cluster_id":"raa:1403:Västra Ingelstad 1","source":"arkiv","file":"http://kulturarvsdata.se/raa/dokumentation/3426d1f7-7afd-4b49-901a-e63b85128350"}
+{"cluster_id":"raa:1427:Östra Torp 7","source":"arkiv","file":"http://kulturarvsdata.se/raa/kmb/16001000036724"}
+{"cluster_id":"raa:1427:Östra Torp 7","source":"commons_geosearch","file":"File:Dellings hög2.jpg"}
+{"cluster_id":"raa:1427:Östra Torp 7","source":"commons_geosearch","file":"File:Dellings hög 1.jpg"}
+{"cluster_id":"raa:1427:Östra Torp 7","source":"commons_geosearch","file":"File:Dellins hög 1001 01.JPG"}
+{"cluster_id":"raa:1427:Östra Torp 7","source":"commons_geosearch","file":"File:Dellins hög 1001 02.JPG"}
+{"cluster_id":"raa:1427:Östra Torp 7","source":"commons_geosearch","file":"File:Smygehuk (9064769117).jpg"}
 {"cluster_id":"raa:165:Gällivare 19","source":"arkiv","file":"http://kulturarvsdata.se/raa/dokumentation/313cf766-f444-4cd2-b381-f1081cbb4a99"}
+{"cluster_id":"raa:1730:Länghem 36","source":"arkiv","file":"http://kulturarvsdata.se/raa/dokumentation/38660c24-3b6e-4d5f-b722-4f217b441526"}
+{"cluster_id":"raa:1730:Länghem 36","source":"arkiv","file":"http://kulturarvsdata.se/raa/dokumentation/4462704f-71f9-49d1-ba16-89033cf35ba2"}
+{"cluster_id":"raa:1730:Länghem 36","source":"arkiv","file":"http://kulturarvsdata.se/raa/dokumentation/2f5e666f-c649-4f48-9868-6eeda168d68f"}
+{"cluster_id":"raa:1730:Länghem 36","source":"arkiv","file":"http://kulturarvsdata.se/raa/dokumentation/06c565ea-f9d5-41e1-bf00-95fb31502208"}
+{"cluster_id":"raa:1730:Länghem 36","source":"arkiv","file":"http://kulturarvsdata.se/raa/kmb/16001000017285"}
+{"cluster_id":"raa:1730:Länghem 36","source":"arkiv","file":"http://kulturarvsdata.se/raa/kmb/16001000017279"}
+{"cluster_id":"raa:1730:Länghem 36","source":"arkiv","file":"http://kulturarvsdata.se/raa/kmb/16001000017277"}
+{"cluster_id":"raa:1730:Länghem 36","source":"arkiv","file":"http://kulturarvsdata.se/raa/dokumentation/d06c4bca-88ca-44aa-91a7-35821d0cb246"}
 {"cluster_id":"raa:177:Karl Gustav 249","source":"arkiv","file":"http://kulturarvsdata.se/raa/kmb/16001000055446"}
 {"cluster_id":"raa:177:Karl Gustav 249","source":"arkiv","file":"http://kulturarvsdata.se/raa/dokumentation/654ae946-f67a-47f0-a92e-339ab8c624a2"}
 {"cluster_id":"raa:177:Karl Gustav 249","source":"arkiv","file":"http://kulturarvsdata.se/raa/dokumentation/160419bc-f1fc-4874-8704-6f739767253b"}
 {"cluster_id":"raa:177:Karl Gustav 249","source":"arkiv","file":"http://kulturarvsdata.se/raa/kmb/16001000055426"}
 {"cluster_id":"raa:177:Karl Gustav 249","source":"arkiv","file":"http://kulturarvsdata.se/raa/dokumentation/cbaaae5e-8bec-4766-bf68-e3762f118845"}
+{"cluster_id":"raa:1820:Väne-Åsaka 8","source":"arkiv","file":"http://kulturarvsdata.se/raa/dokumentation/4f6d7444-0cd2-476a-9954-eacb3198430d"}
+{"cluster_id":"raa:1820:Väne-Åsaka 8","source":"arkiv","file":"http://kulturarvsdata.se/raa/kmb/16000300013832"}
 {"cluster_id":"raa:1885:Falköping 29","source":"commons_wikidata","file":"File:Ballersten i Planteringsförbundets park (Raä-nr Falköping 29-1) skålgropssten 3052.jpg"}
 {"cluster_id":"raa:1885:Falköping 29","source":"arkiv","file":"http://kulturarvsdata.se/raa/dokumentation/b7cd70e9-1e90-46c5-ab4c-0fbf168a9125"}
 {"cluster_id":"raa:1885:Falköping 29","source":"arkiv","file":"http://kulturarvsdata.se/raa/kmb/16001000540412"}
@@ -21,6 +45,19 @@
 {"cluster_id":"raa:1969:Leksberg 15","source":"arkiv","file":"http://kulturarvsdata.se/raa/kmb/16000300013884"}
 {"cluster_id":"raa:1969:Leksberg 15","source":"arkiv","file":"http://kulturarvsdata.se/raa/dokumentation/f2f5c7d4-0874-4297-891c-5ae34e3a4fd3"}
 {"cluster_id":"raa:1969:Leksberg 15","source":"arkiv","file":"http://kulturarvsdata.se/raa/kmb/16000300013881"}
+{"cluster_id":"raa:1:Adelsö 47","source":"commons_wikidata","file":"File:The castle Alsnohus in Sweden.jpg"}
+{"cluster_id":"raa:1:Adelsö 47","source":"arkiv","file":"http://kulturarvsdata.se/raa/dokumentation/fc218c25-2d82-4714-8193-31831bbad0e5"}
+{"cluster_id":"raa:1:Adelsö 47","source":"arkiv","file":"http://kulturarvsdata.se/raa/dokumentation/5a2de3c3-10a7-4822-b845-5d6aab919ed2"}
+{"cluster_id":"raa:1:Adelsö 47","source":"arkiv","file":"http://kulturarvsdata.se/raa/dokumentation/cef29b98-0f28-4d21-b191-9cc52a56e288"}
+{"cluster_id":"raa:1:Adelsö 47","source":"arkiv","file":"http://kulturarvsdata.se/raa/dokumentation/b036fceb-f236-44d7-a538-011973f6daee"}
+{"cluster_id":"raa:1:Adelsö 47","source":"arkiv","file":"http://kulturarvsdata.se/raa/dokumentation/28b1bbad-bc10-4bf6-a246-aa82159831f1"}
+{"cluster_id":"raa:1:Adelsö 47","source":"arkiv","file":"http://kulturarvsdata.se/raa/dokumentation/c75f348b-c3a1-4ca6-a4c0-923afae73791"}
+{"cluster_id":"raa:1:Adelsö 47","source":"arkiv","file":"http://kulturarvsdata.se/raa/dokumentation/45be0eda-7023-4da3-a8a8-46bfe8a83f75"}
+{"cluster_id":"raa:1:Adelsö 47","source":"arkiv","file":"http://kulturarvsdata.se/raa/dokumentation/6810c3de-6b09-4ccf-bcc0-d3532442507d"}
+{"cluster_id":"raa:1:Adelsö 47","source":"arkiv","file":"http://kulturarvsdata.se/raa/dokumentation/9da477e6-021c-4cdd-a851-f7559c4a0717"}
+{"cluster_id":"raa:1:Adelsö 47","source":"arkiv","file":"http://kulturarvsdata.se/raa/dokumentation/ec5dcfe0-b04a-4ad7-ac0f-44b51bace3bb"}
+{"cluster_id":"raa:1:Adelsö 47","source":"arkiv","file":"http://kulturarvsdata.se/raa/dokumentation/431a95db-0886-453b-9e03-feeb04e82bb4"}
+{"cluster_id":"raa:1:Adelsö 47","source":"arkiv","file":"http://kulturarvsdata.se/raa/dokumentation/84a9d2dc-e97b-499b-88e8-380c1b9bf78e"}
 {"cluster_id":"raa:2023:Skara 41","source":"commons_geosearch","file":"File:Detail from Skara Domkyrka (3412020801).jpg"}
 {"cluster_id":"raa:2023:Skara 41","source":"commons_geosearch","file":"File:Församlingshuset, Skara.jpg"}
 {"cluster_id":"raa:2023:Skara 41","source":"commons_geosearch","file":"File:Malmgatan 5b, Skara 01.jpg"}
@@ -29,11 +66,34 @@
 {"cluster_id":"raa:2023:Skara 41","source":"commons_geosearch","file":"File:Skara rådhus.jpg"}
 {"cluster_id":"raa:2023:Skara 41","source":"commons_geosearch","file":"File:Some Holy Man (3412827386).jpg"}
 {"cluster_id":"raa:2023:Skara 41","source":"commons_geosearch","file":"File:Ylva Pettersson.jpg"}
+{"cluster_id":"raa:2028:Skärv 142","source":"arkiv","file":"http://kulturarvsdata.se/raa/dokumentation/f7edef62-0328-456c-9543-e84a0b6bac54"}
+{"cluster_id":"raa:2028:Skärv 142","source":"arkiv","file":"http://kulturarvsdata.se/raa/dokumentation/818def63-87e4-43f5-a7f1-656c4f654a2f"}
+{"cluster_id":"raa:2028:Skärv 142","source":"arkiv","file":"http://kulturarvsdata.se/raa/dokumentation/06de30a5-fd37-46ef-939a-268ad817f9dc"}
+{"cluster_id":"raa:2028:Skärv 142","source":"arkiv","file":"http://kulturarvsdata.se/raa/dokumentation/e212e17e-8d6a-425b-beaf-f98f8bbbf546"}
+{"cluster_id":"raa:2028:Skärv 142","source":"arkiv","file":"http://kulturarvsdata.se/raa/dokumentation/2b3b59b5-82c8-4354-9bc8-55e47f0f8d7f"}
+{"cluster_id":"raa:2028:Skärv 142","source":"arkiv","file":"http://kulturarvsdata.se/raa/dokumentation/d97aa5fa-8567-44d6-b309-863835e2f519"}
+{"cluster_id":"raa:2028:Skärv 142","source":"arkiv","file":"http://kulturarvsdata.se/raa/dokumentation/c7bc3513-fc03-4011-b627-42ec1fe43434"}
+{"cluster_id":"raa:2028:Skärv 78","source":"commons_wikidata","file":"File:Axevalla hus, ruinerna av huvudborgen, den 7 juni 2006.JPG"}
+{"cluster_id":"raa:205:Balingsta 1","source":"arkiv","file":"http://kulturarvsdata.se/raa/dokumentation/3f193168-8cbb-4b57-999e-a80ba23ce606"}
+{"cluster_id":"raa:205:Balingsta 1","source":"arkiv","file":"http://kulturarvsdata.se/raa/dokumentation/89b89105-6310-42cd-b26f-ae12be7e4822"}
+{"cluster_id":"raa:205:Balingsta 1","source":"arkiv","file":"http://kulturarvsdata.se/raa/dokumentation/9df4e941-9388-4371-a213-5397c0d04c88"}
 {"cluster_id":"raa:212:Bälinge 337","source":"arkiv","file":"http://kulturarvsdata.se/raa/kmb/16000300031533"}
 {"cluster_id":"raa:212:Bälinge 337","source":"arkiv","file":"http://kulturarvsdata.se/raa/kmb/16000300031528"}
 {"cluster_id":"raa:212:Bälinge 337","source":"arkiv","file":"http://kulturarvsdata.se/raa/dokumentation/b46bce33-5015-4398-ae07-6def18338aba"}
 {"cluster_id":"raa:212:Bälinge 337","source":"arkiv","file":"http://kulturarvsdata.se/raa/dokumentation/cc4931b6-0610-46dd-934d-ed000881c9fc"}
 {"cluster_id":"raa:212:Bälinge 337","source":"arkiv","file":"http://kulturarvsdata.se/raa/dokumentation/65e10121-86a8-45fa-b305-640287f6a8cd"}
+{"cluster_id":"raa:2155:Kristinehamn 12","source":"arkiv","file":"http://kulturarvsdata.se/raa/dokumentation/0ec7a5df-c50b-4a76-b020-decc27a1ffe8"}
+{"cluster_id":"raa:2155:Kristinehamn 12","source":"arkiv","file":"http://kulturarvsdata.se/raa/dokumentation/524154fd-8bca-4012-aab7-59f10d33df02"}
+{"cluster_id":"raa:2155:Kristinehamn 12","source":"arkiv","file":"http://kulturarvsdata.se/raa/kmb/16001000553567"}
+{"cluster_id":"raa:2155:Kristinehamn 12","source":"arkiv","file":"http://kulturarvsdata.se/raa/dokumentation/fa921b2d-6005-4fc9-b9ce-ab991f11e931"}
+{"cluster_id":"raa:2155:Kristinehamn 12","source":"arkiv","file":"http://kulturarvsdata.se/raa/dokumentation/cbeb6df1-a30c-4e75-beb0-e3e2c3ef98e8"}
+{"cluster_id":"raa:2219:Edsberg 30","source":"arkiv","file":"http://kulturarvsdata.se/raa/dokumentation/1f5c8822-034b-4c58-840f-4fbaa7f5b6ee"}
+{"cluster_id":"raa:2219:Edsberg 30","source":"arkiv","file":"http://kulturarvsdata.se/raa/dokumentation/289464b1-a892-441c-9cfe-d238159ed59d"}
+{"cluster_id":"raa:2219:Edsberg 30","source":"arkiv","file":"http://kulturarvsdata.se/raa/dokumentation/2ae9d37e-e40f-448c-9b7f-0df962885925"}
+{"cluster_id":"raa:2230:Hackvad 41","source":"commons_geosearch","file":"File:Bärsta herrgård norra flygel tv.jpg"}
+{"cluster_id":"raa:2302:Köping 56","source":"arkiv","file":"http://kulturarvsdata.se/raa/kmb/16001000104478"}
+{"cluster_id":"raa:2302:Köping 56","source":"arkiv","file":"http://kulturarvsdata.se/raa/dokumentation/0e87a406-141c-4283-bb21-7e9b82c1419f"}
+{"cluster_id":"raa:2302:Köping 56","source":"arkiv","file":"http://kulturarvsdata.se/raa/kmb/16001000056164"}
 {"cluster_id":"raa:2309:Norberg 25","source":"arkiv","file":"http://kulturarvsdata.se/raa/dokumentation/fa3da563-8658-495d-873c-d9f2c769f09f"}
 {"cluster_id":"raa:2309:Norberg 25","source":"arkiv","file":"http://kulturarvsdata.se/raa/kmb/16001000058304"}
 {"cluster_id":"raa:2309:Norberg 25","source":"commons_geosearch","file":"File:Bjurfors bruk 03.jpg"}
@@ -43,8 +103,23 @@
 {"cluster_id":"raa:2350:Gagnef 235","source":"commons_geosearch","file":"File:Gråda kraftverk.jpg"}
 {"cluster_id":"raa:2350:Gagnef 235","source":"commons_geosearch","file":"File:Gråda kraftverk uppströms.jpg"}
 {"cluster_id":"raa:2407:Hamrånge 665","source":"commons_geosearch","file":"File:1225Axmar bruk.jpg"}
+{"cluster_id":"raa:282:Uppsala 209","source":"commons_wikidata","file":"File:Valsgarde gravfynd.jpg"}
+{"cluster_id":"raa:343:Kärnbo 33","source":"arkiv","file":"http://kulturarvsdata.se/raa/dokumentation/a288aac9-565b-4440-92b0-ded3fe12b01e"}
+{"cluster_id":"raa:343:Kärnbo 33","source":"arkiv","file":"http://kulturarvsdata.se/raa/dokumentation/5eec7959-302f-44ae-9a81-83c352993e58"}
+{"cluster_id":"raa:343:Kärnbo 33","source":"arkiv","file":"http://kulturarvsdata.se/raa/kmb/16000300013591"}
+{"cluster_id":"raa:343:Kärnbo 33","source":"arkiv","file":"http://kulturarvsdata.se/raa/dokumentation/13b2eaeb-a99c-470f-962d-81e44b6ffa64"}
+{"cluster_id":"raa:343:Kärnbo 33","source":"arkiv","file":"http://kulturarvsdata.se/raa/dokumentation/0be918db-e4fe-450d-8d82-31b4e2460813"}
+{"cluster_id":"raa:343:Kärnbo 33","source":"arkiv","file":"http://kulturarvsdata.se/raa/dokumentation/3959bfa6-78e6-4887-ad8d-69f5fdab7bd9"}
+{"cluster_id":"raa:343:Kärnbo 33","source":"arkiv","file":"http://kulturarvsdata.se/raa/kmb/16000300013598"}
+{"cluster_id":"raa:343:Kärnbo 33","source":"arkiv","file":"http://kulturarvsdata.se/raa/kmb/16000300013595"}
+{"cluster_id":"raa:343:Kärnbo 33","source":"arkiv","file":"http://kulturarvsdata.se/raa/dokumentation/53c381b4-6067-4f83-80ac-6dedb4102781"}
+{"cluster_id":"raa:378:Trosa-Vagnhärad 65","source":"arkiv","file":"http://kulturarvsdata.se/raa/dokumentation/dd5d2238-8853-454c-99d5-6a4655a49d91"}
 {"cluster_id":"raa:431:Herrberga 1","source":"arkiv","file":"http://kulturarvsdata.se/raa/dokumentation/adc68e9f-e0b1-4c4d-8d89-52b714a8afa1"}
 {"cluster_id":"raa:449:Krokek 12","source":"commons_geosearch","file":"File:Utterbergs torn.JPG"}
+{"cluster_id":"raa:459:Ledberg 6","source":"arkiv","file":"http://kulturarvsdata.se/raa/kmb/16000300013349"}
+{"cluster_id":"raa:459:Ledberg 6","source":"arkiv","file":"http://kulturarvsdata.se/raa/dokumentation/30d756ec-1a44-4046-8e40-f55c5f4c0068"}
+{"cluster_id":"raa:459:Ledberg 6","source":"arkiv","file":"http://kulturarvsdata.se/raa/dokumentation/cb4ef91d-1e4b-4b09-9c0a-3b7bc425629b"}
+{"cluster_id":"raa:459:Ledberg 6","source":"arkiv","file":"http://kulturarvsdata.se/raa/dokumentation/b5c1b759-f3ba-4f7f-8f95-f1ab733fd566"}
 {"cluster_id":"raa:461:Linköping 71","source":"commons_geosearch","file":"File:Berga kyrka, kyrkobyggnaden.jpg"}
 {"cluster_id":"raa:461:Linköping 71","source":"commons_geosearch","file":"File:Berga kyrka.JPG"}
 {"cluster_id":"raa:461:Linköping 71","source":"commons_geosearch","file":"File:Berga kyrka maj 2024.jpg"}
@@ -56,12 +131,21 @@
 {"cluster_id":"raa:461:Linköping 71","source":"commons_geosearch","file":"File:Staty i Berga.JPG"}
 {"cluster_id":"raa:559:Almesåkra 45","source":"arkiv","file":"http://kulturarvsdata.se/raa/kmb/16001000029604"}
 {"cluster_id":"raa:559:Almesåkra 45","source":"arkiv","file":"http://kulturarvsdata.se/raa/dokumentation/9966fbcb-3375-4d7e-996c-149d2c8cf635"}
+{"cluster_id":"raa:704:Blädinge 37","source":"commons_geosearch","file":"File:120817 Henric de la cour Kalabalik 6235.jpg"}
+{"cluster_id":"raa:704:Blädinge 37","source":"commons_geosearch","file":"File:120817 Henric de la cour Kalabalik 6235 (cropped).jpg"}
+{"cluster_id":"raa:704:Blädinge 37","source":"commons_geosearch","file":"File:Liveframträdande under Kalabalik på Tyrolen 2019.jpg"}
+{"cluster_id":"raa:704:Blädinge 37","source":"commons_geosearch","file":"File:Livescenen på Kalabalik på Tyrolen 2019.jpg"}
+{"cluster_id":"raa:704:Blädinge 37","source":"commons_geosearch","file":"File:Riki at Kalabalik på Tyrolen 2022.jpg"}
+{"cluster_id":"raa:704:Blädinge 37","source":"commons_geosearch","file":"File:Tyrolen park in Blädinge, Sweden.jpg"}
 {"cluster_id":"raa:845:Misterhult 464","source":"arkiv","file":"http://kulturarvsdata.se/raa/kmb/16000300029952"}
 {"cluster_id":"raa:845:Misterhult 464","source":"commons_geosearch","file":"File:Blue Maiden panorama.jpg"}
 {"cluster_id":"raa:845:Misterhult 464","source":"commons_geosearch","file":"File:Blue Maiden shore.jpg"}
 {"cluster_id":"raa:845:Misterhult 464","source":"commons_geosearch","file":"File:Blå Jungfrun strand.jpg"}
 {"cluster_id":"raa:845:Misterhult 464","source":"commons_geosearch","file":"File:Klippöverhäng Blå Jungfrun. Boplats stenålder.jpg"}
 {"cluster_id":"raa:845:Misterhult 464","source":"commons_geosearch","file":"File:Skylt toppen.jpg"}
+{"cluster_id":"raa:860:Långlöt 30","source":"arkiv","file":"http://kulturarvsdata.se/raa/dokumentation/400ff7c8-0aa8-4750-a885-d2c3d2f81674"}
+{"cluster_id":"raa:860:Långlöt 30","source":"arkiv","file":"http://kulturarvsdata.se/raa/dokumentation/92b9f8d2-04d0-49d0-9f31-04c674dacbaa"}
+{"cluster_id":"raa:8:Dalarö 27","source":"commons_geosearch","file":"File:Ale Möller Band.jpg"}
 {"cluster_id":"raa:902:Bro 26","source":"commons_geosearch","file":"File:Ford Focus Turnier 2005.jpg"}
 {"cluster_id":"raa:91:Brännkyrka 212","source":"commons_geosearch","file":"File:1954 Volvo PV444 HS front left.jpg"}
 {"cluster_id":"raa:91:Brännkyrka 212","source":"commons_geosearch","file":"File:1954 Volvo PV444 HS rear.jpg"}
@@ -90,11 +174,22 @@
 {"cluster_id":"raa:91:Stockholm 639","source":"arkiv","file":"http://kulturarvsdata.se/raa/dokumentation/00a503ff-1bd1-4f06-b9d7-1b8d1cc420f7"}
 {"cluster_id":"raa:91:Stockholm 639","source":"arkiv","file":"http://kulturarvsdata.se/raa/dokumentation/1e3fcf81-87e9-4df5-94a0-dd8fda9fb96c"}
 {"cluster_id":"raa:91:Stockholm 639","source":"arkiv","file":"http://kulturarvsdata.se/raa/dokumentation/a2da9837-2ba0-4f00-83e5-88289af17fe6"}
+{"cluster_id":"raa:91:Stockholm 9","source":"arkiv","file":"http://kulturarvsdata.se/raa/dokumentation/e787b1b9-043f-4b8f-9e42-1e4e815e86bc"}
+{"cluster_id":"raa:91:Stockholm 9","source":"arkiv","file":"http://kulturarvsdata.se/raa/dokumentation/25e40712-a71d-45a2-9ee2-3dea29edaa95"}
+{"cluster_id":"raa:91:Stockholm 9","source":"arkiv","file":"http://kulturarvsdata.se/raa/dokumentation/b6b947bb-3e77-409e-b645-ede0961945f0"}
+{"cluster_id":"raa:91:Stockholm 9","source":"arkiv","file":"http://kulturarvsdata.se/raa/kmb/16000300015660"}
 {"cluster_id":"raa:951:Lärbro 162","source":"arkiv","file":"http://kulturarvsdata.se/raa/dokumentation/28b78362-b94b-4159-be4b-01edefb078c0"}
 {"cluster_id":"raa:951:Lärbro 162","source":"arkiv","file":"http://kulturarvsdata.se/raa/dokumentation/294c4c78-f792-453a-9dba-59315cdbae09"}
 {"cluster_id":"raa:951:Lärbro 162","source":"arkiv","file":"http://kulturarvsdata.se/raa/kmb/16001000146884"}
 {"cluster_id":"raa:951:Lärbro 162","source":"arkiv","file":"http://kulturarvsdata.se/raa/kmb/16001000146864"}
 {"cluster_id":"raa:951:Lärbro 162","source":"commons_geosearch","file":"File:Laikarhaid-Gotland.JPG"}
 {"cluster_id":"raa:951:Lärbro 162","source":"commons_geosearch","file":"File:Sangelstenen-Gotland.JPG"}
+{"cluster_id":"raa:958:Roma 36","source":"arkiv","file":"http://kulturarvsdata.se/raa/dokumentation/c2def021-8ad2-4f3b-887a-56d5332fd940"}
+{"cluster_id":"raa:958:Roma 36","source":"arkiv","file":"http://kulturarvsdata.se/raa/kmb/16001000529325"}
+{"cluster_id":"raa:976:Visby 65","source":"arkiv","file":"http://kulturarvsdata.se/raa/kmb/16001000006902"}
+{"cluster_id":"raa:976:Visby 65","source":"arkiv","file":"http://kulturarvsdata.se/raa/kmb/16001000550891"}
+{"cluster_id":"raa:976:Visby 65","source":"arkiv","file":"http://kulturarvsdata.se/raa/kmb/16001000550747"}
+{"cluster_id":"raa:976:Visby 65","source":"arkiv","file":"http://kulturarvsdata.se/raa/kmb/16001000550902"}
+{"cluster_id":"raa:976:Visby 65","source":"arkiv","file":"http://kulturarvsdata.se/raa/dokumentation/a816593e-0911-4ff6-b703-f57672f25647"}
 {"cluster_id":"raa:989:Edestad 86","source":"arkiv","file":"http://kulturarvsdata.se/raa/dokumentation/6df3b148-d3a1-41be-9ce2-0855191f33ef"}
 {"cluster_id":"raa:989:Edestad 86","source":"arkiv","file":"http://kulturarvsdata.se/raa/kmb/16001000037826"}

@@ -4,6 +4,16 @@ Read [README.md](README.md) for what the pipeline is, [NOMENCLATURA.md](NOMENCLA
 for the words, [PIPELINE.md](PIPELINE.md) for measurements that must not be
 re-decided. This file is only the operational bits that are not in those.
 
+## The remote database is the source of truth
+
+Neon (`franco-may`, the database behind franco-may.com) is the source of
+truth. A row that exists only in `work.sqlite`, `places.sqlite`, a jsonl, or
+`data/place-coords.txt.gz` is not done. The admin and the phone read the
+remote database. Those local files are a copy the pipeline refreshes by
+pulling the remote tables when it runs. Write the change remotely first.
+The case that set this: the new Google places had coordinates in the local
+gzip only, and the admin said the place had no coordinate.
+
 ## A change made by hand
 
 When Franco asks to change something manually, use judgment and leave the

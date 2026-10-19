@@ -8,10 +8,9 @@ flight, and starting again picks up exactly where it stopped. Nothing is
 checkpointed: the pending set is derived by asking which eligible clusters have
 no current row yet, the same approach that made the K-samsok crawl restartable.
 
-Deliberately a SEPARATE database from work.sqlite.
-`build_sites.py` drops and recreates that file from the raw crawl on every
-`run_pipeline.sh --from 1`. Hours of local generation stored there would
-evaporate the first time you rebuilt the pipeline. This file is never touched
+Deliberately a SEPARATE database from work.sqlite. A hand
+`build_sites.py` drops the `sites` table in that file. Hours of local
+generation stored there would evaporate. This file is never touched
 by any other stage.
 
 Reads:  src/data/work.sqlite       (read-only)
@@ -37,6 +36,7 @@ import threading
 import time
 
 import describe_place as dp
+from export_compare_pool import score_cut
 
 import paths
 
@@ -247,15 +247,9 @@ def eligible(sites, limit, include_empty, near=None, top=None):
                                  WHERE visitor_text = 1)
         )"""]
     # Applied as a subquery so `near` sorts within the exported set rather
-    # than the whole country.
-    pool = ""
-    if top:
-        pool = f"""AND c.cluster_id IN (
-            SELECT c2.cluster_id FROM clusters c2
-              JOIN scores s2 ON s2.cluster_id = c2.cluster_id
-             WHERE c2.lon IS NOT NULL AND s2.excluded_hard = 0
-               AND s2.excluded_soft = 0
-             ORDER BY s2.score_full DESC LIMIT {int(top)})"""
+    # than the whole country. The same cut build_tiles.py exports, including
+    # the Google places added beside it.
+    pool = score_cut(top, "c") if top else ""
 
     if near is None:
         rows = sites.execute(f"""
@@ -290,6 +284,60 @@ def done_map(out):
     return {r[0]: (r[1], r[2], r[3]) for r in out.execute(
         "SELECT cluster_id, source_hash, payload_version, prompt_version "
         "FROM ai_descriptions")}
+
+
+def to_describe(sites, out, ids, *, force=False, rich_only=False,
+                max_attempts=3):
+    """The places a run will actually generate, in eligible order.
+
+    The eligible list is everyone in the export. A description is kept when
+    it is already at the prompt that place should have and its sources have
+    not changed. A row from an older payload shape cannot be compared, so it
+    is left alone rather than treated as stale. What remains is the queue:
+    nothing written yet, a newer prompt, or a source hash that no longer
+    matches. `--force` is the whole eligible list, and it is the only way
+    the older rows get redone.
+
+    The monitor counts this same list. A bar over the eligible set fills
+    with places this run will never touch.
+    """
+    if force:
+        return list(ids), {"upgraded": 0, "changed": 0, "unknown": 0}
+    done = done_map(out)
+    blocked = {r[0] for r in out.execute(
+        "SELECT cluster_id FROM failures WHERE attempts >= ?",
+        (max_attempts,))}
+    keep = []
+    upgraded = changed = unknown = 0
+    for c in ids:
+        if c in blocked:
+            continue
+        if c not in done:
+            keep.append(c)
+            continue
+        stored, shape, version = done[c]
+        pl = dp.payload(sites, c)
+        if pl is None:
+            # No longer describable. Leave the row alone rather than
+            # queueing a place the worker cannot build a payload for.
+            continue
+        if rich_only and (dp.prompt_version_for(pl["model_input"])
+                          != dp.MD_PROMPT_VERSION):
+            continue
+        # A place that now earns a newer prompt is queued whatever its
+        # payload shape: the new text replaces the old one wholesale, so
+        # there is no hash to compare.
+        if (version or 0) < dp.prompt_version_for(pl["model_input"]):
+            upgraded += 1
+            keep.append(c)
+            continue
+        if shape != dp.PAYLOAD_VERSION:
+            unknown += 1
+            continue
+        if not stored or source_hash(pl["model_input"]) != stored:
+            changed += 1
+            keep.append(c)
+    return keep, {"upgraded": upgraded, "changed": changed, "unknown": unknown}
 
 
 def run_translate(sites, out, a):
@@ -760,7 +808,7 @@ def main():
         flagged = {r[0] for r in out.execute(
             "SELECT cluster_id FROM ai_descriptions WHERE flags <> ''")}
         ids = [c for c in ids if c in flagged]
-    elif not a.force:
+    else:
         # DONE MEANS: a row at the current prompt version whose SOURCES HAVE
         # NOT CHANGED SINCE. Both halves matter. A new prompt invalidates
         # every row, which prompt_version already handled; a re-crawl that
@@ -787,49 +835,18 @@ def main():
         # genuinely worse -- but because "I cannot tell" must not be reported
         # as "this changed", and redoing them is a fourteen-hour decision
         # somebody should make on purpose. `--force` is how.
-        done = done_map(out)
-        blocked = {r[0] for r in out.execute(
-            "SELECT cluster_id FROM failures WHERE attempts >= ?",
-            (a.max_attempts,))}
-        keep, changed, unknown, upgraded = [], 0, 0, 0
-        for c in ids:
-            if c in blocked:
-                continue
-            if c not in done:
-                keep.append(c)
-                continue
-            stored, shape, version = done[c]
-            pl = dp.payload(sites, c)
-            if pl is None:
-                # No longer describable. Leave the row alone rather than
-                # queueing a place the worker cannot build a payload for.
-                continue
-            if a.rich_only and (dp.prompt_version_for(pl["model_input"])
-                                != dp.MD_PROMPT_VERSION):
-                continue
-            # A place that now earns a newer prompt is queued whatever its
-            # payload shape: the new text replaces the old one wholesale, so
-            # there is no hash to compare.
-            if (version or 0) < dp.prompt_version_for(pl["model_input"]):
-                upgraded += 1
-                keep.append(c)
-                continue
-            if shape != dp.PAYLOAD_VERSION:
-                unknown += 1
-                continue
-            if not stored or source_hash(pl["model_input"]) != stored:
-                changed += 1
-                keep.append(c)
-        ids = keep
-        if upgraded:
-            print(f"  {upgraded:,} because they now get prompt "
+        ids, stats = to_describe(
+            sites, out, ids, force=a.force, rich_only=a.rich_only,
+            max_attempts=a.max_attempts)
+        if stats["upgraded"]:
+            print(f"  {stats['upgraded']:,} because they now get prompt "
                   f"v{dp.MD_PROMPT_VERSION} (they have sources besides the "
                   f"register)")
-        if changed:
-            print(f"  {changed:,} because their sources changed since they "
-                  f"were written")
-        if unknown:
-            print(f"  {unknown:,} skipped: written by payload v"
+        if stats["changed"]:
+            print(f"  {stats['changed']:,} because their sources changed since "
+                  f"they were written")
+        if stats["unknown"]:
+            print(f"  {stats['unknown']:,} skipped: written by payload v"
                   f"!={dp.PAYLOAD_VERSION}, so their hash cannot be compared "
                   f"-- use --force to redo them")
 

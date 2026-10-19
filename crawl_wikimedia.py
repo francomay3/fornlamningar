@@ -21,12 +21,16 @@ crawled, not over whichever ten thousand the exporter picked today).
                 has today (2,048 Wikidata sitelinks and 3,136 images against 40
                 hand judgements).
 
-    PHOTOS      Commons images, found two ways: the image Wikidata designates
-                for the item, and a geosearch around the site's coordinate.
-                Each row carries its own licence and author, because Commons
-                files are licensed individually -- CC0, CC BY, CC BY-SA and
-                public domain all appear in the same result set, so a single
-                blanket attribution would be wrong for most of them.
+    PHOTOS      Commons images, found three ways. The image Wikidata
+                designates for the item is one file. The article itself
+                usually carries more, and those are fetched separately
+                (`--article-photos`): every photograph the page embeds,
+                not the lead image alone. A geosearch around the site's
+                coordinate is the third, and it is a guess. Each row
+                carries its own licence and author, because Commons files
+                are licensed individually -- CC0, CC BY, CC BY-SA and
+                public domain all appear in the same result set, so a
+                single blanket attribution would be wrong for most of them.
 
 LICENSING, briefly, because it decides the schema. The K-samsok register is
 CC0: we can rewrite it, ship it and owe nobody anything. Wikipedia text is
@@ -47,6 +51,7 @@ Usage:
     python crawl_wikimedia.py --extracts
     python crawl_wikimedia.py --pageviews
     python crawl_wikimedia.py --photos
+    python crawl_wikimedia.py --article-photos
     python crawl_wikimedia.py --nearby
     python crawl_wikimedia.py --all
 """
@@ -139,6 +144,12 @@ CREATE TABLE IF NOT EXISTS failures (
 GEO_RADIUS_M = 500
 # More than this and they are almost certainly not all of the same thing.
 MAX_PHOTOS_PER_SITE = 8
+# An article can carry a gallery. Past this it is a category dump that the
+# page happened to transclude, and the rest can be asked for by hand.
+MAX_ARTICLE_PHOTOS = 80
+# Icons and locator pins sneak in through the infobox. A photograph of a
+# place is not 40 px on its long side.
+MIN_ARTICLE_PX = 120
 # The admin drawer is where a person decides which nearby file is the place.
 # Eight is too few in a town: the photograph of Bastion Kung Carl sits 34 m
 # away and eleventh, behind pictures of the square. One page of the picker
@@ -711,6 +722,268 @@ def fetch_photos(sites, out, limit=None):
     print(f"  {n_files:,} photo rows")
 
 
+# Raster only. The page also embeds the Commons logo, locator SVGs, a
+# coat of arms and sometimes a video, and none of those is a photograph
+# of the place. Swedish Wikipedia names the namespace "Fil:".
+_PHOTO_EXT = (".jpg", ".jpeg", ".jpe", ".png", ".gif", ".tif", ".tiff", ".webp")
+# Pieces of a filename that mean the file is furniture of the article
+# rather than a picture of the site. Matched on the lowercased name.
+_NOT_A_PHOTO = (
+    "commons-logo", "wikimedia-logo", "wikidata-logo", "oojs",
+    "ambox", "question book", "disambig", "edit-ltr", "edit-clear",
+    "redigera", "padlock", "nuvola", "crystal clear", "crystal_clear",
+    "gnome-", "speaker icon", "symbol support", "symbol oppose",
+    "flag of ", "coat of arms", "riksvapen", "landskapsvapen",
+    "länsvapen", "lansvapen", "location map", "locator",
+    "sverigekarta", " karta", "karta ", " map", "map ", "map of",
+    "uggleupplaga", "diploma icon", "varangian routes",
+)
+
+
+def file_key(title):
+    """'File:Name.jpg' with spaces, whichever wiki prefix the page used."""
+    if not title:
+        return None
+    t = title.replace("_", " ").strip()
+    if t.lower().startswith("fil:"):
+        t = "File:" + t[4:]
+    elif t.lower().startswith("file:"):
+        t = "File:" + t[5:]
+    else:
+        t = "File:" + t
+    return t
+
+
+def is_article_photo(title):
+    """False for the logos, maps and icons an article page also lists."""
+    key = file_key(title)
+    if not key:
+        return False
+    low = key.lower()
+    if not low.endswith(_PHOTO_EXT):
+        return False
+    name = low[5:]
+    if any(bit in name for bit in _NOT_A_PHOTO):
+        return False
+    # "vapenhus" is the church porch. "kommunvapen" and "läns vapen" are
+    # the coat of arms the infobox pulls in.
+    if "vapenhus" not in name and (
+            "kommunvapen" in name or "kommun vapen" in name
+            or " vapen" in name or name.startswith("vapen")
+            or name.startswith("coa-")):
+        return False
+    # Bohusmap01, EdaMap1: the word map glued to a number.
+    i = name.find("map")
+    while i != -1:
+        if name[i + 3:i + 4].isdigit():
+            return False
+        i = name.find("map", i + 1)
+    return True
+
+
+def page_images(lang, title):
+    """File titles embedded on the article, following a redirect.
+
+    None when the request failed, so the caller can try the same page
+    again later. An empty list is a real answer: the article has no images.
+    """
+    files = []
+    cont = {}
+    while True:
+        params = {
+            "action": "query", "format": "json", "prop": "images",
+            "titles": title, "imlimit": "max", "redirects": 1,
+        }
+        params.update(cont)
+        j = get(f"https://{lang}.wikipedia.org/w/api.php", params)
+        if not j or "__error" in j:
+            return None
+        pages = ((j.get("query") or {}).get("pages") or {})
+        if not pages:
+            return []
+        for p in pages.values():
+            if "missing" in p:
+                return []
+            for im in p.get("images") or []:
+                t = im.get("title")
+                if t and is_article_photo(t):
+                    files.append(file_key(t))
+        nxt = j.get("continue")
+        if not nxt:
+            break
+        cont = nxt
+        time.sleep(DELAY)
+    # The same file is often in the infobox and again in the gallery.
+    seen = []
+    got = set()
+    for t in files:
+        if t not in got:
+            got.add(t)
+            seen.append(t)
+    return seen
+
+
+def image_metadata(titles, lang):
+    """{File title: imageinfo} for a batch. Commons first, then the wiki
+    the article lives on, because a few files were never copied over.
+    """
+    found = {}
+    pending = list(titles)
+    hosts = ["https://commons.wikimedia.org/w/api.php"]
+    if lang:
+        hosts.append(f"https://{lang}.wikipedia.org/w/api.php")
+    for host in hosts:
+        if not pending:
+            break
+        still = []
+        for i in range(0, len(pending), 50):
+            batch = pending[i:i + 50]
+            j = get(host, {
+                "action": "query", "format": "json",
+                "titles": "|".join(batch), "prop": "imageinfo",
+                "iiprop": "url|size|extmetadata", "iiurlwidth": 640,
+            })
+            if not j or "__error" in j:
+                still.extend(batch)
+                time.sleep(DELAY)
+                continue
+            got_now = set()
+            for p in ((j.get("query") or {}).get("pages") or {}).values():
+                title = file_key(p.get("title"))
+                ii = (p.get("imageinfo") or [None])[0]
+                if title and ii:
+                    found[title] = ii
+                    found[title.casefold()] = ii
+                    got_now.add(title)
+                    got_now.add(title.casefold())
+            for t in batch:
+                if t not in got_now and t not in found:
+                    still.append(t)
+            time.sleep(DELAY)
+        pending = still
+    return found
+
+
+def fetch_article_photos(sites, out, limit=None, refresh=False):
+    """Every photograph embedded in the Wikipedia article.
+
+    The Wikidata pass stores the one image the item designates. The
+    article usually has a gallery besides that, and those files were
+    never asked for. They are a different claim from a coordinate
+    falling inside a radius, so they are stored as 'article' and the
+    app treats them as the place's own pictures.
+
+    A file the geosearch already stored is the same file. Once the
+    article itself uses it, the coordinate guess is no longer the
+    reason we have it, and the source becomes 'article'. A file
+    Wikidata or a list already named keeps that source: it is at least
+    as certain.
+
+    Resumable by uuid. A page that returned nothing is recorded, so the
+    next run does not ask again. `--refresh-article` forgets that and
+    rereads every article.
+    """
+    if refresh:
+        out.execute("DELETE FROM failures WHERE stage = 'article'")
+        out.commit()
+    by_uuid = {}
+    for uuid, lang, title in articles(sites):
+        by_uuid.setdefault(uuid, []).append((lang, title))
+    done = {r[0] for r in out.execute(
+        "SELECT uuid FROM failures WHERE stage = 'article' AND error = 'none'")}
+    todo = [u for u in by_uuid if u not in done]
+    print(f"article photos: {len(todo):,} sites with an article, "
+          f"{len(done):,} already read")
+    if limit:
+        todo = todo[:limit]
+        print(f"  stopping after {len(todo):,}")
+    n_files = 0
+    n_up = 0
+    n_empty = 0
+    for i, uuid in enumerate(todo, 1):
+        wanted = []
+        seen = set()
+        failed = False
+        for lang, title in by_uuid[uuid]:
+            files = page_images(lang, title)
+            if files is None:
+                failed = True
+                break
+            for f in files:
+                if f not in seen:
+                    seen.add(f)
+                    wanted.append((lang, f))
+            time.sleep(DELAY)
+        if failed:
+            record_failure(out, uuid, "article", "no response")
+            continue
+        if len(wanted) > MAX_ARTICLE_PHOTOS:
+            print(f"  {uuid}: {len(wanted)} photographs, "
+                  f"keeping {MAX_ARTICLE_PHOTOS}")
+            wanted = wanted[:MAX_ARTICLE_PHOTOS]
+        have = {file_key(f).casefold(): (f, src) for f, src in out.execute(
+            "SELECT file, source FROM photos WHERE uuid = ?", (uuid,))}
+        fresh = []
+        fresh_lang = {}
+        promoted = 0
+        for lang, f in wanted:
+            prev = have.get(f.casefold())
+            if not prev:
+                fresh.append(f)
+                fresh_lang.setdefault(lang, []).append(f)
+                continue
+            stored, src = prev
+            if src == "geosearch":
+                # The article uses the file, so the coordinate is no
+                # longer why we keep it.
+                out.execute(
+                    "UPDATE photos SET source = 'article' "
+                    "WHERE uuid = ? AND file = ?", (uuid, stored))
+                promoted += 1
+                n_up += 1
+        meta = {}
+        for lang, batch in fresh_lang.items():
+            meta.update(image_metadata(batch, lang))
+        stored_n = 0
+        missed = 0
+        for f in fresh:
+            ii = meta.get(f) or meta.get(f.casefold())
+            if not ii:
+                missed += 1
+                continue
+            w, h = ii.get("width") or 0, ii.get("height") or 0
+            if w and h and max(w, h) < MIN_ARTICLE_PX:
+                continue
+            lic, lic_url, author, credit = commons_meta(ii)
+            out.execute("""
+                INSERT OR IGNORE INTO photos
+                  (uuid, file, source, distance_m, page_url, thumb_url,
+                   image_url, width, height, licence, licence_url, author,
+                   credit, fetched_at)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,datetime('now'))
+            """, (uuid, f, "article", None, ii.get("descriptionurl"),
+                  ii.get("thumburl"), ii.get("url"), ii.get("width"),
+                  ii.get("height"), lic, lic_url, author, credit))
+            stored_n += 1
+            n_files += 1
+        if missed:
+            # Don't mark the article done: the next run retries the files
+            # whose metadata never came back. The ones stored are skipped.
+            record_failure(out, uuid, "article", f"{missed} without metadata")
+        else:
+            record_failure(out, uuid, "article", "none")
+            if stored_n == 0 and promoted == 0 and not any(
+                    have.get(f.casefold()) for _, f in wanted):
+                n_empty += 1
+        if i % 25 == 0:
+            out.commit()
+            print(f"  {i:,}/{len(todo):,}  "
+                  f"({n_files:,} new, {n_up:,} were nearby, {n_empty:,} empty)")
+    out.commit()
+    print(f"  {n_files:,} article photo rows, {n_up:,} promoted from nearby, "
+          f"{n_empty:,} articles with none")
+
+
 def published_uuids():
     """Place ids the admin lists, from the published description shards."""
     root = paths.DESCRIPTIONS
@@ -904,6 +1177,10 @@ def main():
                    help="refetch every body, not only the missing ones")
     p.add_argument("--pageviews", action="store_true")
     p.add_argument("--photos", action="store_true")
+    p.add_argument("--article-photos", action="store_true",
+                   help="every photograph embedded in the Wikipedia article")
+    p.add_argument("--refresh-article", action="store_true",
+                   help="reread articles already fetched")
     p.add_argument("--nearby", action="store_true",
                    help="geosearch published places that never got one")
     p.add_argument("--all", action="store_true")
@@ -918,8 +1195,8 @@ def main():
     out = open_out()
 
     if args.status or not (args.extracts or args.pageviews or args.photos
-                           or args.nearby or args.swedish or args.bodies
-                           or args.all):
+                           or args.article_photos or args.nearby
+                           or args.swedish or args.bodies or args.all):
         status(sites, out)
         return
     if args.extracts or args.all:
@@ -932,6 +1209,8 @@ def main():
         fetch_pageviews(sites, out, args.limit)
     if args.photos or args.all:
         fetch_photos(sites, out, args.limit)
+    if args.article_photos or args.all:
+        fetch_article_photos(sites, out, args.limit, args.refresh_article)
     if args.nearby or args.all:
         fetch_nearby(sites, out, args.limit)
     print()

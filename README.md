@@ -53,7 +53,7 @@ is the only thing you need in order to answer "may I delete this".
 |---|---|---|
 | **RAW** | `raa_export.gpkg`, `raa_api.sqlite`, `wikimedia.sqlite`, `lansstyrelsen.sqlite` | only if you are willing to re-fetch. The crawl is 4 h and rude to repeat |
 | **EXPENSIVE** | `generated.sqlite` | it is derived, and it is thirteen hours of local model time. Tracked in LFS for that reason |
-| **WORK** | `work.sqlite` | yes. `./run_pipeline.sh` rebuilds it in ~4 min |
+| **WORK** | `work.sqlite` | the measurements, yes. The `clusters` table is not rebuilt by the runner; `python3 build_clusters.py` is the hand step that rewrites it |
 | **PRODUCT** | `places.sqlite` | yes, but it is the thing we are building: one row per visitable place, with its text, images and the provenance of both |
 | **PAYLOAD** | the tiles, the shards, the app's `assets/data/` | yes, always. Pure function of PRODUCT, regenerated on every export |
 
@@ -63,26 +63,33 @@ Crawls are not stages. They are resumable, run-once jobs, kept out of the
 runner because they are slow and rude to repeat: `crawl_ksamsok.py` (4 h,
 311,845 responses), `crawl_wikimedia.py`, `crawl_lansstyrelsen.py`.
 
+Clustering is not a stage either. `build_clusters.py` rewrites the whole
+`clusters` table from the register, so a representative or a boundary kept
+on purpose would not survive the next `./run_pipeline.sh`. The runner uses
+the clusters already in `work.sqlite`. Recompute them by hand when a group
+of places needs it.
+
+Parse and the county join are not stages either. `build_sites.py` drops
+`sites` and rebuilds it from the register cache; `crawl_lansstyrelsen.py
+--join` re-points county matches at the clusters on disk. Both stay as
+they are until the cache or the clusters actually change, and then they
+are a hand run.
+
 | # | name | script | output |
 |---|---|---|---|
-| 1 | parse | `build_sites.py` | `sites` — parsed records, geometry, parsed dimensions (`dims.py`) |
-| 2 | cluster | `build_clusters.py` | `clusters` — one row per place a visitor drives to, not per stone |
-| 3 | join | `crawl_lansstyrelsen.py --join` | re-points the county-board matches at the clusters that exist NOW. Only the join; no HTTP |
-| 4 | labels | `build_labels.py` | `labels` — weak labels from Wikidata plus `hand_labels.csv` |
-| 5 | signals | `build_signals.py` | `signals` — distances to roads, buildings, boards, OSM sites |
-| 6 | score | `build_scores.py` | `scores` — L2 logistic regression (`logistic.py`) |
-| 7 | sources | `build_sources.py` | `sources` — everything anybody has written about each place, with licence and provenance |
-| 8 | places | `build_places.py` | `features`, `images` — the product, one row per place |
-| 9 | tiles | `build_tiles.py` | vector tiles and description shards, into `franco-may` |
+| 1 | labels | `build_labels.py` | `labels` — weak labels from Wikidata plus `hand_labels.csv` |
+| 2 | sources | `build_sources.py` | `sources` — everything anybody has written about each place, with licence and provenance |
+| 3 | signals | `build_signals.py` | `signals` — distances to roads, buildings, boards, OSM sites |
+| 4 | score | `build_scores.py` | `scores` — L2 logistic regression (`logistic.py`) |
+| 5 | places | `build_places.py` | `features`, `images` — the product, one row per place |
+| 6 | descriptions | `build_descriptions.py` | Swedish visitor text. Resumable; the long part of a full run |
+| 7 | translate | `build_descriptions.py --translate` | the English column |
+| 8 | tiles | `build_tiles.py` | vector tiles and description shards, into `franco-may` |
+| 9 | assets | `sync-assets.sh` | copies the payload into the app repo |
+| 10 | release | `make_release.py` | `src/data/releases/<generation>/` |
 
-Two things run outside the runner on purpose:
-
-* **`build_descriptions.py`** generates the visitor descriptions with a local
-  model. Resumable, ~10–14 h for the country, and never started implicitly.
-  `describe_place.py` holds the prompt and the payload; `--lang en` does the
-  translation pass over what Swedish already produced.
-* **`sample_for_review.py`** draws stratified samples to hand-verify. Its
-  verdicts go into `hand_labels.csv`.
+`sample_for_review.py` stays outside the runner. It draws stratified samples
+to hand-verify, and the verdicts go into `hand_labels.csv`.
 
 ## Two scores
 

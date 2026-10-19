@@ -901,7 +901,8 @@ def from_added(out, cl):
         cid = cl.get(r["place_uuid"])
         if not cid:
             continue
-        kind = "wikipedia" if r["kind"] == "wikipedia" else "web_page"
+        kind = (r["kind"] if r["kind"] in
+                ("wikipedia", "investigation", "web_page") else "web_page")
         lines = kind == "wikipedia"
         clean = keep_lines(r["body"]) if lines else " ".join(r["body"].split())
         sha = row_sha(cid, kind, r.get("lang"), r.get("url"), clean)
@@ -1190,6 +1191,18 @@ def from_contributions(out, cl):
     return n_user, n_inv
 
 
+def from_google(out):
+    """Places added from the Google Maps list.
+
+    Written by add_google_places.py into google_places.jsonl. The comment
+    is an investigation, the Wikipedia lead is CC BY-SA, and a linked
+    heritage page is a web_page whose body is only the pointer, not a copy
+    of that page. The shas go back so from_wikipedia does not retire them.
+    """
+    import add_google_places
+    return add_google_places.insert_sources(out)
+
+
 def status(out):
     print("sources by kind:")
     for kind, n, cl, use in out.execute("""
@@ -1253,12 +1266,14 @@ def main():
     print(f"  reg extras:  {n:,} rows offered")
     added = from_added(out, cl)
     out.commit()
+    google_keep = from_google(out)
+    out.commit()
     numbers = dict(sites.execute("SELECT uuid, raa_number FROM sites "
                                  "WHERE raa_number IS NOT NULL"))
     n = from_rundata(out, cl)
     out.commit()
     print(f"  rundata:     {n:,} rows offered")
-    n = from_wikipedia(out, cl, numbers, also_keep=added)
+    n = from_wikipedia(out, cl, numbers, also_keep=added | google_keep)
     out.commit()
     print(f"  wikipedia:   {n:,} rows offered")
     n = from_documents(out)

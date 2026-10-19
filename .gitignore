@@ -316,6 +316,17 @@ src/data/pipeline_state.json.tmp
 src/data/pipeline_samples.jsonl
 src/data/pipeline_run.log
 
+# The review runner's bookkeeping. The prompt and the manager are tracked.
+# A row here is a place an agent was handed and has not finished.
+review/inflight.json
+review/failed.json
+review/results.jsonl
+review/logs/
+review/daily_stamp
+review/daily.lock
+review/run.lock
+review/.venv/
+
 # Frozen payloads, one directory per generation. Tens of megabytes each and
 # reproducible from the run that made them. `src/data/generation` -- the
 # counter -- IS tracked, deliberately: it has to stay monotonic across a

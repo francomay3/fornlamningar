@@ -17,15 +17,15 @@
 #   ./run_pipeline.sh --top 30000    # tiles from the 30k best-scoring clusters
 #   ./run_pipeline.sh --all-clusters # every cluster (126k) -- NOT what ships
 #   ./run_pipeline.sh --from tiles --top 30000 --tile-args "--max-desc 200"
-#   ./run_pipeline.sh --skip-long      # stages 1-9 only: the old ~4 min run
+#   ./run_pipeline.sh --skip-long      # skip descriptions and translate
 #   ./run_pipeline.sh --concurrency 3  # parallel generation (see below)
 #   ./run_pipeline.sh --no-pull        # do not mirror the admin or the log
 #
-# A FULL RUN IS NOW HOURS, NOT MINUTES. Stages 10 and 11 generate and then
-# translate the descriptions with a local model; on this machine that is most
-# of a day for a set that has not been generated before. Both are restartable
-# and skip what is already done, so interrupting one is cheap. `--skip-long`
-# is the pipeline as it was before they were added.
+# A FULL RUN IS NOW HOURS, NOT MINUTES. Descriptions and translate use a
+# local model; on this machine that is most of a day for a set that has not
+# been generated before. Both are restartable and skip what is already done,
+# so interrupting one is cheap. `--skip-long` is the pipeline as it was
+# before they were added.
 #
 # While it runs:
 #   python3 pipeline_progress.py           # stage, %, measured rate, ETA
@@ -59,6 +59,9 @@ JSON=""
 # It happened on 2026-09-17. The number the app ships is the number the
 # runner should default to; pass --top to override it deliberately.
 TOP="--top 6000"
+# The Google places are not in that ranking. score_cut adds every one of
+# them beside the 6,000, descriptions and tiles both. A plain LIMIT would
+# leave them out, which is how Wira bruk stayed invisible.
 # Descriptions ship outside the tiles now, so there is nothing to truncate.
 TILE_ARGS="${TILE_ARGS:-}"
 # Extra flags for the generation stage. Exists for --force, which is the
@@ -99,31 +102,47 @@ done
 
 # THE PRODUCT STAGES USED TO BE MISSING, and that was the worst kind of gap:
 # `paths.py` calls places.sqlite "the thing we are actually building" and
-# nothing in the runner built it. Worse, build_labels.py and build_sources.py
-# read `lansstyrelsen.matches.cluster_id`, which only the manual `--join`
-# refreshes -- so a rebuild that moved clusters used a month-old mapping and
-# said nothing.
+# nothing in the runner built it.
 #
-# `join` is only the join: it re-points the county-board matches at the
-# clusters that exist now, and re-runs no HTTP. The crawls themselves
-# (crawl_wikimedia.py, crawl_lansstyrelsen.py without --join) stay out, beside
-# crawl_ksamsok.py: they are RAW, they are slow, and they are rude to repeat.
+# PARSE IS NOT A STAGE. build_sites.py drops `sites` and rebuilds it from
+# the register cache. The register has not changed, and a rebuild throws
+# away every row the cache does not have. Google places come back only
+# because that script calls ensure_stored at the end. Run it by hand when
+# the cache actually changes:
+#
+#   python3 build_sites.py
+#
+# JOIN IS NOT A STAGE. crawl_lansstyrelsen.py --join re-points the county
+# matches at the clusters on disk, and re-runs no HTTP. The clusters are
+# not rebuilt here, so the mapping already on disk stays right. Run it by
+# hand after a hand clustering:
+#
+#   python3 crawl_lansstyrelsen.py --join
+#
+# The crawls themselves (crawl_wikimedia.py, crawl_lansstyrelsen.py without
+# --join) stay out, beside crawl_ksamsok.py: they are RAW, they are slow,
+# and they are rude to repeat.
+# CLUSTERING IS NOT A STAGE. build_clusters.py recomputes every place from
+# the register. A representative moved by hand, or a boundary kept on
+# purpose, would be gone the next time this script ran. The clusters table
+# already in work.sqlite is what the later stages read. When a group of
+# places needs recomputing, that is a hand run, and it rewrites the table:
+#
+#   python3 build_clusters.py
+#
 STAGES=(
-  "1:parse:build_sites.py"
-  "2:cluster:build_clusters.py"
-  "3:join:crawl_lansstyrelsen.py --join"
-  "4:labels:build_labels.py"
+  "1:labels:build_labels.py"
   # SOURCES BEFORE SIGNALS, and this order is load-bearing. The corpus used
-  # to be built at stage 7, after scoring at stage 6, which meant "a
-  # Wikipedia article and a county plan mention this place" could not be a
-  # scoring feature no matter how obviously it should be -- the table did not
-  # exist yet when the score was computed. build_signals.doc_source_counts()
-  # reads it now, so it has to come first. build_sources only needs the
-  # clusters from stage 2; it reads neither signals nor scores.
-  "5:sources:build_sources.py"
-  "6:signals:build_signals.py"
-  "7:score:build_scores.py"
-  "8:places:build_places.py"
+  # to be built after scoring, which meant "a Wikipedia article and a county
+  # plan mention this place" could not be a scoring feature no matter how
+  # obviously it should be -- the table did not exist yet when the score was
+  # computed. build_signals.doc_source_counts() reads it now, so it has to
+  # come first. build_sources reads the clusters already on disk; it reads
+  # neither signals nor scores.
+  "2:sources:build_sources.py"
+  "3:signals:build_signals.py"
+  "4:score:build_scores.py"
+  "5:places:build_places.py"
   # --- the long tail. Everything above is ~4 minutes; these two are hours.
   #
   # They are here because Franco asked for "running the pipeline" to mean
@@ -134,8 +153,8 @@ STAGES=(
   #
   # Both are RESTARTABLE and skip what is already done, so an interrupted run
   # costs the place it was on and nothing else.
-  "9:descriptions:build_descriptions.py"
-  "10:translate:build_descriptions.py --translate"
+  "6:descriptions:build_descriptions.py"
+  "7:translate:build_descriptions.py --translate"
   # THE EXPORT COMES AFTER THE TEXT, and it did not on the first attempt.
   # build_tiles.py writes the per-shard description JSON that both the web map
   # and -- through sync-assets.sh -- the app's SQLite bases are built from. Run
@@ -143,10 +162,10 @@ STAGES=(
   # a full run would spend fourteen hours writing descriptions and then ship
   # the old ones, in both repos, with nothing failing. Caught by looking at
   # what franco-may actually had in its working tree.
-  "11:tiles:build_tiles.py"
+  "8:tiles:build_tiles.py"
   # Assets live in the app repo, styles and all. Runs there.
-  "12:assets:sync-assets.sh"
-  "13:release:make_release.py"
+  "9:assets:sync-assets.sh"
+  "10:release:make_release.py"
 )
 
 # Dropping the long tail has to happen HERE, after STAGES is defined. It was
@@ -188,29 +207,13 @@ fi
 # ---------------------------------------------------------------------------
 # Stage 0: inputs.
 #
-# Everything under src/data/ that git ignores falls into one of two buckets,
-# and they get different treatment here.
+# Signals measures against the OSM extracts. They are a download plus five
+# ogr2ogr runs; fetch_osm.sh skips whatever already exists, so this costs
+# nothing on a warm checkout. The GeoPackage and the K-samsok cache belong
+# to build_sites.py, which this runner does not call.
 #
-#   Cheap to rebuild -> rebuilt automatically. The OSM extracts are a download
-#   plus five ogr2ogr runs; fetch_osm.sh skips whatever already exists, so
-#   this costs nothing on a warm checkout.
-#
-#   Expensive or irreplaceable -> we refuse to guess. The K-samsok cache is
-#   four hours of rate-limited crawling and the GeoPackage is the RAA export
-#   that seeds it. Silently starting a four-hour crawl because a file was
-#   missing would be a nasty surprise, so we print the command and stop.
-# ---------------------------------------------------------------------------
-require_input() {
-  [[ -s "$1" ]] && return
-  echo "missing required input: $1" >&2
-  echo "  $2" >&2
-  exit 1
-}
-
-# The raw inputs are needed by parse (the GeoPackage and the crawl cache) and
-# by signals (the OSM extracts), so the check covers everything up to signals.
-# It used to be the literal 4, which was signals before the product stages
-# were added -- exactly the drift --from by name is meant to stop.
+# The bound used to be the literal 4, which was signals before the product
+# stages were added -- exactly the drift --from by name is meant to stop.
 signals_num=1
 for entry in "${STAGES[@]}"; do
   IFS=: read -r num name _ <<<"$entry"
@@ -218,11 +221,6 @@ for entry in "${STAGES[@]}"; do
 done
 
 if (( FROM <= signals_num )); then
-  require_input src/data/raa_export.gpkg \
-    "the RAA GeoPackage export. Tracked in git LFS: try \`git lfs pull\`"
-  require_input src/data/raa_api.sqlite \
-    "the crawl cache (~4 h, 311,845 responses). Rebuild: python3 crawl_ksamsok.py"
-
   for f in sweden_ways buildings boards historic_pt historic_poly; do
     if [[ ! -s "src/data/osm/$f.gpkg" ]]; then
       echo "── stage 0: osm inputs missing, running ./fetch_osm.sh"
@@ -289,8 +287,8 @@ fi
 #
 # Which files depends on which stages this run will actually reach. A
 # `--from tiles` run still refreshes the photograph marks, because that is
-# the stage that reads them. It does not refresh pins: cluster is what
-# moves them, and this run is not going to re-cluster.
+# the stage that reads them. Pins and titles are applied there too, from
+# these files: the cluster table is not rewritten by this runner.
 stage_num() {
   local want="$1" entry num name
   for entry in "${STAGES[@]}"; do
@@ -322,7 +320,7 @@ pull_admin() {
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 if (( PULL )); then
   echo "── stage 0a: admin"
-  if will_run cluster || will_run tiles; then
+  if will_run tiles; then
     pull_admin export-fl-pin-overrides.cjs pin_overrides.jsonl
     pull_admin export-fl-title-overrides.cjs title_overrides.jsonl
   fi
@@ -332,6 +330,7 @@ if (( PULL )); then
   # mark made since the last score, or the place stays in the top 6 000.
   if will_run labels || will_run score || will_run tiles; then
     pull_admin export-fl-uninteresting.cjs uninteresting.jsonl
+    pull_admin export-fl-verified.cjs verified.jsonl
     pull_admin export-fl-flags.cjs place_flags.jsonl
   fi
   if will_run sources; then
@@ -378,6 +377,14 @@ if (( PULL )) && (( FROM <= 1 )); then
   fi
 fi
 
+# Verified and not-interesting become hand labels before the labels stage
+# reads the file. A run that starts at score keeps the labels table from
+# the last time this ran, which is the same rule as every other label.
+if will_run labels; then
+  echo "── hand labels"
+  python3 sync_hand_labels.py
+fi
+
 top_n="$(sed -n 's/.*--top \([0-9]*\).*/\1/p' <<<"$TOP")"
 python3 pipeline_progress.py --begin-run "$stage_names" --top "${top_n:-0}"
 
@@ -402,8 +409,8 @@ trap cleanup EXIT
 start_all=$SECONDS
 for entry in "${STAGES[@]}"; do
   IFS=: read -r num name script <<<"$entry"
-  # The entry may carry its own flags (`crawl_lansstyrelsen.py --join`), so
-  # the first word is the file to test with grep and the rest are arguments.
+  # The entry may carry its own flags, so the first word is the file to
+  # test with grep and the rest are arguments.
   read -r file args <<<"$script"
   (( num < FROM )) && continue
   echo "── stage $num: $name ($script)"

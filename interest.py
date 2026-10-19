@@ -1,8 +1,9 @@
-"""Stars for the exported set, after the top-N cut has already been made.
+"""Stars for the exported set, after the cut has already been made.
 
-Membership of the export is still `score_full`: the best 6,000 in the
-country. This file does not reopen that cut. It only decides, inside it,
-what the app shows as stars and which pin wins a spot when the map thins.
+Membership is the best 6,000 by `score_full`, plus the Google places,
+which are added beside that cut. This file does not reopen it. It only
+decides, inside the set it is given, what the app shows as stars and
+which pin wins a spot when the map thins.
 
 Five stars is readership. Sixty-five places in the export have 3,000 or
 more Wikipedia reads in a trailing year, and those are the ones a person
@@ -27,7 +28,7 @@ import os
 import sqlite3
 
 import paths
-from export_compare_pool import _far, _log1p, _near
+from export_compare_pool import _far, _log1p, _near, score_cut
 
 # On the linear score below. A place at or above a cut gets that many
 # stars, unless readership already gave it more.
@@ -232,14 +233,14 @@ def summarize(rows):
 if __name__ == "__main__":
     work = sqlite3.connect(f"file:{paths.WORK}?mode=ro", uri=True)
     work.row_factory = sqlite3.Row
-    raw = work.execute("""
+    raw = work.execute(f"""
         SELECT c.cluster_id, c.name, c.dominant_class, c.rep_uuid AS uuid
           FROM clusters c
           JOIN scores sc ON sc.cluster_id = c.cluster_id
          WHERE c.lon IS NOT NULL
            AND sc.excluded_hard = 0 AND sc.excluded_soft = 0
+         {score_cut(6000)}
          ORDER BY sc.score_full DESC
-         LIMIT 6000
     """).fetchall()
     ranked = rank_cut([dict(r) for r in raw])
     hist = summarize(ranked)

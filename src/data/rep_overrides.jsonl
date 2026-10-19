@@ -207,3 +207,5 @@
 {"cluster_id": "raa:959:Rone 12", "uuid": "eb3c25af-0458-4667-b436-0c95e5d3654e", "class_sv": "Röse", "choice": "graves", "old_uuid": "e8020695-7c15-4975-bf75-53009bb71192", "old_class": "Hällristning", "description_len": 612}
 {"cluster_id": "raa:98:Södertälje 106", "uuid": "a6ab37ac-8019-4ab2-9bc3-4d03b7c053e3", "class_sv": "Runristning", "choice": "rockart", "old_uuid": "57de258f-6e56-4c38-955b-f9c7b52dcdb5", "old_class": "Vägmärke", "description_len": 852}
 {"cluster_id": "raa:98:Södertälje 58", "uuid": "d987a5ac-95c8-4ae6-bac6-08df69949fdf", "class_sv": "Gravfält", "choice": "graves", "old_uuid": "34d1e091-b621-44a7-8f22-1928d494c01b", "old_class": "Färdväg", "description_len": 1063}
+{"cluster_id": "raa:209:Boglösa 109", "uuid": "d5ccdba8-559f-4791-b47a-da42c2a68d36", "class_sv": "Hällristning", "choice": "rockart", "old_uuid": "2a2994f8-78e2-4fad-85af-7c4eba7a8da9", "old_class": "Stensättning", "description_len": 474}
+{"cluster_id": "raa:1751:Ornunga 6", "uuid": "c6961bf0-541f-4d06-86a7-89479c7d73ec", "class_sv": "Labyrint", "choice": "graves", "old_uuid": "45135300-02e9-403a-a3ac-390edfc0947a", "old_class": "Röjningsröse", "description_len": 0}

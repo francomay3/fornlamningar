@@ -14,7 +14,8 @@ declare in metadata.json:
 only the ordering matters. We emit a 0-100 percentile of the export order
 because it is readable when debugging. With `--top` that order is the
 interest ranking in interest.py, not `score_full`: the cut is still
-`score_full`, and the stars are decided afterwards.
+`score_full`, the Google places are added beside it, and the stars
+are decided afterwards.
 
 One feature per CLUSTER, not per site: a gravfalt of 40 stensattningar is one
 place a visitor drives to, and should be one pin.
@@ -39,6 +40,7 @@ import subprocess
 import sys
 import time
 
+from export_compare_pool import score_cut
 from families import CLASS_BLACKLIST, FAMILY, FAMILY_ICON, FAMILY_ORDER
 from interest import rank_cut
 from titles import resolve_title, title_overrides
@@ -400,9 +402,9 @@ def load_added_marks(places):
             cid = cl.get((row.get("place_uuid") or "").lower())
             src = row.get("source")
             file = row.get("file")
-            if not cid or src not in ("hand", "geosearch", "paste") or not file:
+            if not cid or src not in ("hand", "geosearch", "paste", "official") or not file:
                 continue
-            stored = "paste" if src == "paste" else f"commons_{src}"
+            stored = src if src in ("paste", "official") else f"commons_{src}"
             key = (cid, stored, file)
             if row.get("prioritized"):
                 priority.add(key)
@@ -478,15 +480,17 @@ def load_images(places_db):
            FROM images
            WHERE usable = 1
              AND file IS NOT NULL AND file <> ''
-           -- Wikidata's own designation first, then the archive, then a
-           -- county folder, then an editor's list entry. Geosearch is last,
-           -- and only a marked one is kept; see the loop.
+           -- The article's own photographs first (the one Wikidata
+           -- designates, then the rest of the page), then the archive,
+           -- then a county folder. Geosearch is last, and only a marked
+           -- one is kept; see the loop.
            ORDER BY cluster_id,
                     CASE source WHEN 'commons_wikidata' THEN 0
-                                WHEN 'arkiv' THEN 1
-                                WHEN 'county_pdf' THEN 2
-                                WHEN 'county_page' THEN 3
-                                ELSE 4 END, image_id"""
+                                WHEN 'commons_article' THEN 1
+                                WHEN 'arkiv' THEN 2
+                                WHEN 'county_pdf' THEN 3
+                                WHEN 'county_page' THEN 4
+                                ELSE 5 END, image_id"""
     thumb_re = re.compile(r"/commons/thumb/([0-9a-f]/[0-9a-f]{2})/([^/]+)/(\d+)px-")
     full_re = re.compile(r"/commons/([0-9a-f]/[0-9a-f]{2})/([^/?]+)")
     no_hash = 0
@@ -511,7 +515,7 @@ def load_images(places_db):
             m = full_re.search(thumb_url or image_url or "")
             if m:
                 e = {"f": m.group(2), "h": m.group(1)}
-            elif _src in ("arkiv", "paste") and (image_url or thumb_url):
+            elif _src in ("arkiv", "paste", "official") and (image_url or thumb_url):
                 # Not a Commons path. The phone already treats `src` as a
                 # finished URL and does not rebuild it. `f` is only the
                 # carousel key: the archive record, or the file name of a
@@ -676,10 +680,19 @@ def write_descriptions(rows, out_dir, shard_chars, max_desc, ai=None,
             n_ai += 1
         else:
             text = one_line(r["best_description"], max_desc)
-            if not text:
+            # No generated text yet. The name still has to reach the sites
+            # list, which reads this title and nothing else.
+            forced = forced_titles.get(uuid)
+            name = (resolved or {}).get(r["cluster_id"]) or r["name"]
+            if forced:
+                entry["title"] = forced
+            elif name:
+                entry["title"] = name
+            if not text and not entry.get("title"):
                 continue
-            entry["content"] = text
-            entry["raw"] = True     # untranslated register text, for the UI
+            if text:
+                entry["content"] = text
+                entry["raw"] = True     # untranslated register text, for the UI
 
         # Size travels as numbers, not prose. dims.py already parsed it out of
         # the Swedish text for 91% of eligible places, so there is no reason to
@@ -930,8 +943,8 @@ def main():
         FROM clusters c
         JOIN scores sc ON sc.cluster_id = c.cluster_id
         WHERE {' AND '.join(where)}
+        {score_cut(args.top) if args.top else ""}
         ORDER BY {score_col} DESC
-        {f'LIMIT {args.top}' if args.top else ''}
     """, params).fetchall()
     conn.close()
 
@@ -944,7 +957,7 @@ def main():
         sys.exit(f"classes with no family in families.py: {orphans}")
     n = len(rows)
     print(f"exporting {n:,} clusters"
-          + (f" (top {args.top:,})" if args.top else "")
+          + (f" (top {args.top:,}, plus the Google places)" if args.top else "")
           + f" (score_{args.score}, desc limit {args.max_desc or 'none'})")
     if args.top:
         # The cut was score_full. Stars, and the order minzoom walks, are

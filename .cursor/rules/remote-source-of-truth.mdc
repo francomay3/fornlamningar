@@ -1,0 +1,12 @@
+---
+description: The remote database is the source of truth for places, pins, sources, and photos
+alwaysApply: true
+---
+
+# Remote database first
+
+Neon, the database behind franco-may.com, is the source of truth. The admin and the phone read it.
+
+A change that exists only in a local sqlite, jsonl, or `franco-may/data/place-coords.txt.gz` is not done. Write it to the remote table the admin already reads. The pipeline pulls those tables down when it runs and refreshes the local copy from them.
+
+Place coordinates are the example. The live admin shows a pin from `fl_pin_overrides`, then from the deployed coords file. A coordinate written only into the local gzip does not appear.

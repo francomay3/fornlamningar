@@ -463,6 +463,15 @@ def main():
     out.executescript(INDEXES)
     out.commit()
 
+    # Google places are not in the register dump. The parse just dropped
+    # every site row, so put those back from google_places.jsonl. Clusters
+    # are not rebuilt here; this only fills rows the drop removed.
+    import add_google_places
+    extra = add_google_places.ensure_stored(out)
+    if extra:
+        emit(J, event="progress", name="parse", google=extra,
+             message=f"  google places restored: {extra:,}")
+
     n = out.execute("SELECT COUNT(*) FROM sites").fetchone()[0]
     emit(J, event="done", name="parse", rows=n, failed=failed,
          seconds=round(time.time() - t0, 1),

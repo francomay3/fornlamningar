@@ -103,15 +103,22 @@ def target_ids(top: int) -> list[str]:
 
 
 def measure(stage: str, top: int, since: float | None = None,
-            rich_only: bool = False) -> tuple[int, int] | None:
+            rich_only: bool = False, queue: list[str] | None = None,
+            started: float | None = None) -> tuple[int, int] | None:
     """(done, total) for a counted stage, or None if it cannot be counted.
 
+    Without `--force` the total is the queue: places with no description,
+    a newer prompt, or sources that changed. Everyone else in the export
+    already has text this run will not touch, and counting them made a
+    399-place job look like 1,700 places left out of 6,000. `queue` is that
+    list, frozen for the stage. `done` is how many of them this stage has
+    rewritten, by the row's own timestamp.
+
     `since` is set for a --force run and changes what "done" MEANS, which
-    is the whole reason it exists. Normally a place is done if it has a
-    current description at all -- the incremental gate skips it, so it is
-    finished by definition. Under --force every row is rewritten, so the
-    rows left over from previous runs are pending, not done, even though
-    they look identical.
+    is the whole reason it exists. Under --force every row is rewritten, so
+    the rows left over from previous runs are pending, not done, even though
+    they look identical. The total there is the whole export, because the
+    queue is the whole export.
 
     Without this the bar read 98.5% one minute into a fourteen-hour run:
     5,533 of 5,617 "done" when 84 had actually been written. Franco asked
@@ -129,15 +136,33 @@ def measure(stage: str, top: int, since: float | None = None,
         return None
     import describe_place as dp
 
-    ids = target_ids(top)
-    if not ids:
+    ids = queue if queue is not None else target_ids(top)
+    if not ids and queue is None:
         return None
     out = sqlite3.connect(paths.ro(paths.GENERATED), uri=True)
     try:
         # A temp table rather than a 10,000-term IN clause, which SQLite
         # accepts and then plans badly.
         out.execute("CREATE TEMP TABLE want(cluster_id TEXT PRIMARY KEY)")
-        out.executemany("INSERT OR IGNORE INTO want VALUES (?)", ((i,) for i in ids))
+        if ids:
+            out.executemany("INSERT OR IGNORE INTO want VALUES (?)",
+                            ((i,) for i in ids))
+        if queue is not None:
+            # The queue is the job. A row counts as done once this stage
+            # rewrote it, which stamps created_at or translated_at.
+            stamp = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime(started or 0))
+            if stage == "descriptions":
+                done, = out.execute(
+                    "SELECT count(*) FROM ai_descriptions a JOIN want w "
+                    "USING (cluster_id) WHERE a.content <> '' "
+                    "AND a.created_at >= ?", (stamp,)).fetchone()
+            else:
+                done, = out.execute(
+                    "SELECT count(*) FROM ai_descriptions a JOIN want w "
+                    "USING (cluster_id) WHERE a.content_en IS NOT NULL "
+                    "AND a.content_en <> '' AND a.translated_at >= ?",
+                    (stamp,)).fetchone()
+            return done, len(queue)
         if stage == "descriptions":
             # The version a place is done AT depends on the place: prompt 10
             # for one with sources besides the register, 9 otherwise (see
@@ -185,17 +210,84 @@ def measure(stage: str, top: int, since: float | None = None,
         out.close()
 
 
+def work_ids(state: dict, top: int) -> list[str] | None:
+    """The places this stage will actually rewrite, frozen on first sample.
+
+    Rebuilt every minute, the list would shrink as rows were finished and
+    the bar would be "left to do" with no memory of how many there were.
+    The first sample takes the queue as of then -- still pending, plus
+    whatever this stage has already rewritten -- and later samples only
+    count how many of those rows now carry this stage's timestamp.
+    """
+    cur = state.get("current") or {}
+    stage = cur.get("name")
+    started = cur.get("started_at")
+    if stage not in COUNTED or not started or cur.get("force"):
+        return None
+    work = state.get("work") or {}
+    if work.get("stage") == stage and work.get("started_at") == started:
+        return work["ids"]
+    ids = queue_ids(stage, top, started, bool(cur.get("rich_only")))
+    state["work"] = {"stage": stage, "started_at": started, "ids": ids}
+    write_state(state)
+    return ids
+
+
+def queue_ids(stage: str, top: int, started: float, rich_only: bool) -> list[str]:
+    """Pending work plus rows this stage has already rewritten."""
+    import build_descriptions as bd
+
+    sites = sqlite3.connect(paths.ro(paths.WORK), uri=True)
+    sites.row_factory = sqlite3.Row
+    out = sqlite3.connect(paths.ro(paths.GENERATED), uri=True)
+    try:
+        eligible = bd.eligible(sites, None, False, None, top or None)
+        stamp = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime(started))
+        out.execute("CREATE TEMP TABLE want(cluster_id TEXT PRIMARY KEY)")
+        out.executemany("INSERT OR IGNORE INTO want VALUES (?)",
+                        ((i,) for i in eligible))
+        if stage == "descriptions":
+            pending, _stats = bd.to_describe(
+                sites, out, eligible, rich_only=rich_only)
+            written = [r[0] for r in out.execute(
+                "SELECT a.cluster_id FROM ai_descriptions a "
+                "JOIN want w USING (cluster_id) "
+                "WHERE a.content <> '' AND a.created_at >= ?", (stamp,))]
+        else:
+            pending = [r[0] for r in out.execute(
+                """SELECT a.cluster_id FROM ai_descriptions a
+                    JOIN want w USING (cluster_id)
+                    WHERE a.content <> ''
+                      AND (a.content_en IS NULL OR a.content_en = ''
+                           OR a.translated_at IS NULL
+                           OR a.translated_at < a.created_at)""")]
+            written = [r[0] for r in out.execute(
+                """SELECT a.cluster_id FROM ai_descriptions a
+                    JOIN want w USING (cluster_id)
+                    WHERE a.content_en IS NOT NULL AND a.content_en <> ''
+                      AND a.translated_at >= ?""", (stamp,))]
+        return list(dict.fromkeys([*pending, *written]))
+    finally:
+        sites.close()
+        out.close()
+
+
 def sample() -> None:
     state = read_state()
     cur = state.get("current") or {}
     stage = cur.get("name")
     if not stage:
         return
-    # A --force stage counts only what IT wrote; see measure().
-    since = cur.get("started_at") if cur.get("force") else None
+    # A --force stage counts only what IT wrote; see measure(). The queue
+    # is everyone, so there is nothing to freeze.
+    force = bool(cur.get("force"))
+    since = cur.get("started_at") if force else None
+    queue = None if force else work_ids(state, int(state.get("top") or 0))
     got = measure(stage, int(state.get("top") or 0), since,
-                  bool(cur.get("rich_only")))
-    row = {"ts": time.time(), "stage": stage}
+                  bool(cur.get("rich_only")), queue,
+                  None if force else cur.get("started_at"))
+    row = {"ts": time.time(), "stage": stage,
+           "scope": "force" if force else "queue"}
     if got:
         row["done"], row["total"] = got
     with open(SAMPLES, "a", encoding="utf-8") as f:
@@ -242,7 +334,15 @@ def rate_per_s(samples: list[dict]) -> float | None:
 
     Not a least-squares fit: the series is a monotonic counter, so the only
     thing a fit would add is sensitivity to the sampler's own jitter.
+
+    Samples from an older way of counting are dropped. A descriptions bar
+    that used to be "already written, out of the whole export" cannot be
+    subtracted from "rewritten this run, out of the queue".
     """
+    if len(samples) < 2:
+        return None
+    scope = samples[-1].get("scope")
+    samples = [s for s in samples if s.get("scope") == scope]
     if len(samples) < 2:
         return None
     cutoff = samples[-1]["ts"] - WINDOW_S
@@ -382,6 +482,9 @@ def begin_stage(name: str, force: bool = False, rich_only: bool = False) -> None
     state = read_state()
     state["current"] = {"name": name, "started_at": time.time(), "force": force,
                         "rich_only": rich_only}
+    # The previous stage's queue is a different job. Leaving it would make
+    # this stage count against the wrong list.
+    state.pop("work", None)
     write_state(state)
 
 

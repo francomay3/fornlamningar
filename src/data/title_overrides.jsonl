@@ -1,11 +1,720 @@
-{"place_uuid":"3ff0936c-1acc-45c3-9723-8a54ae952c9a","title":"Hedningahällan","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-01 13:21:53.101094+00"}
+{"place_uuid":"01264a9f-a82a-5913-bb20-7464c2d1e367","title":"Minnessten Häxprocesserna","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:44:27.148937+00"}
+{"place_uuid":"013516d1-99d3-598e-b697-3b551540c876","title":"Kvekgården","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:39:37.943888+00"}
+{"place_uuid":"01c71a1f-ba1a-5fa1-b147-186c14b68137","title":"Tollareställningen","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:46:53.692104+00"}
+{"place_uuid":"01f6e18c-007f-5cdc-97bf-01b40fdee3bd","title":"Domarringen","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:43:02.081892+00"}
+{"place_uuid":"01fddcb4-9f2d-58b7-9b80-cd4134570ea1","title":"Trollgrottan","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:33:04.674579+00"}
+{"place_uuid":"0267be6e-e0fe-54cd-a6ac-f5a3b96bb7ea","title":"Mariedal Castle","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:44:17.223756+00"}
+{"place_uuid":"0324033b-9ecd-5bb8-9360-da15da269ed4","title":"Bodås gruva","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:34:42.736196+00"}
+{"place_uuid":"03a6a333-d7d0-5cfa-844b-ef1729323db8","title":"Hundgravarna i Borghamn","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:51:38.282087+00"}
+{"place_uuid":"03c972ef-6e44-5f38-a25e-8b49708632b1","title":"Ätrafors luftvärnstorn","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:39:17.544789+00"}
+{"place_uuid":"03ef0451-47c1-4fe9-a0e1-6a64d6c16fd8","title":"Bergahögen","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 10:14:42.938248+00"}
+{"place_uuid":"04953fb2-7e26-5e02-ad02-636946c3ca2b","title":"Oscarsstone","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:44:34.546541+00"}
+{"place_uuid":"04d1c422-7801-562b-8828-fe630ba400ac","title":"Skansport","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:21:25.161995+00"}
+{"place_uuid":"04fb7da6-d9bc-59f0-ad6c-b2500b041350","title":"Oscar lock","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:44:31.005804+00"}
+{"place_uuid":"0540862a-b079-51fe-a32b-8342c7cfca36","title":"Minnesmärke över Kung Magnus Ladulås","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:44:24.667333+00"}
+{"place_uuid":"0561b7cb-65cb-5c96-979b-c9c2c5818564","title":"Snäckgärdsporten","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:23:45.540977+00"}
+{"place_uuid":"057d7450-1586-5058-8a32-aa2b7c7fccdf","title":"Lidbergsgrottorna","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:39:56.587034+00"}
+{"place_uuid":"05aa8ccd-0e9e-5c44-a49d-dfa7090f0731","title":"Overby windmill","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:44:38.590096+00"}
+{"place_uuid":"05b39c0e-bd81-51d7-a474-08f746f3aa45","title":"Sagobygden Trollträdet","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:18:35.485761+00"}
+{"place_uuid":"064f7549-1f21-599f-92dd-0c350da41798","title":"Prinsessan Sofia Albertinas sluss","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:15:03.503154+00"}
+{"place_uuid":"06b7d63d-b0b4-553b-90ea-0e9f92fa85ae","title":"S:t Lars Ruin","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:45:09.673215+00"}
+{"place_uuid":"0709035b-11d7-5356-8f24-120a0ffefd40","title":"Stockholmsfänikans läger","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:26:33.599945+00"}
+{"place_uuid":"076cdb19-18e4-5162-a7dd-f7010fd06bcf","title":"Skvatterbergets Gruva","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:22:28.520035+00"}
+{"place_uuid":"07d69340-3be8-5117-b8af-88b97da4d209","title":"Jättegrytorna i Ansered","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:54:36.606923+00"}
+{"place_uuid":"08613d5f-e3b1-52d1-b125-cf0fd0f0a80c","title":"Mötesplats kvarnen","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:10:28.336942+00"}
+{"place_uuid":"092b369f-7de4-5053-9a84-6a3b062edf1f","title":"Gummans röse","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:49:08.378234+00"}
+{"place_uuid":"09acce75-76b7-5bab-b371-d4a8a6f06217","title":"Stora Helvetet","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:46:18.461908+00"}
+{"place_uuid":"09e1295d-17e8-5e7a-8bf2-bdeedeb6ef6c","title":"Luostojoki stenvalvbro","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:03:32.819746+00"}
+{"place_uuid":"0a15b6e4-53a5-4795-8e0c-85f667745570","title":"Jansberg gravfält","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-07 09:34:25.203476+00"}
+{"place_uuid":"0a84042b-379d-51c9-9af7-400879dfab30","title":"Segelbäcken Gamla kvarn","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:19:38.672041+00"}
+{"place_uuid":"0a9c8006-effa-574b-bbb8-dadc855b95a6","title":"Fryele kvarn","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:45:14.761708+00"}
+{"place_uuid":"0adabe3d-0dd6-54dc-8f31-931dff6d9bc6","title":"Avrättningsplats Lit","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:28:53.250596+00"}
+{"place_uuid":"0af383a2-fd41-522b-ad9e-0be8f38b43b2","title":"Bastionen Konungen","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:31:15.736561+00"}
+{"place_uuid":"0cfac0a2-9d65-5f76-9635-36743a7911fa","title":"Tobisborg stenbrott","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:46:52.082041+00"}
+{"place_uuid":"0d613ba8-75c9-526b-8b17-f06a8ccad2c4","title":"Backstuga","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:29:03.254752+00"}
+{"place_uuid":"0e31fea0-f73d-59a0-82f8-adbe5872359e","title":"Nässkansen","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:43:22.638893+00"}
+{"place_uuid":"0e6f2871-52c2-5d62-9615-cb2fa95f2838","title":"Mölndals Kvarnby","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:43:05.778794+00"}
+{"place_uuid":"0e8190b4-0ef5-582e-a1c9-2a36bc5ec039","title":"Wittrocks torn","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:47:41.65311+00"}
+{"place_uuid":"0f0b0530-c060-59cc-8344-bd44305bec1f","title":"Kolebacka","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:57:22.620954+00"}
+{"place_uuid":"0f7600e9-5ef0-5f05-b6bb-89cb293b7ad4","title":"Korslångssmedja","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:57:57.281908+00"}
+{"place_uuid":"10111f1c-359d-5df6-acba-1691bf6ffd56","title":"Österport (Eastern Gate)","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:47:57.569247+00"}
+{"place_uuid":"108925a1-26d2-5415-9e48-6286944478a7","title":"VARVSVÄGEN LOCK","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:36:00.976661+00"}
+{"place_uuid":"10e23602-5acf-596c-afbd-0bbf9f3c366b","title":"Soldattorpet i Västerplana","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:24:04.585943+00"}
+{"place_uuid":"11b2c429-0886-5d88-bbd9-885ba59698f8","title":"Minnesmärke över Slaget vid Genevadsbro","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:44:25.462449+00"}
+{"place_uuid":"124112ab-3b30-509b-9ded-7ba47c979280","title":"Linnes källa","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:02:35.632993+00"}
+{"place_uuid":"12662471-b591-5142-8429-fb17222cb099","title":"Kronprinsessan Victorias sluss","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:58:18.928631+00"}
+{"place_uuid":"126a3b1e-bb2d-5af1-a927-c7e018bcdf27","title":"Axmar bruks hytta","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:28:57.754258+00"}
+{"place_uuid":"12921b07-b48d-59df-8d90-0305ef163269","title":"Lännafortet, Södra Fronten","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:40:11.833891+00"}
+{"place_uuid":"131e68e4-48e0-54c9-9501-99a9b3af93f1","title":"Bautastenen","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:33:13.75322+00"}
+{"place_uuid":"138a6b31-b20d-4de7-9e10-5c122a120ba4","title":"Viaboda gravrösen","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-07 09:37:18.279677+00"}
+{"place_uuid":"1398e0e3-068f-5aac-a5ef-eb2616e5e315","title":"Knallis mila","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:57:18.886842+00"}
+{"place_uuid":"139e4940-d703-5ce9-8dc4-b401c29b119d","title":"Runestone U390","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:45:00.182413+00"}
+{"place_uuid":"14745845-a803-5b9f-ba98-41ff199e0ac7","title":"Skottorps slott","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:45:41.604116+00"}
+{"place_uuid":"14a87684-a072-57df-92e8-7ab7547c4d47","title":"Torpet Lugnet","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:32:38.49437+00"}
+{"place_uuid":"14d8591f-d43e-5072-88ea-68c3f06a8667","title":"Teos monument","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:31:12.740969+00"}
+{"place_uuid":"14d86775-dcba-571c-8c23-ed4fc579935c","title":"Borenshult lock","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:35:18.886383+00"}
+{"place_uuid":"160a2978-b9b1-56bf-bd4c-bcbed24a7d27","title":"Karl X Gustavs mur","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:39:15.827449+00"}
+{"place_uuid":"1620a72d-f268-55bf-af0d-b599c348ed58","title":"Skans 4","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:20:45.009439+00"}
+{"place_uuid":"16fccbf0-6728-57c0-be35-0025c7cd50b0","title":"Ållebergskragens fyndplats","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:47:47.262473+00"}
+{"place_uuid":"174e1f2b-d127-5f83-b4c4-708208a70ede","title":"Järntorgsbrunnen","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:39:04.217032+00"}
+{"place_uuid":"17bd991b-6e4f-5dd5-8ed0-252020f335e2","title":"Carolus XI Rex Bastion","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:41:01.833518+00"}
+{"place_uuid":"17d6c63c-29e1-5d03-a7ad-e268b690ad9e","title":"Oscar Hedströms minnessten","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:13:28.977312+00"}
+{"place_uuid":"18c8447f-30ed-5c5d-afb5-7d0988512993","title":"Åbergs Fortress","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:47:45.679001+00"}
+{"place_uuid":"18d16384-5189-5b88-8250-6051e5ea2496","title":"Skillnabo Gruva","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:21:50.444396+00"}
+{"place_uuid":"18f7205b-29e5-5965-b8cd-5fceece15c39","title":"Porla brunn","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:44:45.178794+00"}
+{"place_uuid":"1914e313-7e6b-5a2d-9bb8-937884e8c77d","title":"Kungastenen","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:58:46.076797+00"}
+{"place_uuid":"1a1aeec0-5fba-50f9-adef-e29b278a5069","title":"Gamla koppargruvbyn Laver","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:38:13.349811+00"}
+{"place_uuid":"1ad65929-a654-5507-bf4d-0f05bac9a32e","title":"Hemsjö mill","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:50:43.044175+00"}
+{"place_uuid":"1b3e6948-1b8f-5124-afe7-2d4acf853d7e","title":"Järnåldersboplats","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:54:22.805352+00"}
+{"place_uuid":"1b953b6b-c0ad-5b4e-a92d-f2c850a1520b","title":"Väderkvarn","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:38:26.726062+00"}
+{"place_uuid":"1bccf3dc-1fd5-5a09-b053-733b12908a85","title":"Kanonbunker, Vaxholmslinjen","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:55:43.06991+00"}
+{"place_uuid":"1c546536-ab38-57f9-8711-07ef877360b8","title":"Lahults kvarn o damm","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:00:36.100941+00"}
+{"place_uuid":"1c624be2-0f88-5727-86ee-5d5d2d928d10","title":"Myggsten","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:42:57.057148+00"}
+{"place_uuid":"1d682f22-8cae-5cf1-854a-f7adced5181b","title":"Silfhytteå","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:45:28.413774+00"}
+{"place_uuid":"1d88b2ff-9030-5484-af63-7c94f17d80b5","title":"Stråssa gruvmiljö","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:46:27.614263+00"}
+{"place_uuid":"1d9c816f-33fa-553d-8c4e-52b5c336e595","title":"Monument till krigsförlista sjömäns minne","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:07:15.680041+00"}
+{"place_uuid":"1de188c1-5e3a-582c-bfc2-aa59bcb59431","title":"Statue Swedenborg","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:25:14.224365+00"}
+{"place_uuid":"1e019789-5cba-5594-93f3-f12dc39326da","title":"Invalidmonumentet","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:38:50.464594+00"}
+{"place_uuid":"1e08a545-5fab-504e-bfaa-a9d94c5ae5d0","title":"Upperuds Sluss","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:34:52.677428+00"}
+{"place_uuid":"1ea10014-7b4f-5ee8-9836-982019e40969","title":"Krigsbron i Norrhult","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:58:04.467005+00"}
+{"place_uuid":"1f052d45-5676-5cf3-9341-2c107777c489","title":"Väderkvarnen i Segersnäs","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:38:31.361315+00"}
+{"place_uuid":"1f6d0d61-bdf8-5bd1-beec-c7aad67c6263","title":"Castle Mill","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:37:41.540505+00"}
+{"place_uuid":"207db95e-0822-53f3-8de0-c483cfcab601","title":"St. Stephen's Church and Cemetery","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:46:03.922815+00"}
+{"place_uuid":"208ed6ee-1918-5b17-8bd5-6bd8bbd9707f","title":"Broa Väderkvarn","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:35:46.990909+00"}
+{"place_uuid":"209628b8-d6d6-5f3a-8dfc-94bda23a4fd8","title":"Lonely Tree Baskemölla","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:03:03.237471+00"}
+{"place_uuid":"216b2dae-626f-5ae2-8796-e2737071b7b6","title":"Minörs grotta","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:06:57.245662+00"}
+{"place_uuid":"216ca3d5-b3ec-54c0-a969-85a43808087f","title":"Limstensgruvorna","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:40:01.884776+00"}
+{"place_uuid":"226b7119-cc11-5121-9ca6-3e930555747e","title":"Södertull","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:29:38.529687+00"}
+{"place_uuid":"23697fb0-905f-5bb3-a644-530352229da6","title":"Sundby Sjukhus Ödekyrkogård","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:46:32.537898+00"}
+{"place_uuid":"2428df3a-ba1a-5797-8c64-7385490a4e4d","title":"Södra Sandby mölla","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:46:41.538017+00"}
+{"place_uuid":"244f98d3-1166-5c91-8e18-53a86d172f90","title":"Strängnäs Windmill","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:46:26.752217+00"}
+{"place_uuid":"245309d1-2f45-58d6-9e2c-00ccabc86302","title":"Havstoudd Battery","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:50:21.346669+00"}
+{"place_uuid":"24a9da00-f314-5e15-8679-e2a295e6dd44","title":"Buteruds Slusstation","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:36:45.261165+00"}
+{"place_uuid":"25782aa8-79ab-5537-98fb-5cec13b457a3","title":"Bastion Hafsfrun","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:31:08.798669+00"}
+{"place_uuid":"258efc90-9fca-5bb3-b4ed-268d165db50d","title":"The priest's Bath","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:46:48.909736+00"}
+{"place_uuid":"267ef157-7293-50d7-bce3-14adab9fde33","title":"Linköpings lokstall","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:02:29.734742+00"}
+{"place_uuid":"27bee402-4334-5922-b1d0-50bb5b985258","title":"Konung Karl XI sluss","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:57:45.626767+00"}
+{"place_uuid":"2878e6d4-a05a-5984-a4f2-2cec781e5615","title":"Köpmannebro Lock","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:39:46.601731+00"}
+{"place_uuid":"28ec383b-65bc-5c63-9060-20f6358c806e","title":"Mobergsstenen","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:07:05.579984+00"}
+{"place_uuid":"290da739-5731-59f4-bc2b-d30dcb5c4b3d","title":"Björkeröds quarry","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:34:16.544944+00"}
+{"place_uuid":"297e7183-1e57-53df-a50c-b065bd19ad61","title":"Stora Stampan (Rinkeby kvarnar)","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:46:19.261202+00"}
+{"place_uuid":"29ab9373-74c8-527c-b0b7-8e7d7e45d4f4","title":"Johannishus slott","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:38:57.144713+00"}
+{"place_uuid":"2a82918b-f91b-530c-bd29-50415e2ce877","title":"Solberga kalkbrott","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:23:48.730662+00"}
+{"place_uuid":"2aa23b10-8f8f-545b-9577-51312feb73b2","title":"Fredriksborg Fortress","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:38:06.051566+00"}
+{"place_uuid":"2ae658d7-9463-537e-bb61-77aa387d0a9a","title":"Fängelsehålan, Häxprocesserna i Torsåker","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:45:45.059851+00"}
+{"place_uuid":"2b455a91-2df5-5e10-920b-33bff2c1e11b","title":"Femörefortet","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:38:01.86168+00"}
+{"place_uuid":"2baefbe9-61c8-5ec4-a941-4ed80f543066","title":"Skavnäsets kapell","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:45:40.093748+00"}
+{"place_uuid":"2beae56a-b31a-5d29-9ad5-ac9df1997c10","title":"Offerlunden i Halahult","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:12:42.461363+00"}
+{"place_uuid":"2cc6daa8-2831-5eea-a189-101635ebd1b8","title":"Vegeholms slott","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:47:16.759672+00"}
+{"place_uuid":"2d35f84c-71ef-57bb-9c62-a380a34c6899","title":"Grunubergssågen","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:48:47.382449+00"}
+{"place_uuid":"2da5bed9-a1d0-5ca0-bfba-dc9d0123dd74","title":"Söcke grottor","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:29:18.18032+00"}
+{"place_uuid":"2e7d4068-7719-5093-aab1-584fc0048337","title":"Källfallets Gruvlave","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:59:58.42201+00"}
+{"place_uuid":"2e828792-d039-5b14-8756-17758ae45a2b","title":"Bunker Nr 9","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:36:41.255846+00"}
+{"place_uuid":"2eac10b5-2b94-5a20-91bd-e4c8a8535012","title":"Surahammars sluss","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:28:29.923386+00"}
+{"place_uuid":"2f0b338f-e126-58c1-8c2b-0f9351b71083","title":"Kungsholm Fortress","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:39:32.572433+00"}
+{"place_uuid":"2f633208-1c2f-540d-8c93-e8bf98fc2d53","title":"Alsgruvan","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:28:15.965563+00"}
+{"place_uuid":"2f9f13c6-34ae-5e59-932b-89a371bf89ca","title":"Vallonsmedjan Österbybruk","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:47:13.523646+00"}
+{"place_uuid":"2ff24e16-841a-50a7-be29-53f5d8651943","title":"Bispberg Gruvlave","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:34:05.944448+00"}
+{"place_uuid":"301a0c77-6c08-5f68-b239-5678d91f2192","title":"Drottning Sofia Magdalenas sluss","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:43:34.354109+00"}
+{"place_uuid":"3026c03a-4401-5c1a-9642-aadc12f75a7e","title":"Kallokkajoki stenvalvbro","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:55:21.591603+00"}
+{"place_uuid":"30600841-e197-5473-b187-348e0ae49529","title":"Rotensugnet","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:44:54.998994+00"}
+{"place_uuid":"315ba46d-767e-5228-8a0e-c8574ed91ec7","title":"Prästakällan","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:15:08.291754+00"}
+{"place_uuid":"31bc2631-c691-510a-9f17-ec0924b35aff","title":"Gladö Kvarns kvarnruin","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:38:17.594186+00"}
+{"place_uuid":"321c6402-5a60-5d2f-9bfb-ab4f5567af36","title":"Galgbacken Piteå","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:46:17.860826+00"}
+{"place_uuid":"323fc745-257f-51c1-92aa-435464c8043a","title":"Sjötorp lock 7-8 (Göta kanal)","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:20:07.74734+00"}
+{"place_uuid":"32726baf-cc7b-5b5c-b49a-c06f9f6a5468","title":"Segeltorps LV ställning","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:19:45.921249+00"}
+{"place_uuid":"3404c62a-2f6b-50d2-8332-3f3e976ba327","title":"Gullbron (Runriket)","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:38:22.838084+00"}
+{"place_uuid":"341c5744-b095-576e-ac27-632cfccff268","title":"Indnäs fäbod","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:52:53.165715+00"}
+{"place_uuid":"343e1ce8-b62e-5433-9e52-b8458497a62a","title":"Hasslö Bunker","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:50:16.143521+00"}
+{"place_uuid":"34fe7086-5dd7-5494-b4a4-72fdbd23aec6","title":"Stentorn","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:26:10.311766+00"}
+{"place_uuid":"35326e08-b87f-566c-9a68-2550bdaa6dfc","title":"Tvedöra Minnessten","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:34:06.179599+00"}
+{"place_uuid":"35f11c49-2b26-590c-85b6-012619e753cc","title":"Minstation Torhamnaskär","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:06:47.669961+00"}
+{"place_uuid":"360193f6-e967-54c7-bdb1-0148d48d3396","title":"King's Hall","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:56:49.433733+00"}
+{"place_uuid":"361c1c26-4c83-4216-a116-340e524af512","title":"Änges bildstenar","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 10:14:42.576385+00"}
+{"place_uuid":"36a06628-b005-5921-b32f-a6480cdfe832","title":"Minnessten Avrättningsplats Lappvattsheden","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:06:00.89549+00"}
+{"place_uuid":"36c7d407-4b62-466e-ad08-984021776717","title":"Kuhögen Gånggrift","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-07 09:40:53.20195+00"}
+{"place_uuid":"36e53be0-43c4-5a6f-95ee-5a94f2090376","title":"Skrape-Finas Backstuga","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:22:04.885738+00"}
+{"place_uuid":"36eebc39-e703-56b6-8549-7698431fcf7a","title":"Sjötorpsfortet, Södra Fronten","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:45:31.241896+00"}
+{"place_uuid":"370247ce-9ad6-5b41-b7f2-56759e81e3fb","title":"Kanonudden","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:55:49.50172+00"}
+{"place_uuid":"37353a07-671c-5c06-8469-8962e5106f79","title":"Observationsvärn nr 741","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:12:31.245716+00"}
+{"place_uuid":"37cdbc4a-63ce-5e6a-b3e5-87d3e01bbab5","title":"Hängesten","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:52:36.72437+00"}
+{"place_uuid":"3844282e-d9cf-5e54-ad20-88c05d4f01ba","title":"Vikingatida gravfält - Mounds of Sollerön","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:47:23.921965+00"}
+{"place_uuid":"38956188-4200-5f61-8d97-e023e70009c7","title":"Old military bunker","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:13:03.730199+00"}
+{"place_uuid":"398e13c9-7799-52b5-810b-4e0eb59175f3","title":"Snarkstenen","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:23:28.643942+00"}
+{"place_uuid":"3b00494f-0f28-53b4-a3c0-c836f21a3981","title":"Enåsengruvan","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:44:08.386857+00"}
+{"place_uuid":"3b5eb4b9-a3c6-5b1c-8936-3570f82b44ab","title":"Degerbergsfortet","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:37:48.849804+00"}
+{"place_uuid":"3bd09c71-25a4-53db-8207-e99868408a2f","title":"Bunker från 2a världskriget","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:36:36.854723+00"}
+{"place_uuid":"3be4ed43-69f7-53c7-977b-a8464a89e52c","title":"Vickleby Väderkvarnar","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:47:20.502128+00"}
+{"place_uuid":"3c3858f8-7bf7-5d35-b428-a847dfb1ee11","title":"Birger Jarl's Tower","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:33:56.094174+00"}
+{"place_uuid":"3c6a03cd-3518-5155-8c53-a987661b7d35","title":"Valls kalkbrott","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:35:42.284289+00"}
+{"place_uuid":"3cf4d381-fa08-5304-8f8b-8fb1e6042e59","title":"Viking grave field","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:37:01.079848+00"}
+{"place_uuid":"3cf68c86-b7f0-5052-96d0-bfb466d39048","title":"Runsten","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:17:12.601276+00"}
+{"place_uuid":"3d1a5723-12d4-5571-95b6-7d23b190eeeb","title":"Gylsboda quarry","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:49:18.163866+00"}
+{"place_uuid":"3d3fb40c-b062-55f4-8b37-5f274a1d27f8","title":"Sjöänd skans","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:20:26.13713+00"}
+{"place_uuid":"3dfae0ff-410e-5fce-baec-f7f73df05230","title":"Stenvallen - Historisches Gehöft und Ausflugsziel","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:26:15.361594+00"}
+{"place_uuid":"3e585e4b-0a37-5a8d-87d3-73348b6f1b84","title":"Lilla Bjärs gravfält","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:39:57.564824+00"}
+{"place_uuid":"3f3063ab-3f72-5d88-af97-937d6b34b4b7","title":"Midsommargrottan","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:05:28.717236+00"}
+{"place_uuid":"3f34edc0-86f7-57cb-a88b-aca76c904fea","title":"Bengtsfors slusstation","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:33:27.056645+00"}
+{"place_uuid":"3f904a46-d72f-5b40-a9e8-12a5adc177b9","title":"Tornvallen","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:32:23.749308+00"}
+{"place_uuid":"3f9cb49f-4f4c-5866-be78-80521d519f6c","title":"Alfreds Källa","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:28:03.264158+00"}
+{"place_uuid":"3fb6bb77-7764-5320-aba7-2a4d50d29a23","title":"Lidböle fäbod","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:01:40.660012+00"}
+{"place_uuid":"3fbb797d-94f4-584b-9bef-a32f6879f75a","title":"Blybergs nya porfyrbrott","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:34:37.086422+00"}
+{"place_uuid":"3fcf44c6-6b6d-5ac3-8495-3c69cdf63002","title":"Korshamns jättegrytor","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:39:29.412613+00"}
+{"place_uuid":"3fcff8ff-57de-5e1b-984f-2071ccdd47ad","title":"Billingsfors Lock","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:33:49.041754+00"}
+{"place_uuid":"3ff0936c-1acc-45c3-9723-8a54ae952c9a","title":"Hedningahällan","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 10:14:42.67368+00"}
+{"place_uuid":"40c2a2b9-1e71-584e-b992-1a465af02aaa","title":"Visborg","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:47:29.084305+00"}
+{"place_uuid":"40d22ba8-778c-599c-b1e8-67470a2ff259","title":"Harakers Mill","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:50:10.914074+00"}
+{"place_uuid":"40f3a585-d5fa-582d-b1f2-0fa0af0e6dda","title":"Tantolundens luftvärnsställning","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:46:47.341977+00"}
+{"place_uuid":"41b142b9-5fe0-5983-aef3-a71f44a6ebc9","title":"Karlfors Kvarn","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:56:03.814614+00"}
+{"place_uuid":"41f9bafd-d034-5312-af5d-91fb288b70c8","title":"Läckö Castle","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:40:09.894241+00"}
+{"place_uuid":"4238335a-0374-510e-9fca-fb6d168c4541","title":"Södertos fortress","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:46:35.276833+00"}
+{"place_uuid":"427a4ab7-4010-5ccf-8821-427b051e2115","title":"Erdalens kolmila","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:44:13.371975+00"}
+{"place_uuid":"42cf1e28-63a4-5082-9ce7-08534485a384","title":"Gathenhielmska Stenen","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:47:19.693707+00"}
+{"place_uuid":"4310aae7-f0e8-54bb-9374-47b6cf841979","title":"Bombkratern Borgholm Slottsskogen","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:34:55.791188+00"}
+{"place_uuid":"4367bdf6-833e-5d21-a2a7-cf0b487f6274","title":"A-Borg","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:25:31.278305+00"}
+{"place_uuid":"437bf89f-206b-54b4-a4a1-c9e373279961","title":"Batteri Killeberget","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:32:21.156906+00"}
+{"place_uuid":"4400f478-6a06-561d-9ba2-b4e47abc2bb8","title":"Svea, Göthes och Vendes slussar","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:28:33.141949+00"}
+{"place_uuid":"44c3bb74-e183-577e-a061-c078ea2b20c6","title":"Helvetesfallet","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:38:31.964541+00"}
+{"place_uuid":"45154023-4525-5bb7-8544-04fe96ea9ced","title":"Måndalsfortet","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:43:00.795882+00"}
+{"place_uuid":"4551c814-f59a-5a2f-a714-0618de732863","title":"Direktörsbostaden Sala silvergruva","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:42:48.812355+00"}
+{"place_uuid":"4738d5b8-66a0-5a94-b9a3-dd012335d55a","title":"Hällristningarna i Långeviksdalen","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:52:19.230204+00"}
+{"place_uuid":"47f16543-999b-5eb2-b9d8-67ea9b089d02","title":"Struve Geodetic Arc - Jupukka","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:46:25.970729+00"}
+{"place_uuid":"47febbb7-ca72-5ec1-aaea-01f7b554ed9b","title":"Älvsbyns kyrkstad","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:39:11.445946+00"}
+{"place_uuid":"483277e8-41cc-5daf-b83a-4c2b4956e777","title":"Fullersta Kvarns kvarnruin","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:38:08.204515+00"}
+{"place_uuid":"4848223d-41b5-5319-acbf-75f991278db7","title":"Hällby slussar","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:38:41.120279+00"}
+{"place_uuid":"48f00e8f-1e0e-5ed7-9e74-ca075348b8cb","title":"Norn iron works","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:43:08.270991+00"}
+{"place_uuid":"498fddb1-faea-5600-857b-e830cb24323e","title":"Pjäsvärn nr 740","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:14:43.364458+00"}
+{"place_uuid":"49e9bb61-fffd-558c-82cc-963007ba43f0","title":"Tvillingkvarnarna","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:34:11.385097+00"}
+{"place_uuid":"49fab075-13f9-5fc7-88c6-67fa14e07858","title":"Stenkyrkan i Skog","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:25:44.580398+00"}
+{"place_uuid":"4a152c25-efdd-5677-a71f-d4620a98e110","title":"Dalmansporten","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:37:46.319798+00"}
+{"place_uuid":"4a4e06bd-f3b9-5d19-9f67-f7ef3db04a10","title":"Kommandoplats Batteri Stenbrottet","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:39:27.29448+00"}
+{"place_uuid":"4a51ca1f-d5a8-54ac-b070-0a566cc86aa4","title":"Skans Hamrafjäll","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:20:49.146537+00"}
+{"place_uuid":"4a5e63f0-86de-4fbc-8d16-4589eec0ef6e","title":"Fjälkinge Gånggrift","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-07 09:53:58.124853+00"}
+{"place_uuid":"4ac78bdd-5daf-5733-b7b3-6993d834f9dd","title":"Magelungsfortet, Södra Fronten","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:44:16.389469+00"}
+{"place_uuid":"4b3d8553-5af7-5b06-8cc8-4caf7023563d","title":"Kyrkstenarna","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:59:55.409615+00"}
+{"place_uuid":"4b3e3a64-d37f-5153-bf05-f41646398ed8","title":"Bombnedslag i Slottsparken","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:35:02.05685+00"}
+{"place_uuid":"4b94829d-06bd-5808-bf59-2de8922487c2","title":"Monument Slaget vid Lund","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:07:12.667595+00"}
+{"place_uuid":"4bc5ed12-07f0-52e1-89f1-9bc292f83100","title":"Trollhättan's Locks","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:47:01.67818+00"}
+{"place_uuid":"4cd2d203-d8f3-5e87-856c-b74688f8676b","title":"Fiskarporten (Fisherman's Gate)","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:44:37.721492+00"}
+{"place_uuid":"4cff3651-dfa6-531f-911b-dc9fd773de89","title":"Södra Fronten, Gudö, Gammalt skyttevärn","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:46:40.449718+00"}
+{"place_uuid":"4d0fcc52-0899-516d-8d7d-e2192fbe9f68","title":"Sala Silver Mine","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:45:15.161774+00"}
+{"place_uuid":"4d3eb8f7-9684-5805-9c4f-dec0e4d652ac","title":"Old saw mill","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:13:07.6443+00"}
+{"place_uuid":"4d721179-6975-5924-89cc-9303a94454d4","title":"Alhammars grottor","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:28:08.422139+00"}
 {"place_uuid":"4e089dde-0b5f-4917-9dfa-bdca44130fab","title":"rest av Skeppssättning","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-02 11:04:48.610549+00"}
-{"place_uuid":"68f85768-dd84-43ad-b4f7-a7bfa64d9fcd","title":"Saxholmens borg","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-01 13:28:18.345311+00"}
+{"place_uuid":"4e260cc8-bac3-5742-b194-00a0c528ae1c","title":"Bunker 683 PV, Skånelinjen","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:36:27.678575+00"}
+{"place_uuid":"4e4337e5-5a42-5912-b1ea-56514d8d0e45","title":"Hajstorp lower lock","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:38:28.435048+00"}
+{"place_uuid":"4e667af6-1657-59d6-a338-014eb2a57d84","title":"Björnråkskällaren","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:34:32.088862+00"}
+{"place_uuid":"4e9f9a5f-2129-5c1a-be6c-383ff96c649c","title":"Sågverkstrampet","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:29:12.93434+00"}
+{"place_uuid":"4ed26ab7-3c6b-548c-a677-12366f5c866f","title":"Oscarsborg","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:44:32.62215+00"}
+{"place_uuid":"4ed4ee38-b377-58f7-9486-15406f939bbf","title":"Sätra anrikningsverk","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:28:57.351396+00"}
+{"place_uuid":"4eebafe6-1b58-55d0-9f86-8c78eaefefc6","title":"Jädraås Bruk","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:39:02.187409+00"}
+{"place_uuid":"4ef35135-01ed-509a-b191-7dd132c9d39b","title":"Mellersta Batteriet","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:44:20.986618+00"}
+{"place_uuid":"4f7e0102-56b4-5876-8fd6-2d422d864116","title":"Big cairn at the top","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:33:43.461811+00"}
+{"place_uuid":"4f98ac61-fa1b-5660-bc3f-6c745e0e8008","title":"Brådtom sluss (Göta kanal)","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:36:16.641761+00"}
+{"place_uuid":"5111a404-26d3-56ea-bc04-3ebf74781125","title":"Gamla Bäckegruvan","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:38:12.364443+00"}
+{"place_uuid":"5168bf18-ac48-5135-861e-8207617214a1","title":"Kalkugnen","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:55:06.906599+00"}
+{"place_uuid":"51fdda18-1023-58c4-9313-48f0265aec59","title":"Säby Gravfält","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:28:36.369595+00"}
+{"place_uuid":"522eb612-f073-5866-84ef-a2f316449cde","title":"Övre Slussen (Sluss nr 2)","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:47:58.39177+00"}
+{"place_uuid":"524b7c99-606c-5aa5-949d-1d9df3a62a03","title":"Minnessten över Slaget vid Tamåsen","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:44:29.912752+00"}
+{"place_uuid":"528da951-c801-5b28-98d3-a28e13912cd9","title":"DR 262 Fosiestenen","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:37:52.48522+00"}
+{"place_uuid":"52fab34e-e91e-5cc8-9f9c-1c4111ccf6a2","title":"Grottor","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:48:37.422338+00"}
+{"place_uuid":"53232a7d-a1a0-58ec-b4ea-9c3805742c74","title":"Visby Town Wall","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:47:31.072113+00"}
+{"place_uuid":"53501f48-1639-530a-892e-60f4ce2d6afe","title":"Näckådalsågen","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:11:58.788801+00"}
+{"place_uuid":"53a034ab-2df7-51f6-a72b-1001d8f28dae","title":"Kvarntornet (The Mill Tower tower)","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:59:34.089023+00"}
+{"place_uuid":"53bf36b6-7fb7-5933-9185-a334fbaab346","title":"Glans Kalkbrott","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:47:51.686596+00"}
+{"place_uuid":"54bf9f9d-41c1-567c-ae5f-e4c41e283148","title":"Slaget om Basteberg","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:22:50.436847+00"}
+{"place_uuid":"56087f63-09ed-50f8-93d4-26e81e12306e","title":"Hanakällan","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:50:05.040926+00"}
+{"place_uuid":"56497f94-a893-51a1-87ee-5630640b788c","title":"Stierngranatska Familjegraven","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:26:26.587504+00"}
+{"place_uuid":"564b9225-b346-51e2-80eb-dc86662fe811","title":"Drottning Kristinas Jaktslott","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:37:54.880036+00"}
+{"place_uuid":"570de91c-0306-5901-9e03-331205aaa5fe","title":"Kyrkbinge Såg","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:59:51.384092+00"}
+{"place_uuid":"57a1caa3-523d-5d3c-9128-668808790561","title":"Långhus","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:40:13.42945+00"}
+{"place_uuid":"57cfe631-58c9-5f02-84b8-acfc0ff8f793","title":"Torgbrunnen","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:32:06.557349+00"}
+{"place_uuid":"5812f78f-a2ef-5f07-be2c-825f83bfab3f","title":"Batteri Jutudden / Kommandobunker","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:32:18.703444+00"}
+{"place_uuid":"5842c440-b672-5549-a39b-155828470a98","title":"Mångbro Skvaltkvarn","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:09:59.291623+00"}
+{"place_uuid":"58694a9a-0cb3-58c0-94c6-6361fbc2929f","title":"Spräckaretorpet / Granatgruvan i Sjönevad","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:24:29.479371+00"}
+{"place_uuid":"58d3a53f-f16b-54c9-be9e-50a97cea1e81","title":"Kungshögen","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:58:55.230137+00"}
+{"place_uuid":"5947cef1-835d-546c-8a8c-f7a920810b44","title":"Minnessten över Slaget vid Landskrona 1677","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:44:29.093565+00"}
+{"place_uuid":"599420b6-d06e-5b46-9565-e046916a4b89","title":"Medical History Museum in Helsingborg","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:44:18.594557+00"}
+{"place_uuid":"599e0a68-75dd-54f9-bc07-8a531ab1d796","title":"Tegelbrukets sluss (Göta kanal)","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:46:48.131013+00"}
+{"place_uuid":"59c682db-0c1f-58b2-8678-1aee0a64d753","title":"Dösen vid Grindarna","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:43:43.572982+00"}
+{"place_uuid":"5a0e5260-012c-4419-85ea-f08bf2ff80c7","title":"Djurstygabackens hällkista","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-07 09:56:44.676488+00"}
+{"place_uuid":"5a3e25b8-2c60-53a3-9560-7a55b9b5d24f","title":"Ålafiskaren Vitemölla","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:39:32.366538+00"}
+{"place_uuid":"5b3b54fd-5b7c-53e1-94e6-c7ddad9bd8a9","title":"Trollhättan Water Tower","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:47:00.832947+00"}
+{"place_uuid":"5b8764ec-5a31-5e68-9077-a0b22d202283","title":"Sagobygden Tullbergs grotta","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:18:40.773991+00"}
+{"place_uuid":"5bc6571f-a04d-533f-8aa2-3d78d53b8e46","title":"Ålkistans skans","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:39:43.891792+00"}
+{"place_uuid":"5cb813e8-2990-5de6-9b2d-6347cc3421fd","title":"Norrkvarns övre sluss (Göta kanal)","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:11:23.837003+00"}
+{"place_uuid":"5d239177-1f5f-5b48-9564-0c3166efcde2","title":"Galgbacken","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:46:12.679791+00"}
+{"place_uuid":"5f2474d3-698e-5bc4-bc13-47e3782327da","title":"Stakholmens Luftvärnsställning","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:46:06.336929+00"}
+{"place_uuid":"5f414d55-c1c6-58f3-82c0-3792dff2a6de","title":"Minnessten","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:05:55.460137+00"}
+{"place_uuid":"5f4972df-ba78-5132-9101-86dafb77ac6f","title":"Mjösjöfortet","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:07:02.2035+00"}
+{"place_uuid":"5f62a44a-bdd4-5143-8caf-5841b9bde541","title":"Skurverket i Jordhamn","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:45:44.503881+00"}
+{"place_uuid":"602f9caa-3f87-5934-880a-e1d10ac6290b","title":"Kårebolssätern","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:39:43.800978+00"}
+{"place_uuid":"608e725b-3606-554a-bd9b-3bba60e3fbcd","title":"Stenebo gruva","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:46:10.07915+00"}
+{"place_uuid":"60efa92a-8fb7-5dc1-b56b-f802733be14a","title":"Oscarsvärn","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:13:53.172025+00"}
+{"place_uuid":"612aeb06-82c4-5594-8cb5-fbe14d66433f","title":"Carl Johan lock","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:37:00.004322+00"}
+{"place_uuid":"61836ddc-f1a0-5a4c-a49b-d446ea1dd86a","title":"Holmeja sågverk","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:51:16.444194+00"}
+{"place_uuid":"61aa03c3-12c4-5330-bc94-88ae3c7c517a","title":"Vikskvarn","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:47:25.608465+00"}
+{"place_uuid":"62226f11-0f82-508b-92b2-63f834e6d35a","title":"Höstena Källa","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:38:49.476446+00"}
+{"place_uuid":"6226b1b3-457e-5270-9f37-a2b2db36ca08","title":"Södervärnstornet","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:46:37.262079+00"}
+{"place_uuid":"623d2612-652c-5021-87b3-d98685b0085d","title":"Stenbro fyra valv Seglora","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:25:25.958727+00"}
+{"place_uuid":"623eada6-53c4-5f72-ab57-20be20f85ed8","title":"Grottan vid Husberg","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:48:31.918508+00"}
+{"place_uuid":"626909a5-06fa-5d9c-bdc2-6f4294038840","title":"Flengruvan","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:44:41.949076+00"}
+{"place_uuid":"6301097e-e57c-5eb8-8be5-6557a918e36d","title":"Lucifers Kyrka","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:40:08.447278+00"}
+{"place_uuid":"63ef018e-ff51-5645-aded-6713387daacc","title":"Ådalen 31-monumentet","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:47:46.439089+00"}
+{"place_uuid":"6425132d-63f9-5062-a346-e3b94f4aefce","title":"Casimirsborg","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:37:39.994528+00"}
+{"place_uuid":"6432149e-924f-5403-bfc5-f1119e2422df","title":"Tomsarve kvarn","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:31:55.408534+00"}
+{"place_uuid":"6441b17a-f7fb-5548-a4cc-b7118801af99","title":"Scoutmonumentet","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:19:34.660012+00"}
+{"place_uuid":"6487ed41-6488-53ed-944e-13ca4b63e183","title":"Jungfrutornet","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:54:01.132141+00"}
+{"place_uuid":"64f1f7bc-a375-50b3-9926-cc40c378658e","title":"Brötastenen fornminne parkerinng","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:36:22.407041+00"}
+{"place_uuid":"651a794a-b4d8-5689-a8f2-c4c73962d862","title":"Trollkäringeskogen","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:33:32.729459+00"}
+{"place_uuid":"6596feb9-aa45-5ac3-8170-913f40d2853d","title":"Godnatt Fortress Tower","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:38:18.701666+00"}
+{"place_uuid":"65c3083f-39cb-52bf-b067-52290aac4d6a","title":"Forsemölla","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:38:04.185666+00"}
+{"place_uuid":"6604887b-1589-5436-9a1c-dba234ab018a","title":"Gammelströmsfortet, Södra Fronten","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:47:10.670387+00"}
+{"place_uuid":"6606821f-926c-5be2-b2a9-c0ad995fcbf4","title":"Skyttevärn & bunkrar, Vaxholmslinjen","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:45:45.524509+00"}
+{"place_uuid":"6688de36-e1a9-5cf5-9c98-d433d5b11e8f","title":"Vaholms brohus","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:47:10.062256+00"}
+{"place_uuid":"66c7c50e-6839-50cb-854c-49e83b9e07c1","title":"Marstrands batteri","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:04:44.279484+00"}
+{"place_uuid":"66ca8011-5e9d-59e6-b7c9-8a215b4df8bf","title":"Ålaryds Kvarn","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:39:37.993255+00"}
+{"place_uuid":"66e6d6d9-1451-5a73-b908-fd6b1ec2db09","title":"Den norska minnesstenen","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:42:42.684343+00"}
+{"place_uuid":"670dac98-021c-5a90-a189-996ef17db007","title":"Sördalens konsthjul","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:46:45.481032+00"}
+{"place_uuid":"67544124-268e-5dd2-b207-d6b6013c9c4e","title":"Rindö Redoubt","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:44:51.427615+00"}
+{"place_uuid":"675d5d72-ea6f-543c-ab6b-9b7c13e2dbb2","title":"Skanörs stubbamölla","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:45:37.977133+00"}
+{"place_uuid":"678cfbc6-7f23-5bc8-8242-706c2a11c823","title":"Lappsten","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:01:12.326223+00"}
+{"place_uuid":"68af571a-b2b1-53d4-8136-4c010a001ad2","title":"Jättetallen","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:54:59.749533+00"}
+{"place_uuid":"68d39fbc-39f1-551a-bc00-aca909b9d864","title":"Radiumkällan Tyringe","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:44:47.173862+00"}
+{"place_uuid":"68f85768-dd84-43ad-b4f7-a7bfa64d9fcd","title":"Saxholmens borg","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 10:14:43.039184+00"}
+{"place_uuid":"69be6492-eb83-5ab3-9855-ba01d9070bf2","title":"Vrå Fornby","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:47:34.486775+00"}
+{"place_uuid":"6ae88186-f292-532e-817e-1aa92a3bcba3","title":"falekvarna","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:37:58.415466+00"}
+{"place_uuid":"6aeae778-8386-5baf-9e33-cb4e92e6714d","title":"Runestone U394","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:16:55.125002+00"}
+{"place_uuid":"6b312072-e741-50e8-a030-c6ab43c7ec1e","title":"Gundrastorps kvarn","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:38:24.709073+00"}
+{"place_uuid":"6b38c5e6-2b4c-5ed8-88f6-9f684c01fa5a","title":"Försvarsplats Gråberget 1","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:45:50.579876+00"}
+{"place_uuid":"6b9e54b4-2250-532d-88a9-07362758c821","title":"Brokinds sluss","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:35:58.703666+00"}
+{"place_uuid":"6c028928-df69-571b-a846-d92ca0beb4ab","title":"Ålsätra Slussvaktarstuga","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:47:48.986447+00"}
+{"place_uuid":"6c086700-2fd2-504a-a369-e1f4e4ffef90","title":"Kvarnen Tre kronor","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:59:23.719834+00"}
+{"place_uuid":"6c126415-1f8d-5165-bf16-ff9df48e15a0","title":"Holkekärrnäs skans","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:51:10.279528+00"}
+{"place_uuid":"6cfae176-2320-5ce8-b723-ed35f73a798b","title":"Arholma Coastal Artillery Battery","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:28:38.424685+00"}
+{"place_uuid":"6d29177d-8080-56d2-bf9a-bdc05054cbd3","title":"Röna Gruva","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:17:45.889727+00"}
+{"place_uuid":"6de60d44-e0b6-5b31-b65e-81b57698a659","title":"Nya Lapphyttan","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:43:14.60513+00"}
+{"place_uuid":"6e5a8cce-d7db-50ef-ac8f-1398fa0758ae","title":"Skansar i Traryds Hembygdspark","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:20:58.944828+00"}
+{"place_uuid":"6e7f6c73-df14-5dc2-b848-be528e53c6ca","title":"Skansahålet","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:20:53.21574+00"}
+{"place_uuid":"6e844ac9-5584-51e3-9265-93936cf23026","title":"Jättestuberget med grotta och utsiktstorn","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:39:07.128348+00"}
+{"place_uuid":"6f322b64-7a7c-5444-b1cf-c793359354bb","title":"Stekenjokk Mine","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:46:08.257301+00"}
+{"place_uuid":"7013808b-66a1-52d4-98fb-e4f765ef6dff","title":"Östra Tommarps Kalkugn","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:40:53.044308+00"}
+{"place_uuid":"7084bd5b-fac7-5f6a-9b9d-b332bd50dc27","title":"Sankt Göransporten","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:19:13.52225+00"}
+{"place_uuid":"718536df-22c8-5eea-92f8-01b5999b226c","title":"Arvidsbergs koppargruva","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:28:44.083992+00"}
+{"place_uuid":"7210ecca-94d3-5045-9dae-dbbe1e13381f","title":"Kalmar Castle","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:39:13.021033+00"}
+{"place_uuid":"721fdc14-fd16-51c1-97c4-41ca9d3df071","title":"Mem lock","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:44:22.929037+00"}
+{"place_uuid":"73a480c0-66a1-575c-bb01-1ced54a301fc","title":"Slaget vid Lund 1676","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:45:46.802768+00"}
+{"place_uuid":"745f5bc4-71ec-5fa9-bbbc-e5fd683bdd1b","title":"Broby Bro","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:35:53.348046+00"}
+{"place_uuid":"75707dd2-eba9-5513-8c6e-51b92d166cbc","title":"Schisshyttans Herrgård","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:45:24.676045+00"}
+{"place_uuid":"758288c2-04a7-54a6-ade8-fcc1b58c0204","title":"Nya Porfyrverket i Västäng","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:43:17.512707+00"}
+{"place_uuid":"75978ff6-f9b2-5b1a-b860-17e7f863c528","title":"Skansen Sjulsåsen","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:21:14.770248+00"}
+{"place_uuid":"760d16f7-8349-57ae-a2bb-7936d7758d45","title":"Bautastenen","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:33:20.496683+00"}
+{"place_uuid":"7725dad9-8efe-5bd9-8541-8a3cdda9c367","title":"Rödberget Fortress","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:45:07.729621+00"}
+{"place_uuid":"77442104-da51-560c-8952-62ba63102354","title":"Häxberget","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:38:47.210062+00"}
+{"place_uuid":"778c6dfc-309b-5a11-b5da-70ec2a89ddd2","title":"Ödeplats","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:40:08.146274+00"}
+{"place_uuid":"77dd1f45-4301-58db-8aaf-baed6b237ab0","title":"Gillberga Gryte - Naturminne, Blockstensgrotta","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:47:38.136932+00"}
+{"place_uuid":"77f1947b-3539-51a2-94c6-8caadd4d3687","title":"Töcksfors Lower Lock","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:47:05.074784+00"}
+{"place_uuid":"78334500-7151-5908-b299-58c27f103b17","title":"Slaggvarp","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:23:04.026764+00"}
+{"place_uuid":"787d083f-f91a-554c-9f03-41009bb85522","title":"Stora Trollkyrkan","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:46:24.396354+00"}
+{"place_uuid":"78cd1ec5-2499-5a0b-8893-7f0ff4b9f912","title":"Stomkvarnsleden","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:26:42.037553+00"}
+{"place_uuid":"79a923ea-3999-56c6-89a4-efb98ea1e793","title":"Jättens port","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:54:43.278345+00"}
+{"place_uuid":"79db66ae-bb78-5090-9f83-dbee88413019","title":"Skvaltkvarnen i Svalilt","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:22:23.179335+00"}
+{"place_uuid":"7a307e76-0df4-5004-b926-dbcb028f2f71","title":"Anglestue grottor","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:28:21.382024+00"}
+{"place_uuid":"7a36b610-d65c-5cc4-992c-e19149b3eaef","title":"Lasses Grotta","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:39:53.182226+00"}
+{"place_uuid":"7a41ca41-27b8-5f56-9c69-ccb6f36029dc","title":"Gruckå Kvarn","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:48:42.870871+00"}
+{"place_uuid":"7a45b416-0d41-5858-b70f-6db307324783","title":"Skansen Alanäs","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:21:01.761592+00"}
+{"place_uuid":"7a5ec3cc-0597-58be-8982-d4a2308a1d67","title":"Labyrinten på Rörö","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:00:30.942234+00"}
+{"place_uuid":"7b05c74e-5457-5236-8546-62335203c33d","title":"Hällristningen, Simrislund","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:38:45.157355+00"}
+{"place_uuid":"7baa09de-1bd5-5dd8-bd69-f39416c694a7","title":"Foskdalsvallen fäbod","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:45:02.21976+00"}
+{"place_uuid":"7bfcd09d-b218-5196-9048-28917f312c88","title":"Kröckle kyrka","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:58:30.70664+00"}
 {"place_uuid":"7c2ce87f-f020-48c4-a2ed-da38846835a3","title":"Saivaara stenåldersby","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-01 13:39:28.621702+00"}
+{"place_uuid":"7c6438fa-94b2-5f6c-b745-f69d44c1a555","title":"Karlsborg Fortress","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:39:18.114414+00"}
+{"place_uuid":"7cbb2a1d-7226-5dfa-8ad5-16bfb3306025","title":"Arendala tingsplats","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:28:29.699274+00"}
+{"place_uuid":"7cdc73cd-17a5-517f-81f1-3db573c928dc","title":"Trollskogen","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:33:44.295272+00"}
+{"place_uuid":"7cff20b7-676c-52a7-845e-5cbd1a76972b","title":"Minnessten över Getåolyckan","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:44:28.327289+00"}
+{"place_uuid":"7d3b6759-9a62-56db-9a4b-2954a9d321fc","title":"Prekebogumman","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:14:58.06724+00"}
+{"place_uuid":"7d4852aa-7fa0-59d2-93f5-d2b0462ea6be","title":"Bohusläns största domarring","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:34:48.497496+00"}
+{"place_uuid":"7da6c8fb-311a-5e6a-a0f4-21dd76409f08","title":"Snäcke Lock","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:45:56.044211+00"}
+{"place_uuid":"7e0f5bd2-5247-5b8d-b657-0e0bd7278fa6","title":"Särna Skans 221","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:28:52.134406+00"}
+{"place_uuid":"7e61297c-4baf-5984-a132-be38cd9c55f2","title":"Hyngelsböle Sågverk","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:51:49.20188+00"}
+{"place_uuid":"7e632f96-f18b-5f37-8bc3-2bdc5d043a03","title":"Flögsjöbergets fäbod","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:44:46.184462+00"}
+{"place_uuid":"7fcaebc6-bf80-5e10-ac89-80fed26bb9f3","title":"Kaupung’s Prehistoric Castle (fort)","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:56:38.913069+00"}
 {"place_uuid":"7ffb74c3-4c8c-4dea-ae06-cc8667ce6aa9","title":"Hyttruin","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-01 13:33:01.710281+00"}
+{"place_uuid":"804eed99-3c51-5a40-b384-2db7b8ffa73f","title":"Ulseröds kvarn","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:34:48.222289+00"}
+{"place_uuid":"8186e1ad-d0a0-5e7b-b726-0a1b5f400581","title":"Isgrotta","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:53:07.461491+00"}
+{"place_uuid":"81bbb9ba-6334-5cc6-af7f-4ad7e4ea6985","title":"Trollkullahålet i Stenkumla","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:33:26.634322+00"}
+{"place_uuid":"81bc6195-a159-5bd4-aa6d-4994cf0ef7f7","title":"Södra Fortet - Vabergets Fästning","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:46:38.866722+00"}
+{"place_uuid":"81e6ab94-44d9-5955-85be-87b129419ba2","title":"Gessi fäbodar","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:47:31.039194+00"}
+{"place_uuid":"829afc91-16a5-53ab-9935-2ada5a5c20a2","title":"Langhammars Windmill","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:39:51.523229+00"}
+{"place_uuid":"82c907e4-6201-5844-94a0-56c5d5f73dcb","title":"Slussen","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:45:52.662093+00"}
+{"place_uuid":"82f8f018-4cdd-5790-9e70-affcf759d0ad","title":"Bastion Gräsgården","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:31:02.38477+00"}
+{"place_uuid":"8358c1d8-0c8c-5e4a-888b-4c79578e6a6c","title":"Eldstaden","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:43:48.244031+00"}
+{"place_uuid":"8378f9a9-5366-4c03-b3d4-3081147766a2","title":"Leppäkoski hytta","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 10:14:42.724337+00"}
+{"place_uuid":"8391f8c9-215b-5bc3-b7e2-c5cfbf049ca4","title":"Batteri Torslanda / A3","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:32:31.559879+00"}
+{"place_uuid":"842c2de3-7c3e-528f-9b1a-fc3a963dbdb0","title":"Runestones of Högby","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:45:01.861527+00"}
+{"place_uuid":"844982ee-65eb-5036-8bdc-4fb5532dd34b","title":"Brattfors Hytta","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:35:40.60012+00"}
+{"place_uuid":"84e6d8a5-a132-56c7-a35d-1633a5aaad36","title":"Västra Skogs skvaltkvarn","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:38:36.550827+00"}
+{"place_uuid":"8526dbbd-b964-5bbc-a3c5-f3525a32d987","title":"Sikhjälma Gammelhamn","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:19:59.533681+00"}
+{"place_uuid":"852d88b6-9b15-5861-b619-b0b38169b3aa","title":"Skansen city quarters","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:45:34.636169+00"}
+{"place_uuid":"85d4f04e-95e0-55d4-9ff2-2d5902a8d648","title":"Drakmärket","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:43:19.80474+00"}
+{"place_uuid":"861e6a3b-c1da-54f7-b5f2-379259364014","title":"Torkels Gömma","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:32:12.556435+00"}
+{"place_uuid":"8645b794-a099-5787-9a54-4e0828dffdc3","title":"Njutfallet (Kvarnbäcksfallet)","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:10:33.794055+00"}
+{"place_uuid":"86d94b72-4d31-5c80-88f5-9bfd29d3cd7f","title":"Monumentet av Engelbrekt","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:42:51.552262+00"}
+{"place_uuid":"879a2957-b332-587b-be7b-d6970358e1e4","title":"Dackestenen i Rabbe","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:41:51.032534+00"}
+{"place_uuid":"87e1ea2b-ac90-500b-aa49-c71308c9d9ab","title":"Hjälmare docka","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:50:59.534223+00"}
+{"place_uuid":"87f79def-d348-5387-bb52-b08219547331","title":"Vargklämman","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:35:56.374213+00"}
+{"place_uuid":"881effb8-c359-5940-a994-83abbb476eb5","title":"Hjortahammars gravfält","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:38:35.153029+00"}
+{"place_uuid":"88bb0571-aa4e-5bcd-888f-6012f21a1e1a","title":"Töcksfors Upper Lock","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:47:05.942398+00"}
+{"place_uuid":"88cc9163-aea7-507b-bb70-6740ad7e0914","title":"Trollkärringeberget","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:33:37.722054+00"}
+{"place_uuid":"899c0e8a-3502-51f3-b60f-6be183e55220","title":"Tannefors Slussar","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:46:46.311546+00"}
+{"place_uuid":"8a3dac5d-ec82-5995-92a1-1934dcfe36a3","title":"Vitemölla strövområde, Stenörens ålabod","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:47:32.941711+00"}
+{"place_uuid":"8a3eeb9a-720a-5397-9b4b-c5a97ff21791","title":"Johannisborgs castle ruins","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:38:54.846565+00"}
+{"place_uuid":"8a48843e-164a-593b-b160-383711c58a8a","title":"Vatthammar","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:36:38.246261+00"}
+{"place_uuid":"8a58e1e1-c570-54fe-9c79-39064ed30a13","title":"Fäbodarna","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:45:39.679988+00"}
 {"place_uuid":"8afff956-4310-4405-a18f-4d3ffb055e8d","title":"Frostbo Fäbod","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-01 13:46:10.778755+00"}
+{"place_uuid":"8b50cafa-43a8-560b-bedd-4cf8f8461e85","title":"Nässjö Kvarn","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:12:11.628753+00"}
+{"place_uuid":"8b735ed7-aa4d-5dcd-92a8-df3128ec3c00","title":"Kratte furnace","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:39:30.505391+00"}
+{"place_uuid":"8bab29a0-9e39-5aed-a7fa-41618648b22a","title":"Minnessten för Uarda-akademiens landstigning vid Lund","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:06:13.58718+00"}
+{"place_uuid":"8bc4289c-fba9-536d-850a-284eef029942","title":"Hovrahällarna","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:51:30.507273+00"}
+{"place_uuid":"8bdfdde8-400b-5f3d-a35f-81134583b009","title":"The Wolfstone in Exhult","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:31:21.364439+00"}
+{"place_uuid":"8be409f7-1c19-5c9d-8df4-fa7a71d251b3","title":"Lindefors Bruk","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:02:17.192174+00"}
+{"place_uuid":"8bfc9313-b960-5306-8cd4-85b37e07f48a","title":"Memorial for Refugees from Soviet Union","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:05:22.734515+00"}
+{"place_uuid":"8cf99c59-cd5a-5d28-85ec-0695f0a04222","title":"Endre avrättningsplats","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:44:03.001473+00"}
+{"place_uuid":"8d28f367-888f-4b96-90ce-135b394e2023","title":"Lassahusstenen","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 10:14:42.833477+00"}
+{"place_uuid":"8d7b2e23-72e8-5186-8aab-2e69a03b8dbf","title":"Jarsberg Runic Stone","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:38:52.626204+00"}
+{"place_uuid":"8d9f814f-b9d3-5501-8757-e39fa6b5011f","title":"Viking Ship","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:37:08.118958+00"}
+{"place_uuid":"8e40b8c3-0a42-5d58-989a-bad346cf3e19","title":"Hammarshage hällar","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:50:00.160633+00"}
+{"place_uuid":"8e5bbe65-79a7-58c7-a37e-ce3e59b61801","title":"Mysinge hög","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:42:59.19394+00"}
+{"place_uuid":"8f4243b9-5215-46fe-ba1e-71f2d2464966","title":"Täljstensberget","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 10:14:42.415456+00"}
+{"place_uuid":"8f7a47b9-1116-5586-93c7-664698fb30aa","title":"Järnåldersbyn Hogslaby","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:39:06.147801+00"}
+{"place_uuid":"8fa979fa-640f-5951-a5ce-90202fada2e8","title":"Drakamöllans dödisgrop","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:37:54.115381+00"}
+{"place_uuid":"8ffe926a-c6cd-576f-a01c-57fef48378f7","title":"Böksholm Mill","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:36:49.624179+00"}
+{"place_uuid":"904988c2-1d1e-51e7-881f-abc9f7e8f966","title":"Stollens torn Gravröse","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:26:37.436344+00"}
+{"place_uuid":"906a4af4-07f1-5654-827b-3313de2b31e6","title":"Siggamåla skvaltkvarn","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:19:55.230947+00"}
+{"place_uuid":"90d95fe0-7261-50bd-9603-6a3669033de2","title":"Yxornas häll","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:47:43.923681+00"}
+{"place_uuid":"90f289f6-dbdf-5f9e-b0a7-6f1f08fdcd5b","title":"Kanonberget","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:55:36.408737+00"}
+{"place_uuid":"913c20ef-af45-5712-b3a6-0607bd64c60b","title":"Kleva Mine","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:39:25.148155+00"}
+{"place_uuid":"9169eec0-d8e9-50ce-b35c-449cf3aefda2","title":"Bosjöklosters Kyrka","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:35:28.914274+00"}
+{"place_uuid":"916bd599-05d2-5d3a-abe4-dd2ac45cf2f3","title":"Spetsbunkern","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:24:15.895212+00"}
+{"place_uuid":"91ec1077-cba3-5d28-904d-5323d714bad8","title":"Glamstenen","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:47:47.887539+00"}
+{"place_uuid":"922e34b7-540d-5618-983f-48d452b3c8f3","title":"Gedholmen - minnessten över Slaget i Dynekilen","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:38:15.970811+00"}
+{"place_uuid":"92a87133-b51f-52fc-80d5-85fb9760affa","title":"Vattenhjulet","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:36:25.011276+00"}
+{"place_uuid":"92f2e1ce-0426-5bbc-ae23-42bdb7eb3d62","title":"Hälsokällan I Gammelstad","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:52:31.699004+00"}
+{"place_uuid":"92fe54ff-ac07-5bb3-b780-23aee213fc9b","title":"Stensjö by","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:46:11.371849+00"}
+{"place_uuid":"93ad6f77-9188-5486-bba0-0e55eee5f17c","title":"Brandskogsskeppet - Hällristning - Enköping","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:35:34.870655+00"}
+{"place_uuid":"94243cba-ccbd-5139-b777-35416b50e161","title":"Jordbroporten","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:38:59.688656+00"}
+{"place_uuid":"94bc12f9-fd41-55d0-84b6-f6e605e6ddd3","title":"Lindågruvan, Mässbacken","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:40:02.887804+00"}
+{"place_uuid":"9526b95f-d815-5aff-8f10-77338d176ce8","title":"SAS flight 751 haveriplats","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:45:22.91203+00"}
+{"place_uuid":"95502f38-beca-51c5-a2f0-b9c69461a8cd","title":"Frökens källa","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:45:20.408975+00"}
+{"place_uuid":"958c8fd7-a288-5571-a0ba-771c5261c53b","title":"Stor sten","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:26:55.36118+00"}
+{"place_uuid":"9618501f-46bd-5af7-9670-d7334af1282b","title":"Dackegrottan","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:41:46.36255+00"}
+{"place_uuid":"9620e40f-0dc3-5864-9df6-3277a3914692","title":"Torups slott","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:46:58.8367+00"}
+{"place_uuid":"9756345f-dc73-52b8-b2c1-357a4506c784","title":"Oskarsvärn, Hästö","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:14:05.693411+00"}
+{"place_uuid":"979b4e15-4284-5b46-a0a1-af0395baf486","title":"Skåne lapidarium in Sibbhult","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:22:46.686342+00"}
+{"place_uuid":"97a7ba49-962d-5d99-8d5b-bded71e9e8d8","title":"Stora Sundby Castle","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:46:22.365775+00"}
+{"place_uuid":"97e5d1e6-fdd6-561f-b836-cbd8b7eaa94e","title":"Old City Limit Stone","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:12:58.899131+00"}
+{"place_uuid":"9816fd1f-ec83-51ea-9884-cc779399404e","title":"Sagobygden Stenudden","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:18:24.067308+00"}
+{"place_uuid":"985e24ca-72d3-51b4-a2c5-218727fb65c4","title":"Karin Boyes minnessten","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:55:55.556735+00"}
+{"place_uuid":"988c1e8d-d486-552c-966a-6b423c29b95e","title":"Kallebäcks källa","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:39:11.085046+00"}
+{"place_uuid":"994b867c-6d4e-5237-95ad-3e4059aa6e08","title":"Börringe Church ruin","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:36:54.808413+00"}
+{"place_uuid":"99f16df5-a3b6-5f99-815e-65dd2208c189","title":"St. Olof Church ruins","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:46:01.867034+00"}
+{"place_uuid":"9a2a872f-64db-5ee6-a0bf-f4eb2c3bc8d7","title":"Old Bunker Area","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:12:53.752311+00"}
+{"place_uuid":"9a7fb10e-5f8b-5649-902c-c26416f04e41","title":"Lasse-Maja grottan","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:01:17.53962+00"}
+{"place_uuid":"9bb771f2-f28c-58f7-b0b2-ca50315dc1ba","title":"Sagobygden Skatten i Högarör","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:18:18.656621+00"}
+{"place_uuid":"9bcd77b1-11fd-5fe2-adf5-1549896a408d","title":"Ånghammare","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:39:57.584008+00"}
+{"place_uuid":"9c218048-5a0f-5b87-ae00-09c3d4418547","title":"Örnahusen minnesmärke","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:47:52.885965+00"}
+{"place_uuid":"9cb3f5c9-b477-50ce-8d26-eb191287a085","title":"Gammal militärbunker","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:47:00.174182+00"}
+{"place_uuid":"9cbf804d-9ee4-54e5-8103-0fa69a2720c1","title":"Cementas Kalkbrott","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:41:32.072685+00"}
+{"place_uuid":"9ceb58d5-702e-55ba-a634-5b1eef162ec9","title":"Hokällan","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:51:04.973241+00"}
+{"place_uuid":"9db306ed-78ea-5f28-b3df-9b02beb8d45a","title":"Säldebråten Fornminnesgård","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:28:41.919333+00"}
+{"place_uuid":"9dbb7772-be24-53dd-a09e-4a0c75e9f2cc","title":"Håmule Skans","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:52:42.957207+00"}
+{"place_uuid":"9dc9deeb-e7bd-55db-b8e7-954dcfdbcba1","title":"Tivolibergets luftvärnsställning","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:46:50.429229+00"}
+{"place_uuid":"9e07712c-dc96-5109-915a-9168bd744c9a","title":"Batteri Aspöberg","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:32:05.417311+00"}
+{"place_uuid":"9e3400c6-5c39-575f-a326-584767d2b81e","title":"Torpesta Kvarn","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:46:56.198673+00"}
+{"place_uuid":"9e6dce98-68c3-5e54-90dd-9cd4d95d6bc4","title":"Tjurkö Nabbens Luftvärnsställning","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:31:35.04994+00"}
+{"place_uuid":"9e764c3f-4a14-5877-acc9-d734884606d4","title":"Staffanstenen","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:24:56.311639+00"}
+{"place_uuid":"9ebb2559-02c4-50b6-8723-b919dba48fe5","title":"Stångehuvuds Gamla Minstation","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:46:31.590531+00"}
+{"place_uuid":"9f0d98a2-31d7-58ac-8367-2134dc5e346d","title":"Dalslands Kanal AB Slusstationen Långed","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:37:48.081689+00"}
+{"place_uuid":"9f2c43eb-eacc-5b74-a2bc-1f9d13262e97","title":"Soldattorpet och Kapellet stora skärmnäs","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:24:10.031916+00"}
+{"place_uuid":"9f6df0b6-56e6-590b-8286-22a365015824","title":"Myrängens Luftvärnsställning","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:09:44.599337+00"}
+{"place_uuid":"9fb9c403-13f9-5f38-8313-a75de044ed0e","title":"Torsbergsbatteriet, Havsbandslinjen","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:46:57.037112+00"}
+{"place_uuid":"a1105e3d-e02a-46de-91c9-3794316966d5","title":"Bergahögen","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 10:14:42.888068+00"}
+{"place_uuid":"a157fb09-99af-5543-be35-50ad0f4d141e","title":"Lützowstenen","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:44:15.517136+00"}
+{"place_uuid":"a1badd69-33c9-515d-b5e2-00a749e7c010","title":"Virudden bunker","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:37:39.494263+00"}
+{"place_uuid":"a30fbd4a-f9d8-5d08-9dc2-b3f171a44109","title":"Vallgrav","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:35:24.383851+00"}
+{"place_uuid":"a3e21ffd-8922-55d2-b620-134c116a721f","title":"judgments stones","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:53:57.220067+00"}
+{"place_uuid":"a3e6c84e-3c5c-5c1a-aab9-c0257bd53f93","title":"Platsen för slutstriden i Slaget vid Lund 1676","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:14:48.845503+00"}
+{"place_uuid":"a4040077-e679-5d04-a046-f4d8545eeddb","title":"Kvarnlämning i Helge å, uppströms Hästberga kraftverk","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:59:28.48674+00"}
+{"place_uuid":"a4aae256-31ac-5219-b9be-7438b1c3edcd","title":"Vallerstakällaren","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:47:11.709028+00"}
+{"place_uuid":"a4ce2dec-0ff8-5458-9e84-cb3fe6c89b0c","title":"Gamla Byn, Avesta","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:46:41.009574+00"}
+{"place_uuid":"a4e32fd0-c6d0-5f38-9165-89c568546008","title":"Border stone Sweden","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:35:15.468443+00"}
+{"place_uuid":"a508972a-81b1-5fe4-8bd3-5cb23183ccbe","title":"Hemliga Fortet / Kustbatteri GE3 Furuskär","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:50:32.50723+00"}
+{"place_uuid":"a5340acc-7345-501a-9d4b-8102fb7c37ad","title":"Springkällan (The Spring)","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:45:58.074648+00"}
+{"place_uuid":"a568b706-7180-5653-8e22-cc3ce84d6eed","title":"Bosjökloster","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:35:22.105376+00"}
+{"place_uuid":"a5eafe79-0b95-56f6-b0f8-73db3ba82538","title":"Vitterhuset","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:38:11.441579+00"}
+{"place_uuid":"a622b17c-cb6d-5c6e-83fb-18aea1e78352","title":"Littorinas Stenar","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:02:47.851961+00"}
+{"place_uuid":"a6381d95-1cc4-5b95-8548-94793f9614e3","title":"Hällefors silvergruva mineralplats","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:51:59.322083+00"}
+{"place_uuid":"a6474097-3b34-5d78-aeb0-0b5bf1f09363","title":"Norsholmens Kalkindustri","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:11:33.257577+00"}
+{"place_uuid":"a67c4d87-85ba-5c56-a6cd-2a56a5d4789c","title":"Grottan i Norsesund, Grävlingberget","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:48:26.94895+00"}
+{"place_uuid":"a6b0f339-0e57-56f2-9920-6a417abae1d7","title":"Ruveröds Kvarn","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:17:26.569448+00"}
+{"place_uuid":"a7449011-bb1e-5d1a-89a6-55e7b8ebbec5","title":"Lovisa Charlotta av Mecklenburg-Schwerins sluss","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:40:07.214406+00"}
+{"place_uuid":"a7549f74-1b2a-59cb-960a-4cb1e0c57bbf","title":"Åremma Kvarn","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:40:01.744279+00"}
+{"place_uuid":"a7646943-a7ba-5f14-865b-71e2e070b7e4","title":"Hallsjö-kvarn","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:49:55.237913+00"}
+{"place_uuid":"a7a124a1-4388-528c-9246-5408930c7f87","title":"Sankt Hans kyrkoruin","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:45:21.225851+00"}
+{"place_uuid":"a7b6055e-e85d-5c0a-bc72-b4638ee9025c","title":"Kvarnagården Håcksvik","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:59:17.379413+00"}
+{"place_uuid":"a7f2fcef-e506-5f30-aa6d-a4be01569f02","title":"Valbrets grav","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:35:13.819919+00"}
+{"place_uuid":"a87e823f-19b3-5512-b483-6e5a4c52748a","title":"Sagobygden Trollsmeden i Nockarp","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:18:29.232862+00"}
+{"place_uuid":"a8b6d5b5-7d0d-53e7-9941-02aab18d5317","title":"Kurrholmens Fortress Tower","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:39:34.342737+00"}
+{"place_uuid":"a90bcb8f-0573-5e35-93d0-13005ac9e548","title":"Bonnstan","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:35:09.115517+00"}
+{"place_uuid":"a9573f3d-79a0-54e1-aad8-6f5a0fd9970f","title":"Uddestenbrottet","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:34:37.33481+00"}
+{"place_uuid":"a9a55be8-d78f-5d63-aab9-3db7b7e0b1c7","title":"Rose garden","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:44:53.10368+00"}
+{"place_uuid":"ab7204c2-9700-5b05-a13b-ef1dc3a74079","title":"Oxebo vattensåg","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:14:20.496685+00"}
+{"place_uuid":"ab8673e6-31d1-5d6c-a1d6-655bcd24e0dd","title":"Jordbodalen Stenen","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:53:38.379041+00"}
+{"place_uuid":"abc0d534-5bed-5ebf-bb91-770d271a9944","title":"Oldens kristallgruva","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:13:12.745371+00"}
+{"place_uuid":"ac118cd6-3293-574a-a23e-f6a40d25747c","title":"Sjötorps kvarn, såg, smedja och handelsbod","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:20:13.917192+00"}
+{"place_uuid":"acfcb131-6fd5-57db-b275-e38e9dccfba9","title":"Askeryds stenbrott","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:28:49.666948+00"}
+{"place_uuid":"ad1ba9d8-48ec-5000-bb15-898ad4a82a2e","title":"Soldattorpet","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:23:54.657756+00"}
+{"place_uuid":"ad3ff054-74c3-553f-9bca-5fa85093d02a","title":"Batteri Torumskär","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:32:38.444694+00"}
+{"place_uuid":"ad5d6a9c-0a33-5a45-96c5-023c0d65d9e5","title":"Skärs Udde & Fiskeläge","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:22:41.988671+00"}
 {"place_uuid":"ad65761d-eaa3-48e7-b88d-38bc47b7d22c","title":"Struve Geodetic Arc - Perävaara","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-01 13:36:23.743086+00"}
+{"place_uuid":"ad6f82db-6ac2-5d45-acac-4de4c4677662","title":"Kristianopel Södra Bastionen, Kalkungsbastionen","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:58:12.109543+00"}
+{"place_uuid":"ad9f06b7-6d27-5a6b-b8bf-9d9892dcb7ad","title":"Skeppsvrak","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:21:45.345734+00"}
+{"place_uuid":"ae03911c-d29f-531a-8dda-87b933a1df24","title":"Släthults Kvarn","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:23:23.271407+00"}
+{"place_uuid":"aef6f124-a184-59ac-a85b-1986cdff682f","title":"Vadmalsstampen","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:35:03.879974+00"}
+{"place_uuid":"af165889-5b95-598c-a4ff-77efc4fd3874","title":"Rune stone Greater Ramsjö","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:44:57.019683+00"}
+{"place_uuid":"af94167c-8aeb-5c1f-9f11-5a4c034f61b6","title":"Dalens kvarn","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:42:01.187851+00"}
+{"place_uuid":"afae6d13-5a1e-5453-a44e-f610fd865886","title":"“Stubbmöllan” - Stubble Mill","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:41:05.800818+00"}
+{"place_uuid":"afd1635f-6ec1-5e78-b0fd-e49c6d77e2b8","title":"Tjuvakällaren","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:31:40.960981+00"}
+{"place_uuid":"b061ffa8-7bae-5597-8cf3-d741a9ff739e","title":"Hemlingestenen","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:50:37.727132+00"}
+{"place_uuid":"b0d8698d-a604-5ce9-96c7-afde0015718b","title":"Komstad Kvarn","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:39:28.089133+00"}
+{"place_uuid":"b103ea44-cd41-5bd8-96b3-e1c0a0ac54c2","title":"RRGC ”Bocken”","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:16:21.242104+00"}
+{"place_uuid":"b1086ac7-7982-5a79-bd3d-3e20a3bbce3a","title":"Tullestensmonumentet","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:33:49.152926+00"}
+{"place_uuid":"b299f84b-e400-5dbb-834f-1055949a2b78","title":"Lidernas Kvarn","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:01:44.187453+00"}
+{"place_uuid":"b2d61978-a800-59d8-a8fd-2ea4c5a090c5","title":"Skuleboda-Essljungs Gruvor","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:45:43.445118+00"}
+{"place_uuid":"b2f18d35-e2fb-5571-84c7-457d0150ab9a","title":"Lappkyrkan","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:01:07.25466+00"}
+{"place_uuid":"b3689daa-d736-5b93-a2b4-68cd00416289","title":"Södra Kasern","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:30:14.470923+00"}
+{"place_uuid":"b36d8dfe-d9f9-5527-890f-64ed4589118b","title":"Norra Kasern","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:43:10.714738+00"}
+{"place_uuid":"b457c110-3826-5bc9-b436-e0c49cba6b6d","title":"Bronsalder pa Gotland","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:36:04.729489+00"}
+{"place_uuid":"b53f9921-61f7-5902-9e41-547f8166e9cd","title":"Jordkulan","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:53:51.742432+00"}
+{"place_uuid":"b5555f60-5a41-510c-b968-b37623cc66f7","title":"Södra Strandverket","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:46:42.81981+00"}
+{"place_uuid":"b5771862-c58d-533f-b26d-7a7884d3514a","title":"Minnessten för Ada Gorthons förlisning 1942","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:44:26.237339+00"}
+{"place_uuid":"b61d87ac-0338-5230-8669-0623f64fdd20","title":"Minstation Östra Hästholmen","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:06:52.259611+00"}
+{"place_uuid":"b61f7de3-7c40-5b5c-8341-4322840de867","title":"Jättegrytan i Skarpnäck","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:54:33.746396+00"}
+{"place_uuid":"b67fb008-1fc1-5a1e-8bce-48a7620d4ca3","title":"Försvarsplats Gråberget 2","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:45:54.051631+00"}
+{"place_uuid":"b6d2c24d-ddf4-5c0b-a814-089c11154c45","title":"Dörby gravfält","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:43:38.681677+00"}
+{"place_uuid":"b7458e0a-b285-572b-b59d-219fba85966f","title":"UFO Graven","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:47:06.816966+00"}
+{"place_uuid":"b8a72e4c-1c17-5a93-b7fd-934d818cd4f9","title":"Vanna kvarn","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:35:47.462204+00"}
+{"place_uuid":"b8aa7a4f-b13d-5082-8e0e-94e765a3e5fc","title":"Vallhagar","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:47:12.517032+00"}
+{"place_uuid":"b8f7ac4f-6075-52fa-a2b2-d28a37b44f68","title":"Norrkvarns nedre sluss (Göta kanal)","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:11:17.537982+00"}
+{"place_uuid":"b95d9c8e-ad9b-5ae2-ab69-0030b68cf7ef","title":"Månsbackstuga","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:10:05.206316+00"}
+{"place_uuid":"b97ba31a-c7d5-5c8f-9176-c2369d9b53f8","title":"Försvarsplats Marskärsudden","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:46:07.037062+00"}
+{"place_uuid":"b9ac1f6c-d7c7-5caa-bc7b-36edea5cb2ef","title":"Godegården Hällristningar","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:47:55.151603+00"}
+{"place_uuid":"b9d36080-cfae-51b5-a93e-3bd7edaac7d2","title":"Örebro Lock","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:47:49.93657+00"}
+{"place_uuid":"ba0f9bf7-d14d-5bce-beb3-cf262825f218","title":"Stenkars Kvarn","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:25:40.312229+00"}
+{"place_uuid":"ba37f9fb-7d40-5d16-8c41-e8da74a78b56","title":"Klocktornet","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:57:05.2855+00"}
+{"place_uuid":"bb44e30b-1664-50e1-80dd-998474f37794","title":"Dalslands Kanal 20 Slussen","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:42:21.294324+00"}
+{"place_uuid":"bb490d9d-c273-5e68-b2f8-64a2627338db","title":"Hertiginnan av Södermanlands sluss","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:50:48.607229+00"}
+{"place_uuid":"bbca4fe2-5308-5b45-9a77-f0d7cb0870be","title":"Holms fiskeläge","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:51:19.412498+00"}
+{"place_uuid":"bc03dde7-5d06-5a78-ab7e-5c333fb219d5","title":"Strömsfors Bruk","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:46:28.825282+00"}
+{"place_uuid":"bcc7922d-8ecc-5036-a4e7-93898f951340","title":"Per Gynts Grotta","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:14:32.389632+00"}
+{"place_uuid":"bce95bf4-1475-5c4b-9e5f-44b4b203ac44","title":"Ellenabben Fortress","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:37:57.024171+00"}
+{"place_uuid":"bd5761b7-d85d-5d33-992c-12ba3f8b4410","title":"Labyrint","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:00:25.279883+00"}
+{"place_uuid":"bdbaf78a-d56b-5840-a336-47021cc144de","title":"Bastion Aurora","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:29:23.63711+00"}
+{"place_uuid":"bdbecd76-9dcc-5231-81be-be99714612ee","title":"Stenring","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:25:59.628786+00"}
+{"place_uuid":"be2cf4ba-23b2-5593-9cb5-63bae360776c","title":"Stenmurslandskapet i Väsmestorp","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:25:55.352858+00"}
+{"place_uuid":"be4c0897-4c3b-5e82-b60a-e070af53655d","title":"Dalmyra gruva","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:42:14.463999+00"}
+{"place_uuid":"be777227-5198-5a8b-9922-36a5247b3163","title":"Eliasgrottan","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:37:56.053232+00"}
+{"place_uuid":"be83cbf3-96d6-5507-b865-78c974cc62d1","title":"Dalby Galgbacke","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:41:56.216146+00"}
+{"place_uuid":"bedf2e6a-0aad-5e7e-8816-cab94fab0c39","title":"Grönlandval Femstenaberg","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:48:56.073679+00"}
+{"place_uuid":"bf7fbca8-2b89-5215-b027-f5df9652ce63","title":"Fatmomakke","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:37:59.221213+00"}
+{"place_uuid":"c127f9fd-7adf-5cdf-88b5-113d880277d6","title":"Bjorn Ironsides Burial Mound","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:34:13.856783+00"}
+{"place_uuid":"c1682dbe-42a6-5368-8dad-46745e2e7329","title":"Huttla KVARN","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:38:40.004553+00"}
+{"place_uuid":"c18539d5-67dc-542a-b312-765853238dbc","title":"Kungastenen","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:58:41.43712+00"}
+{"place_uuid":"c2f3150a-621b-578e-986e-7adaecc6631a","title":"Kungsäters kyrka","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:39:33.558002+00"}
+{"place_uuid":"c354eb6a-c307-56e6-a24b-86c0c5076e50","title":"Konung Gustav I sluss","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:57:40.588429+00"}
+{"place_uuid":"c3819d49-008b-59d8-84f4-b11665b83dce","title":"Rallarkyrkogården","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:44:48.83003+00"}
+{"place_uuid":"c449bc5e-8a09-5042-920b-c48ca78102ed","title":"Utanheds kvarn och såg","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:47:08.75401+00"}
+{"place_uuid":"c4757ae1-db1d-5702-ba2f-669285239688","title":"St Per's Kyrkoruin","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:46:00.151905+00"}
+{"place_uuid":"c47e3d8e-0fc7-5973-bb79-beb452bb6621","title":"Kyrkbacken","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:39:40.017835+00"}
+{"place_uuid":"c4db90d8-f5ab-5306-bd99-c368c9a12145","title":"Batteri Ellenabben Stridsledning","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:32:16.123069+00"}
+{"place_uuid":"c54654a1-0ebb-5ee0-b66a-03e6f007e337","title":"Lopperstads kvarn","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:03:08.703075+00"}
+{"place_uuid":"c5629764-e474-5eca-96df-b28de3895a68","title":"Vargkitteln","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:47:14.691264+00"}
+{"place_uuid":"c58b27f1-9c42-5fa5-9955-3d2b9e9b0f2d","title":"Styresholm","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:46:30.813908+00"}
+{"place_uuid":"c677eb8a-3636-5491-ad20-55b7e9cc2d2d","title":"Sandakällan","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:45:19.181523+00"}
+{"place_uuid":"c6d6f670-0bcb-518b-bc61-94d1e57921c7","title":"Batteri Ellenabben 1","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:32:11.256912+00"}
+{"place_uuid":"c7739b67-32ea-57ae-95d3-1b4f9dfa609d","title":"St. Olofs Gryta","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:24:47.434809+00"}
+{"place_uuid":"c84447c8-cc50-5522-87c6-39a01b8e5c1b","title":"Osarp Mölla","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:13:23.766501+00"}
+{"place_uuid":"c849a879-d794-5ebe-afb1-eaec76bbfc2c","title":"Vattentornet Keillers park","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:36:32.444651+00"}
+{"place_uuid":"c8912556-1da8-548c-8169-c3bd88e61dbf","title":"Berghusgrottan","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:33:32.324507+00"}
+{"place_uuid":"c89b2d5e-fcd7-508e-af06-6c9d43e1a902","title":"Hällorna, Björkåsen","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:52:04.450892+00"}
+{"place_uuid":"c8b20ef5-dd00-50d6-ab1d-e070abb3d3ec","title":"Norrgårdsäls fäbodar","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:11:14.629556+00"}
 {"place_uuid":"c8b8112e-a961-4cec-9a94-68cc453f7350","title":"Snäckedals gravfält","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-01 13:26:57.582351+00"}
-{"place_uuid":"c8fec2a7-83d3-4d5f-911f-bc3357379952","title":"Lassahusstenen","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-01 13:32:33.086566+00"}
+{"place_uuid":"c8be469b-5908-586a-a6d4-b542239074aa","title":"Nyvångs Slagghög","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:43:18.656946+00"}
+{"place_uuid":"c91602ae-7788-5900-b767-57147c5c20d9","title":"Örestens fästning","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:47:50.768994+00"}
+{"place_uuid":"c922a8ae-01b9-51e4-8fc7-d12b5659a9a7","title":"Runic Inscription 489","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:45:03.713874+00"}
+{"place_uuid":"ca230c7d-aa22-54fa-84a9-84a102d84ca6","title":"Granuddens skvaltkvarn","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:38:20.594361+00"}
+{"place_uuid":"cacfcec8-c8d8-5010-9849-74e4e8f7b46c","title":"Torsburgen","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:46:57.847296+00"}
+{"place_uuid":"cb44156d-9062-5a3d-8c91-f817cd2a59c9","title":"Bergsjögrottan","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:33:37.032731+00"}
+{"place_uuid":"cb603488-0d3e-5770-bf64-d4e56ac1dd72","title":"Oskar-Fredriksborg Fort","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:44:36.837202+00"}
+{"place_uuid":"cbb1dd7c-12b7-5395-b130-144b3c737b9f","title":"Minnessten","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:05:50.956479+00"}
+{"place_uuid":"cbcf0da6-01db-5709-81a9-e94c62d867ba","title":"Penåsa Ödeby","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:14:28.276954+00"}
+{"place_uuid":"cc1be3e6-ab53-54cd-9fa8-89f07efb5d81","title":"Klövamöllan","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:57:14.722127+00"}
+{"place_uuid":"cc579424-06fd-5587-bb7c-24af306c5176","title":"Brännvinsmuren","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:36:10.810099+00"}
+{"place_uuid":"cc93d7cd-1706-50c0-9bb9-0d8e0d1533ff","title":"Torne river sauna experience / Bastu på torneälven","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:32:18.356622+00"}
+{"place_uuid":"cca66921-ce64-51f8-ade5-69f75e2e323e","title":"Sågen i Gibberyd","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:46:34.319206+00"}
+{"place_uuid":"ccace4f0-43a8-5180-a6a5-ce4b1efecd0e","title":"Gammal militärbunker","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:47:04.87688+00"}
+{"place_uuid":"cd30b9c4-d8e6-5158-936e-40abf38278f2","title":"Landsort Heavy Artillery Battery","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:39:50.184977+00"}
+{"place_uuid":"cd9e4d88-c2bc-5196-ba26-d01d87c8dca4","title":"Stor Kari Sten","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:46:16.431626+00"}
+{"place_uuid":"cdcad851-cec7-5923-8f8b-d47cb3c91da5","title":"Vikingaskepp, Upplands Väsby kommun","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:37:17.09206+00"}
+{"place_uuid":"ce149fd5-3a63-5e68-a177-9934ffd0344e","title":"Långhuset i Viskan","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:44:13.503494+00"}
+{"place_uuid":"ce757483-6ec1-431c-b204-fe906c9366da","title":"Utgrävningen i Buttle Änge","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 10:14:42.623138+00"}
+{"place_uuid":"cebc6fad-73ea-5df4-9862-05bae05ed01b","title":"Hornborgs Slottsruin","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:38:38.828958+00"}
+{"place_uuid":"cf37f9d0-c720-59a9-b780-9f1dd962421e","title":"Torekov kulsprutevärn","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:32:00.096692+00"}
+{"place_uuid":"cfc569b5-ccff-540d-b500-0798f29101cb","title":"Delary industriminnen","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:37:49.696296+00"}
+{"place_uuid":"d0322cbb-475b-4b9d-8958-baa455ab6d0b","title":"Höga Bro","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-07 08:31:38.455729+00"}
+{"place_uuid":"d0365d20-033e-5e72-826b-24b278c25526","title":"Tureborg Castle","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:47:03.887851+00"}
+{"place_uuid":"d051d9a8-c28f-5d64-aa39-1acd85112d20","title":"Töllsjögrottorna","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:34:32.683852+00"}
+{"place_uuid":"d0c435ba-6d9b-50ad-b04e-1e3ff796dd34","title":"Ryds kvarn","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:17:32.2193+00"}
+{"place_uuid":"d0cb3ddf-97d8-52b1-b5e3-2b3908439057","title":"Biskopbjörkarna Runsten","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:34:00.251883+00"}
+{"place_uuid":"d1311c3d-5bcd-5432-8878-9236cb4d6bd8","title":"Söderport (Southern Gate)","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:29:26.43684+00"}
+{"place_uuid":"d17dc6f4-99f9-5300-8c3b-04625f22cf7a","title":"Vibyholms slott","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:47:17.669755+00"}
+{"place_uuid":"d195b14c-44e7-5b9e-b5fc-be908910273c","title":"Ryds sågverksruin","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:17:34.901826+00"}
+{"place_uuid":"d2085396-e679-5dc9-83d8-aefdd1559f15","title":"Slottsberget","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:45:50.998523+00"}
+{"place_uuid":"d2dcae03-2ab0-5976-8b6c-a9469917040c","title":"Lilla Strandporten","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:01:56.260877+00"}
+{"place_uuid":"d30e92ed-161f-5abc-a5cd-1e938313819a","title":"Björkskär Fiskeläge","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:34:21.847673+00"}
+{"place_uuid":"d386926e-1411-5d47-848c-d2190e17c4cd","title":"Stora skansen - Hill fort (Kalkuddens hill fort)","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:27:06.276238+00"}
+{"place_uuid":"d3a50e30-c747-5903-acff-e88e3e8a8b3e","title":"Kalle Runristare","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:55:12.487032+00"}
+{"place_uuid":"d40ed0ff-50c6-5bab-8950-53a7e033ea18","title":"Göta kanal-monumentet","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:49:30.651885+00"}
+{"place_uuid":"d4a7d9de-aba3-53b4-bf04-3ad2082be271","title":"Strömmen Lock","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:27:48.650696+00"}
+{"place_uuid":"d4d398e3-5037-5207-80ca-62c7e0102b29","title":"Anundshög skog","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:28:24.304953+00"}
+{"place_uuid":"d5561bae-8a65-509b-810c-1b04c2a71c0a","title":"Fort on Kyrkåsberget","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:38:05.10063+00"}
+{"place_uuid":"d57cddf1-5710-5c38-9d13-54082ef1bdfa","title":"Vasamonumentet","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:36:09.959846+00"}
+{"place_uuid":"d5a43999-24be-51c9-a8a7-60931d2827e7","title":"Internetkulturminne: Du Simmar Ur Bild, Kaj","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:52:58.943339+00"}
+{"place_uuid":"d605402c-bd5e-5f40-a308-410aabcee230","title":"Ola Sonas grotta","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:12:46.809535+00"}
+{"place_uuid":"d6925786-5ba9-55a6-a496-62f7b39cbf01","title":"Rumpsaxgrottan","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:16:25.844439+00"}
+{"place_uuid":"d7167730-0f4f-5381-ab7d-0e91589d30c4","title":"Soldattorpet Gällingaryd","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:23:59.484838+00"}
+{"place_uuid":"d74fc190-c96c-56ef-b2c3-c42e65bc6e14","title":"Ramnäs övre sluss","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:15:31.996132+00"}
+{"place_uuid":"d778d007-1e90-57ab-8544-aef5e9d256ca","title":"Lilla Trollkyrkan","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:02:00.643046+00"}
+{"place_uuid":"d843b939-ca04-58cd-8651-7a403046a918","title":"Näshulta kvarn","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:43:20.729439+00"}
+{"place_uuid":"d87a4cd3-3a96-58ff-9a3b-c9b8534d3595","title":"Rutehall","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:17:21.947473+00"}
+{"place_uuid":"d88148f7-f8d5-53f0-9269-1470f0645589","title":"Gruvan Morfars ort","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:48:50.495355+00"}
+{"place_uuid":"d89e02e2-fd65-5dc1-ab0d-1727e1e386a4","title":"Norderport (Northern Gate)","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:10:43.906951+00"}
+{"place_uuid":"d939aaa2-0a8f-5689-a390-28146dff64e8","title":"Ljungskär Powder Magazine","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:40:06.275457+00"}
+{"place_uuid":"d967896a-7440-51ea-9377-d61ed75fcb64","title":"Sagobygden Karins sten","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:18:13.704253+00"}
+{"place_uuid":"da713507-a5cf-5b4f-b591-efe3a9d8b74e","title":"Godhögen sluss (Göta kanal)","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:47:58.991463+00"}
+{"place_uuid":"da76ecd6-ef36-5696-b146-e1b2c6465247","title":"Tunnelgruvan vid Järna gruvor","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:47:03.061794+00"}
+{"place_uuid":"da9f5737-2e4d-57c2-8a90-aa29441b6844","title":"Forsmöllans kraftstation","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:44:55.352451+00"}
+{"place_uuid":"daaabd40-e819-5ff5-bb5d-c1141e9d6b69","title":"Norsborgs Luftvärnsställning","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:43:12.85648+00"}
+{"place_uuid":"db69e058-c3d4-5c5f-9994-ce4ecea43cbe","title":"Sörby Borg","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:46:44.640071+00"}
+{"place_uuid":"dc4347a3-e2e6-5e9f-93ca-0eb4806ea458","title":"Gamla Kvarnen","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:46:55.904788+00"}
+{"place_uuid":"dc564298-efbf-51c4-b2d6-9326d637d2cb","title":"Skansudde Lighthouse","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:45:36.093947+00"}
+{"place_uuid":"dd210b5e-8456-51d8-b541-9eb8c1b09d98","title":"Hallasnärje Quarries","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:49:51.161567+00"}
+{"place_uuid":"dd708eaa-0bb0-5cc1-8ed0-2dd98173042b","title":"Runsten Brötastenen","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:45:05.426827+00"}
+{"place_uuid":"dd7a3819-9420-5227-87f0-a1c010119c41","title":"Käppalaställningen","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:39:41.67164+00"}
+{"place_uuid":"de894e29-98ea-57c0-bb7b-7d182f734d59","title":"Försvarsplats Lysekil Hamn","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:46:00.521792+00"}
+{"place_uuid":"dec6f1c7-7ce4-584d-9ae3-5a079891bc02","title":"Stickelsberg Avrättningsplats","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:46:14.294335+00"}
+{"place_uuid":"dfb059d0-7684-5db4-8c6f-aa5c3b3980af","title":"SAAB A 32 Lansen monument","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:18:10.957262+00"}
+{"place_uuid":"dfb7d180-8518-5e7a-a265-5c69c09d3c54","title":"Wira bruk","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:47:39.796874+00"}
+{"place_uuid":"e002ed0f-f4e9-5e3f-9908-84eb498ce8dc","title":"Raoul Wallenbergs minnesmärke","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:44:50.647095+00"}
+{"place_uuid":"e01a0770-ea6d-5c58-bf61-434c609a011e","title":"Parsetjärns Skans","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:44:40.568835+00"}
+{"place_uuid":"e026a7d6-aa2c-5b66-ad33-a54dc0202f95","title":"Jättestugan","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:39:08.894351+00"}
+{"place_uuid":"e0b38914-99eb-456d-8c77-8172bf4917a5","title":"Västmanlands sluss","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 10:14:42.775786+00"}
+{"place_uuid":"e12d5419-c577-5595-8fbf-720f0ebfc98e","title":"Slaget vid Nissan","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:45:49.316341+00"}
+{"place_uuid":"e3242137-610d-5447-bfde-02f3d13117e9","title":"Battery Häggmansberget","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:32:43.063969+00"}
+{"place_uuid":"e345eacc-465d-5a7d-bab0-34feb5af472f","title":"Össeby Church Ruin","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:47:54.626097+00"}
+{"place_uuid":"e35cdcb8-121c-57c1-8db8-fde65aaa0267","title":"Limhamns kalkbrott","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:39:59.740471+00"}
+{"place_uuid":"e367e7c3-af91-5d12-98e4-eaa63dd62788","title":"Södra Björstorp Slott","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:46:38.046579+00"}
+{"place_uuid":"e38a34f7-9655-56d7-8d47-b38ebd76bf1f","title":"Skolhusfortet, Skyttevärn, Södra Fronten","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:21:54.209309+00"}
+{"place_uuid":"e397492b-de91-5bb3-82a0-16c8eff94597","title":"Långholmens luftvärnsställning","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:40:12.674313+00"}
+{"place_uuid":"e3f1334b-bc89-5bcb-a798-d4a7bfe54add","title":"Gylterudsgrottan","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:49:23.863701+00"}
+{"place_uuid":"e405dcec-99dd-5b49-b4ef-6e92be9fa26f","title":"Mustadfors Lock","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:09:33.814345+00"}
+{"place_uuid":"e4c13e86-df68-58e1-a6b5-d551d2580b93","title":"Wargöns Bruk AB","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:47:36.534082+00"}
+{"place_uuid":"e4ec21f3-a7fb-5fe7-9016-0fd480a43eb4","title":"Rantens kvarn","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:15:39.092287+00"}
+{"place_uuid":"e5e4e18b-6203-5e21-b84e-fb180948059f","title":"Norra Åbergsfästet","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:11:07.794209+00"}
+{"place_uuid":"e6373874-e088-5141-a5f9-ee48a87be0c7","title":"Gamla Bron Stenvalvsbro","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:46:33.912242+00"}
+{"place_uuid":"e6418b78-7063-5def-b9e7-c6965fd45a0c","title":"Gammelängsfortet","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:47:16.33602+00"}
+{"place_uuid":"e74f8420-66e1-5f67-aa0a-770088d3b7a2","title":"Sönderössjö Sågmölla","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:30:35.444573+00"}
+{"place_uuid":"e7853ed0-24d7-5248-945b-6d5b3cdbdf2b","title":"Ottenby gravfält","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:14:11.627053+00"}
+{"place_uuid":"e79518d8-0b1c-5e91-aa27-2e782944b80b","title":"Rasmus kvarn","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:15:54.229339+00"}
+{"place_uuid":"e7a5af42-6420-5c66-beca-1dc358e09202","title":"Staggträsk Old Watermill","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:25:00.892233+00"}
+{"place_uuid":"e7aa875b-b20a-5b4d-aea0-e67b9ef88302","title":"City wall","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:37:43.77874+00"}
+{"place_uuid":"e7ca7289-bd1c-59b8-ad26-cad8adf17b4f","title":"S:t Pers ruin","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:45:11.539506+00"}
+{"place_uuid":"e8642044-559c-582c-9aeb-f060da40ae21","title":"Kruttorn, provskjutningsplats för kanoner","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:58:25.164476+00"}
+{"place_uuid":"e86d6afa-048f-5926-a499-8fe701e88bed","title":"Motala sluss (Göta kanal)","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:07:56.289238+00"}
+{"place_uuid":"e8af7c4d-dfd8-5632-b68b-67399f9486f5","title":"Pyramiderna","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:15:14.041351+00"}
+{"place_uuid":"e93bf0c2-12d3-54f0-88fa-58bccbcef553","title":"Repslageriet Åhus","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:15:59.100509+00"}
+{"place_uuid":"e9ae70d4-d05a-5421-b59b-4719fa5e417f","title":"Munksundskällan","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:42:53.614789+00"}
+{"place_uuid":"e9be36ab-a4be-568d-b512-4241e20986bc","title":"Möllevångstorget","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:43:03.752175+00"}
+{"place_uuid":"ea53d39b-afe9-56c8-a93c-18d698446344","title":"Stenbrottet","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:25:31.454042+00"}
+{"place_uuid":"eb20322d-a917-5541-b203-c99ffd0ee6a7","title":"Hällristningar - Skomakaren","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:38:43.116213+00"}
+{"place_uuid":"eb46605a-b6a9-54c1-bb9e-6c6f922eb702","title":"Lancastern, Easy Elsie","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:39:47.418816+00"}
+{"place_uuid":"eb5cc523-e547-5aa8-bbc7-6f921f683d8f","title":"Kåkstan","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:39:42.791316+00"}
+{"place_uuid":"ebfce593-f6de-5f97-bd7c-36c195c4c202","title":"Landsort 152-mm. Artillery Battery","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:39:48.261433+00"}
+{"place_uuid":"ec2cda5d-ed83-5412-8ac5-f0bfcb38392f","title":"Minnesmärke Stora Lund","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:05:33.456585+00"}
+{"place_uuid":"ecdbbe75-e772-5dc4-b8b9-b95caacc2314","title":"Kläffsön Fire-Control Station","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:57:10.041916+00"}
+{"place_uuid":"ecde4a15-5b54-57d2-8e8e-e3df02c34687","title":"Luffarstenen","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:03:23.295372+00"}
+{"place_uuid":"ecdf14da-698f-5d07-b65d-cd1b23a1d50c","title":"Klacka-Lerberg Gruvpark","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:39:24.166819+00"}
+{"place_uuid":"ecf3d557-a832-516a-8f96-dd176dce323b","title":"Kutkäldu Tingstäde","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:39:36.599185+00"}
+{"place_uuid":"eda7fabc-c177-53c5-891b-002d2d2fe41a","title":"Oaxen Kalkbruk","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:43:24.297287+00"}
+{"place_uuid":"edaf4aa7-b1a3-55e9-8efa-e8089fa61cf9","title":"Galgberget, Visby","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:38:10.317+00"}
+{"place_uuid":"edbc0806-291e-5b49-95f9-6636a2e26db5","title":"Sänke hög","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:46:33.545563+00"}
+{"place_uuid":"edd79228-f49a-5099-897e-e0031b9781d8","title":"Östansjö fäbodar","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:40:40.525018+00"}
+{"place_uuid":"edeab0ad-cc4f-5715-8572-a004faa94ea1","title":"Djupåns Jättegrytor","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:37:51.656029+00"}
+{"place_uuid":"edf01d57-8909-5970-8249-ddb9aa7b57af","title":"Batteri Mojner","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:32:25.706443+00"}
+{"place_uuid":"ee7b2c46-9571-56a5-81fd-6da9d51f1554","title":"Gravuddens Flight Locks","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:48:21.629117+00"}
+{"place_uuid":"eed3d66f-5f0e-5096-aecd-4081fea7f770","title":"Vasastenen","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:36:18.303187+00"}
+{"place_uuid":"ef7fc1b9-6bed-5aed-ac8d-0347395195c6","title":"Norby Soldattorp","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:10:37.038792+00"}
+{"place_uuid":"ef811200-9787-57d5-a341-2af30f189fe3","title":"Balingsta Kvarn","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:29:11.17328+00"}
+{"place_uuid":"f05befe8-a15a-509d-8ee4-aea797268939","title":"Sturefors Sluss","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:46:29.896053+00"}
+{"place_uuid":"f0681ad4-ad5c-52b5-8daa-1659c2e4f822","title":"Kungastenen","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:58:37.22922+00"}
+{"place_uuid":"f0b37178-7851-584b-b91f-bbbd755f4a8c","title":"Sibro Kvarn","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:19:50.348956+00"}
+{"place_uuid":"f17402ee-e44c-5d2a-8a31-7aec3706ebb2","title":"Villa Lusthusporten","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:47:26.586043+00"}
+{"place_uuid":"f1d8a111-4c74-5deb-8e86-aa47add16e26","title":"Optisk telegraf","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:13:19.369026+00"}
+{"place_uuid":"f1e6c995-0f04-586d-a5f4-6041d78ba8e3","title":"Gravröse Safjället","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:48:15.172143+00"}
+{"place_uuid":"f26367b1-862b-5dc7-a250-b8fb35f5efe5","title":"Skansen Storån","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:21:19.424593+00"}
+{"place_uuid":"f28ac5cf-2b6c-5253-9867-516eaed9f229","title":"Lundeberga kyrka (grotta)","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:03:27.990194+00"}
+{"place_uuid":"f340e01f-2816-566c-a204-d8bfe4591b50","title":"Museilinjen","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:42:54.93172+00"}
+{"place_uuid":"f3aa045a-228d-504f-9758-378f6e865074","title":"Lögdö Bruk","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:44:14.50925+00"}
+{"place_uuid":"f3b03cc8-f055-531f-86e2-d16a644e464e","title":"Stenmonument","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:25:49.90017+00"}
+{"place_uuid":"f403af07-2534-5902-a90a-fd3b1d02f82f","title":"Massa Petters jordkoja","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:04:49.627181+00"}
+{"place_uuid":"f44c8847-92bc-5f21-8093-cbfc84911da1","title":"Karolinermonument ÅNN","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:56:26.226625+00"}
+{"place_uuid":"f4abbd5d-3ced-5690-b4a1-34d1ad40c806","title":"Linnémonumentet","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:40:03.937607+00"}
+{"place_uuid":"f57b1885-1e1d-5147-80c0-d683ee8f11ae","title":"Lenabergs kalkbrott","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:39:55.059964+00"}
+{"place_uuid":"f62845f9-3c1c-58eb-a28b-14028167c178","title":"Hovdala Kvarnruin","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:51:27.86212+00"}
+{"place_uuid":"f6373231-9b0e-5ae9-af2e-92ecac067378","title":"Lennart Torstenssonmonumentet","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:01:32.866512+00"}
+{"place_uuid":"f671cd8f-9a13-5edd-909d-4b49f7ad8579","title":"Skams gator och Selos grotta","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:20:32.417741+00"}
+{"place_uuid":"f74ddaae-54f6-57d3-ad47-8b76cef9fb21","title":"Kettils grotta","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:56:43.768504+00"}
+{"place_uuid":"f78ccb71-248b-54c9-8968-3128349c5edc","title":"Sunnäsbruk Dam","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:28:23.7361+00"}
+{"place_uuid":"f7abbda0-7a78-5dd7-8b0c-68e05174a8e8","title":"Långsjöfortet, Södra Fronten","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:04:08.93256+00"}
+{"place_uuid":"f7de71ec-2ef5-56c4-a323-01f51dee8b28","title":"Gelb gjuteri","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:47:28.588972+00"}
+{"place_uuid":"f834b05d-36aa-5c80-a003-ae0efcbf3370","title":"Minnessten över beredskapsförbanden i Abisko","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:06:26.316872+00"}
+{"place_uuid":"f847342f-574d-5a5d-8b65-1e2df1bc6a16","title":"rune stones Balsta","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:44:59.360739+00"}
+{"place_uuid":"f8682845-11ea-5e13-972e-1af4b8447b89","title":"Bunker 687 KSP, Skånelinjen","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:36:32.313118+00"}
+{"place_uuid":"f8d42064-a395-50da-8794-116a2e636583","title":"Sammilsdal","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:18:59.73293+00"}
 {"place_uuid":"f8e25045-87b5-43aa-8d1a-0106d135db00","title":"Hunehals borg","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-02 10:52:05.333881+00"}
-{"place_uuid":"ff79a070-1939-40fd-be2f-4c78490d9734","title":"bergaholm gravfält med runsten","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-01 13:19:00.669007+00"}
+{"place_uuid":"f8e4c0ce-799a-54ed-9879-106d01ec6247","title":"Säva Kvarn","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:29:02.561058+00"}
+{"place_uuid":"f8fc0cf0-31fc-5675-b982-f75b5bb43e62","title":"Offerlunden","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:12:37.89167+00"}
+{"place_uuid":"f92e3f1a-f12d-5a16-bee2-8993f92ff1a7","title":"Vikingagravfält","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:47:21.4645+00"}
+{"place_uuid":"f9804e34-190a-5b84-b1d5-bb3bf003839f","title":"Hallamölla Vattenfall","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:38:29.474442+00"}
+{"place_uuid":"f982be72-8d0d-5267-b064-dfa5be45a053","title":"Pershyttans kulturreservat","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:44:43.147361+00"}
+{"place_uuid":"f98836f1-f114-55f0-9c1b-ab27ea368249","title":"Salute Battery, Official Swedish salute place","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:45:16.936772+00"}
+{"place_uuid":"f98d26f5-7367-596b-8f15-33d3e21af2a9","title":"Kastellet Stockholm","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:39:21.852937+00"}
+{"place_uuid":"fa52c4b4-fb67-58ed-9b0d-10ac7c57ec58","title":"Skvin Kalkbruk","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:22:33.349722+00"}
+{"place_uuid":"fa7cb9e3-9f34-5538-b311-ac569b96d809","title":"Viskansparken","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:37:59.453975+00"}
+{"place_uuid":"fa8e16ad-d225-5d68-a35d-59e20b734d45","title":"Warpa Skans","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:47:38.151883+00"}
+{"place_uuid":"faf50a69-2619-5ad4-a8ea-3f05de3cf72b","title":"Jedenryds Stenbrott","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:53:20.130603+00"}
+{"place_uuid":"fb904c37-90df-54f6-849a-69f2f1558bc7","title":"Skans 113 Borgvik, OH Hatten","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:20:37.947468+00"}
+{"place_uuid":"fc05848a-33e7-5844-baf8-45b0c948d5cc","title":"Kolmilan monument","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:57:26.516746+00"}
+{"place_uuid":"fc4ac1f5-f62d-53b9-a33d-2f27cd4bd07e","title":"Rune Stone Nf 56","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:44:58.597698+00"}
+{"place_uuid":"fc4ef6aa-0764-5374-aa6c-2c973faa9c75","title":"Fyllinge Mill","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:45:33.718436+00"}
+{"place_uuid":"fcdb12af-712e-40d9-80e3-f1e5d889846c","title":"Svensköps kyrkoruin","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-07 13:15:26.552081+00"}
+{"place_uuid":"fce55810-02e2-5b51-a3f2-b0abcf1df596","title":"Tåtorp lock","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:34:17.04258+00"}
+{"place_uuid":"fd6817f8-f53b-507c-af16-26a2d737fa97","title":"Lokstallarna","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:02:58.175962+00"}
+{"place_uuid":"fd9fef34-3f73-5b13-9ab0-35ce75e12861","title":"Södra Fronten, gammal skyttevärnbunker","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:46:39.669078+00"}
+{"place_uuid":"fda00899-862e-5d0e-81d7-d2abc53273dc","title":"Mela Kvarn","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:44:19.48361+00"}
+{"place_uuid":"fdc96966-2bed-5b12-b644-c6c23a89fa00","title":"S:t Eriks Grotta","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 15:17:52.384705+00"}
+{"place_uuid":"fdcf6359-c2fa-559b-9995-d6c2c916788a","title":"Koppelkyrkogård järnväg","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:57:49.263856+00"}
+{"place_uuid":"fe7761c0-50f4-573b-b3e7-0f25a4005b1d","title":"Björkö-Birka (Island in Lake Mälaren with remnants of the former trading town Birka)","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:34:27.394975+00"}
+{"place_uuid":"fe9502df-84df-504b-a491-a3e2dca8af6c","title":"Snarsmon","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:45:54.333471+00"}
+{"place_uuid":"ff1475fd-3863-5820-a9c5-e90bbdcf7e6e","title":"Karlsvärd Fortress","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 14:39:19.893708+00"}
+{"place_uuid":"ff79a070-1939-40fd-be2f-4c78490d9734","title":"Bergaholms gravfält med runsten","set_by":"vQCtnlYDZPa5uilEqDT8IVwA5V92","updated_at":"2026-10-12 10:14:42.988366+00"}

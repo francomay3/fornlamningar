@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 """
-Stage 3: group sites into visitable destinations.
+Group sites into visitable destinations.
+
+Not a pipeline stage. run_pipeline.sh leaves the clusters table as it is;
+this script is the hand run that rewrites it. A representative moved on
+purpose does not survive a run of this file.
 
 A visitor cares about a *place*, not a database record: a gravfalt of 40
 stensattningar sharing one signpost is one destination. Clustering before

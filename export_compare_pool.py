@@ -53,6 +53,32 @@ VIEWS_BELOW = 500
 EXPORT_N = 6000
 
 
+def score_cut(top, cluster="c"):
+    """SQL fragment, including the leading AND.
+
+    The N best register places by score_full, plus every Google place.
+    The Google places are not register monuments, so that score never
+    ranks them into the N, and a plain LIMIT drops all of them. They are
+    added beside the cut, and the cut is taken without them, so none of
+    the N seats is spent on one.
+    """
+    n = int(top)
+    if n <= 0:
+        return ""
+    return f"""AND (
+        {cluster}.cluster_id IN (
+            SELECT cx.cluster_id FROM clusters cx
+              JOIN scores sx ON sx.cluster_id = cx.cluster_id
+             WHERE cx.lon IS NOT NULL
+               AND sx.excluded_hard = 0 AND sx.excluded_soft = 0
+               AND COALESCE(cx.method, '') <> 'google'
+             ORDER BY sx.score_full DESC
+             LIMIT {n}
+        )
+        OR {cluster}.method = 'google'
+    )"""
+
+
 def _log1p(value):
     return round(math.log1p(max(0.0, value or 0.0)), 4)
 
@@ -103,8 +129,8 @@ def write_compare_pool(path=None):
          WHERE c.lon IS NOT NULL
            AND sc.excluded_hard = 0 AND sc.excluded_soft = 0
            AND c.rep_uuid IS NOT NULL AND c.rep_uuid <> ''
+           {score_cut(EXPORT_N)}
          ORDER BY sc.score_full DESC
-         LIMIT {EXPORT_N}
     """).fetchall()
     os.makedirs(os.path.dirname(path), exist_ok=True)
     n = 0

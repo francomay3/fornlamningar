@@ -33,10 +33,11 @@ import paths
 
 ORDER = """
     CASE i.source WHEN 'commons_wikidata' THEN 0
-                  WHEN 'arkiv' THEN 1
-                  WHEN 'county_pdf' THEN 2
-                  WHEN 'county_page' THEN 3
-                  ELSE 4 END, i.image_id
+                  WHEN 'commons_article' THEN 1
+                  WHEN 'arkiv' THEN 2
+                  WHEN 'county_pdf' THEN 3
+                  WHEN 'county_page' THEN 4
+                  ELSE 5 END, i.image_id
 """
 
 

@@ -216,6 +216,12 @@ FAMILY = {
     'Fångstgropssystem': 'hunting',
     'Fångstgård': 'hunting',
 
+    # Not register classes. The Google places include two groups the
+    # register has no word for: a cave you walk into, and a named natural
+    # feature (a boulder, a waterfall, a giant's kettle, a big tree).
+    'Grotta': 'misc',
+    'Naturminne': 'misc',
+
     # Other & uncertain
     'Fornlämningsliknande bildning': 'misc',
     'Fornlämningsliknande lämning': 'misc',
